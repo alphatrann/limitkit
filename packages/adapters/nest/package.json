@@ -1,0 +1,10 @@
+{
+  "name": "@limitkit/nest",
+  "version": "0.1.0",
+  "dependencies": {
+    "@limitkit/core": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts"
+  }
+}
