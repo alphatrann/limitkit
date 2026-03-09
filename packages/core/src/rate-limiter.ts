@@ -1,3 +1,4 @@
+import { EmptyRulesException } from "./exceptions/empty-rules-exception";
 import {
   DebugLimitResult,
   Limiter,
@@ -50,7 +51,7 @@ export class RateLimiter<C> implements Limiter<C> {
    *
    * @param config - Configuration for the rate limiter
    * @param config.store - Required. The storage backend for tracking rate limit state.
-   * @param config.rules - Optional. Initial set of rate limiting rules to apply.
+   * @param config.rules - Required. Initial set of rate limiting rules to apply.
    *                       Can be updated later via direct access or new instances.
    * @param config.debug - Optional. When true, returns detailed information about
    *                       each evaluated rule. Useful for troubleshooting. Defaults to false.
@@ -60,10 +61,11 @@ export class RateLimiter<C> implements Limiter<C> {
     debug,
     store,
   }: {
-    rules?: LimitRule<C>[];
-    debug?: boolean;
+    rules: LimitRule<C>[];
     store: Store;
+    debug?: boolean;
   }) {
+    if (rules.length === 0) throw new EmptyRulesException();
     this.rules = rules ?? this.rules;
     this.debug = debug ?? this.debug;
     this.store = store;
@@ -114,7 +116,8 @@ export class RateLimiter<C> implements Limiter<C> {
       result = await this.store.consume(key, config, cost ?? 1);
       if (this.debug) {
         debugRules.push({ ...result, name: rule.name });
-        console.log(debugRules);
+        if (result.allowed) console.log(debugRules);
+        else console.error(debugRules);
       }
       if (result.remaining === 0) {
         if (this.debug) {
@@ -123,15 +126,20 @@ export class RateLimiter<C> implements Limiter<C> {
             ...result,
             details: debugRules,
           };
-          console.log(debugResults);
           return debugResults;
         }
         return result;
       }
     }
-    return {
-      ...result,
-      details: this.debug ? debugRules : undefined,
-    } as DebugLimitResult;
+    if (this.debug) {
+      const final = {
+        ...result,
+        details: this.debug ? debugRules : undefined,
+      };
+      console.log(final);
+      return final as DebugLimitResult;
+    }
+
+    return result!;
   }
 }
