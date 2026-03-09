@@ -1,31 +1,45 @@
 /**
- * @description represents the result of a rate limit check.
+ * Result of a rate limit check for a single request.
+ *
+ * Indicates whether the request is allowed, how many requests remain in the current
+ * window, and when the limit resets.
  */
 export interface RateLimitResult {
+  /**
+   * Whether the request is allowed (true = within limits, false = limit exceeded).
+   */
   allowed: boolean;
 
   /**
-   * @description number of requests remaining
-   * */
+   * Number of requests remaining in the current rate limit window.
+   * When `allowed` is false, this is typically 0.
+   */
   remaining: number;
 
   /**
-   * @description Unix timestamp when the limit fully resets in milliseconds
+   * Unix timestamp (in milliseconds) when the rate limit counter fully resets.
+   * Useful for implementing client-side backoff strategies.
    */
   reset: number;
 
   /**
-   * @description how long to wait before making a follow-up request in seconds
+   * If the request is rate limited, suggests how many seconds to wait before retrying.
+   * Clients should use exponential backoff and add jitter, rather than strictly following this value.
+   * Only present when `allowed` is false.
    */
   retryAfter?: number;
 }
 
 /**
- * @description represents the result of rate limit check in debugging mode
+ * Extended rate limit result with debug information.
+ *
+ * Returned when debug mode is enabled on the RateLimiter. Includes details about
+ * all evaluated rules and which rule caused the rate limit (if any).
  */
 export interface DebugLimitResult extends RateLimitResult {
   /**
-   * @description the name of rule at which the limit is exceeded
+   * The name of the rule that caused the rate limit to be exceeded.
+   * If the request was allowed, this is null.
    */
   failedRule: string | null;
 
