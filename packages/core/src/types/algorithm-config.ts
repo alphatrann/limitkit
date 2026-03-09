@@ -21,7 +21,7 @@ export enum Algorithm {
 /**
  * Configuration shared by window-based algorithms (FixedWindow, SlidingWindow, SlidingWindowCounter).
  */
-type WindowConfig = {
+interface WindowConfig {
   /**
    * Window duration in seconds. Resets occur at this interval.
    */
@@ -31,7 +31,66 @@ type WindowConfig = {
    * Maximum number of requests allowed within the window.
    */
   limit: number;
-};
+}
+
+export interface FixedWindowConfig extends WindowConfig {
+  name: Algorithm.FixedWindow;
+}
+
+export interface SlidingWindowConfig extends WindowConfig {
+  name: Algorithm.SlidingWindow;
+}
+
+export interface SlidingWindowCounterConfig extends WindowConfig {
+  name: Algorithm.SlidingWindowCounter;
+}
+
+export interface TokenBucketConfig {
+  name: Algorithm.TokenBucket;
+  /**
+   * Number of tokens to add back to the bucket per second.
+   */
+  refillRate: number;
+  /**
+   * Maximum capacity of the bucket (total tokens it can hold).
+   */
+  capacity: number;
+  /**
+   * Initial number of tokens in the bucket. Defaults to the capacity if not specified.
+   */
+  initialTokens?: number;
+}
+
+export interface LeakyBucketConfig {
+  name: Algorithm.LeakyBucket;
+  /**
+   * Number of requests to process and leak from the queue per second.
+   */
+  leakRate: number;
+  /**
+   * Maximum number of requests that can be queued at once.
+   */
+  capacity: number;
+}
+
+export interface GCRAConfig {
+  name: Algorithm.GCRA;
+  /**
+   * Time interval between request allowances in seconds (1/max-rate bucket).
+   */
+  interval: number;
+  /**
+   * Number of requests that can arrive simultaneously without penalty.
+   */
+  burst: number;
+}
+
+/**
+ * Interface defining parameters for a custom rate limiting algorithm.
+ */
+export interface CustomConfig extends Record<string, any> {
+  name: string;
+}
 
 /**
  * Configuration for supported rate limiting algorithms.
@@ -44,44 +103,10 @@ type WindowConfig = {
  * - Custom algorithm support via generic name + properties
  */
 export type AlgorithmConfig =
-  | ({ name: Algorithm.FixedWindow } & WindowConfig)
-  | ({ name: Algorithm.SlidingWindow } & WindowConfig)
-  | ({ name: Algorithm.SlidingWindowCounter } & WindowConfig)
-  | {
-      name: Algorithm.TokenBucket;
-      /**
-       * Number of tokens to add back to the bucket per second.
-       */
-      refillRate: number;
-      /**
-       * Maximum capacity of the bucket (total tokens it can hold).
-       */
-      capacity: number;
-      /**
-       * Initial number of tokens in the bucket. Defaults to the capacity if not specified.
-       */
-      initialTokens?: number;
-    }
-  | {
-      name: Algorithm.LeakyBucket;
-      /**
-       * Number of requests to process and leak from the queue per second.
-       */
-      leakRate: number;
-      /**
-       * Maximum number of requests that can be queued at once.
-       */
-      capacity: number;
-    }
-  | {
-      name: Algorithm.GCRA;
-      /**
-       * Time interval between request allowances in seconds (1/max-rate bucket).
-       */
-      interval: number;
-      /**
-       * Number of requests that can arrive simultaneously without penalty.
-       */
-      burst: number;
-    }
-  | ({ name: string } & Record<string, any>);
+  | FixedWindowConfig
+  | SlidingWindowConfig
+  | SlidingWindowCounterConfig
+  | TokenBucketConfig
+  | LeakyBucketConfig
+  | GCRAConfig
+  | CustomConfig;

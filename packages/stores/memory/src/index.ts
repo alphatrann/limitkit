@@ -1,1 +1,1 @@
-console.log("Hello from in-memory store");
+export * from "./algorithms";
