@@ -9,7 +9,7 @@ function createState(): SlidingWindowCounterState {
   };
 }
 
-describe("sliding window counter unit tests", () => {
+describe("slidingWindowCounter", () => {
   const config: SlidingWindowCounterConfig = {
     name: Algorithm.SlidingWindowCounter,
     limit: 10,

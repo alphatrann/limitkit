@@ -1,10 +1,5 @@
 import { Algorithm, LeakyBucketConfig } from "@limitkit/core";
-import { leakyBucket } from "../src";
-
-type LeakyBucketState = {
-  queueSize: number;
-  lastLeak: number | null;
-};
+import { leakyBucket, LeakyBucketState } from "../src";
 
 const config: LeakyBucketConfig = {
   name: Algorithm.LeakyBucket,

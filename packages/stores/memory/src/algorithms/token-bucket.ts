@@ -2,7 +2,7 @@ import { BadArgumentsException, TokenBucketConfig } from "@limitkit/core";
 import { TokenBucketState, AlgorithmResult } from "../types";
 
 /**
- * Implementation of token bucket (floating token version)
+ * Implementation of token bucket
  * Total time complexity: O(1)
  *
  * @param state internal state of token bucket algorithm

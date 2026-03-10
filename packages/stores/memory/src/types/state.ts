@@ -43,7 +43,7 @@ export type SlidingWindowCounterState = {
 
 export type GCRAState = {
   /** Theoretical Arrival Time for the next eligible request */
-  tat: number;
+  tat: number | null;
 };
 
 /**
