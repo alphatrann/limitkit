@@ -1,10 +1,5 @@
 import { Algorithm, TokenBucketConfig } from "@limitkit/core";
-import { tokenBucket } from "../src";
-
-type TokenBucketState = {
-  tokens: number;
-  lastRefill: number | null;
-};
+import { tokenBucket, TokenBucketState } from "../src";
 
 const config: TokenBucketConfig = {
   name: Algorithm.TokenBucket,
