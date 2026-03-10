@@ -12,11 +12,12 @@ export function fixedWindow(
   state: FixedWindowState,
   config: FixedWindowConfig,
   now: number,
-  cost: number,
+  cost: number = 1,
 ): AlgorithmResult {
-  const windowInMs = config.window * 1000;
-  const isStillInCurrentWindow = now - state.windowStart < windowInMs;
-
+  if (cost <= 0)
+    throw new BadArgumentsException(
+      `Cost must be a positive integer, got cost=${cost}`,
+    );
   if (config.limit <= 0)
     throw new BadArgumentsException(
       `Rate limit must be a positive integer, got limit=${config.limit}`,
@@ -26,6 +27,9 @@ export function fixedWindow(
     throw new BadArgumentsException(
       `Cost should never exceeded limit, expected to be below limit=${config.limit}, got cost=${cost}`,
     );
+
+  const windowInMs = config.window * 1000;
+  const isStillInCurrentWindow = now - state.windowStart < windowInMs;
 
   const hasExceededLimit = state.count + cost > config.limit;
   if (isStillInCurrentWindow && hasExceededLimit) {

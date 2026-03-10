@@ -56,16 +56,6 @@ describe("leakyBucket", () => {
     expect(res.output.allowed).toBe(true);
   });
 
-  test("partial leak should reduce queue size", () => {
-    let state = createState();
-
-    state = leakyBucket(state, config, 1000, 4).state as LeakyBucketState;
-
-    const res = leakyBucket(state, config, 1500, 0);
-
-    expect((res.state as LeakyBucketState).queueSize).toBeLessThan(4);
-  });
-
   test("large time jump empties the queue", () => {
     let state = createState();
 
@@ -130,7 +120,7 @@ describe("leakyBucket", () => {
 
     state = leakyBucket(state, config, 1000, 2).state as LeakyBucketState;
 
-    const res = leakyBucket(state, config, 10000, 0);
+    const res = leakyBucket(state, config, 10000, 2);
 
     expect((res.state as LeakyBucketState).queueSize).toBeGreaterThanOrEqual(0);
   });

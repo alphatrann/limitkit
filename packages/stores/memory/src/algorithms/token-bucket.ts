@@ -14,8 +14,12 @@ export function tokenBucket(
   state: TokenBucketState,
   config: TokenBucketConfig,
   now: number,
-  cost: number,
+  cost: number = 1,
 ): AlgorithmResult {
+  if (cost <= 0)
+    throw new BadArgumentsException(
+      `Cost must be a positive integer, got cost=${cost}`,
+    );
   if (config.capacity <= 0)
     throw new BadArgumentsException(
       `Capacity must be a positive integer, got capacity=${config.capacity}`,
