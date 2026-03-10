@@ -20,8 +20,14 @@ export type FixedWindowState = {
 };
 
 export type SlidingWindowState = {
-  /** Number of requests in the sliding window */
-  count: number;
+  /** Fixed array of timestamps in **ascending** order */
+  buffer: number[];
+
+  /** Index of the oldest element */
+  head: number;
+
+  /** Number of active timestamps */
+  size: number;
 };
 
 export type SlidingWindowCounterState = {

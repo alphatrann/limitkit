@@ -1,4 +1,4 @@
-import { EmptyRulesException } from "./exceptions/empty-rules-exception";
+import { EmptyRulesException } from "./exceptions";
 import {
   DebugLimitResult,
   Limiter,

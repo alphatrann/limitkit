@@ -1,9 +1,5 @@
-import {
-  AlgorithmResult,
-  BadArgumentsException,
-  FixedWindowConfig,
-  FixedWindowState,
-} from "@limitkit/core";
+import { AlgorithmResult, FixedWindowState } from "../types";
+import { BadArgumentsException, FixedWindowConfig } from "@limitkit/core";
 
 /**
  * Implementation of the fixed window algorithm
