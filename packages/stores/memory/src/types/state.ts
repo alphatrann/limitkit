@@ -1,15 +1,15 @@
 export type TokenBucketState = {
   /** Available tokens in the bucket */
   tokens: number;
-  /** Timestamp of the last token refill */
+  /** Timestamp of the last token refill (ms) */
   lastRefill: number | null;
 };
 
 export type LeakyBucketState = {
   /** Number of requests currently in the queue */
   queueSize: number;
-  /** Timestamp of the last leak event */
-  lastLeak: number;
+  /** Timestamp of the last leak event (ms) */
+  lastLeak: number | null;
 };
 
 export type FixedWindowState = {
@@ -20,7 +20,7 @@ export type FixedWindowState = {
 };
 
 export type SlidingWindowState = {
-  /** Fixed array of timestamps in **ascending** order */
+  /** Fixed array of timestamps (ms) in **ascending** order */
   buffer: number[];
 
   /** Index of the oldest element */
