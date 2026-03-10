@@ -2,7 +2,7 @@ export type TokenBucketState = {
   /** Available tokens in the bucket */
   tokens: number;
   /** Timestamp of the last token refill */
-  lastRefill: number;
+  lastRefill: number | null;
 };
 
 export type LeakyBucketState = {
