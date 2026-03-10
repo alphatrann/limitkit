@@ -3,8 +3,7 @@ import {
   BadArgumentsException,
   FixedWindowConfig,
 } from "@limitkit/core";
-import { fixedWindow } from "../src";
-import { FixedWindowState } from "../src/types";
+import { fixedWindow, FixedWindowState } from "../src";
 
 describe("fixedWindow", () => {
   const config: FixedWindowConfig = {

@@ -33,8 +33,12 @@ export type SlidingWindowState = {
 export type SlidingWindowCounterState = {
   /** Request count in the current window */
   count: number;
+
   /** Request count from the previous window */
   prevCount: number;
+
+  /** Start timestamp of the current window (ms) */
+  windowStart: number;
 };
 
 export type GCRAState = {

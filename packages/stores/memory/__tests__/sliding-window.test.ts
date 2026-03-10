@@ -1,5 +1,5 @@
 import { Algorithm, SlidingWindowConfig } from "@limitkit/core";
-import { slidingWindow } from "../src/algorithms";
+import { slidingWindow } from "../src";
 
 describe("Sliding window unit tests", () => {
   const limit = 5;
