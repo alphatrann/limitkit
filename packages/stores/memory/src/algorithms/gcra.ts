@@ -14,8 +14,13 @@ export function gcra(
   state: GCRAState,
   config: GCRAConfig,
   now: number,
-  cost: number,
+  cost: number = 1,
 ): AlgorithmResult {
+  if (cost <= 0)
+    throw new BadArgumentsException(
+      `Cost must be a positive integer, got cost=${cost}`,
+    );
+
   if (config.burst <= 0)
     throw new BadArgumentsException(
       `Burst must be a positive integer, got burst=${config.burst}`,
