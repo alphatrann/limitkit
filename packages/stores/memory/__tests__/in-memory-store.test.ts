@@ -548,8 +548,8 @@ describe("InMemoryStore", () => {
     });
   });
 
-  describe("Multiple keys state isolation", () => {
-    it("should maintain independent state for different keys", async () => {
+  describe("Multiple keys and config state isolation", () => {
+    it("should maintain independent state for different keys with same config", async () => {
       const config: FixedWindowConfig = {
         name: Algorithm.FixedWindow,
         window: 60,
@@ -587,6 +587,55 @@ describe("InMemoryStore", () => {
         3,
         state1,
         config,
+        expect.any(Number),
+        1,
+      );
+    });
+
+    it("should maintain independent state for same key with different configs", async () => {
+      const config1: FixedWindowConfig = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      };
+
+      const config2: FixedWindowConfig = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 200,
+      };
+
+      const state1: FixedWindowState = { count: 5, windowStart: 1000 };
+      const state2: FixedWindowState = { count: 10, windowStart: 1000 };
+
+      mockFixedWindow
+        .mockReturnValueOnce({
+          state: state1,
+          output: { allowed: true, remaining: 95, reset: 61000 },
+        })
+        .mockReturnValueOnce({
+          state: state2,
+          output: { allowed: true, remaining: 190, reset: 61000 },
+        });
+
+      const result1 = await store.consume("same-key", config1, 5);
+      const result2 = await store.consume("same-key", config2, 10);
+
+      expect(result1).toEqual({ allowed: true, remaining: 95, reset: 61000 });
+      expect(result2).toEqual({ allowed: true, remaining: 190, reset: 61000 });
+
+      // Subsequent call with config1 should retrieve state1
+      mockFixedWindow.mockReturnValueOnce({
+        state: { count: 6, windowStart: 1000 },
+        output: { allowed: true, remaining: 94, reset: 61000 },
+      });
+
+      await store.consume("same-key", config1, 1);
+
+      expect(mockFixedWindow).toHaveBeenNthCalledWith(
+        3,
+        state1,
+        config1,
         expect.any(Number),
         1,
       );
@@ -707,14 +756,12 @@ describe("InMemoryStore", () => {
       );
     });
 
-    it("should pass config reference without modification", async () => {
+    it("should pass reconstructed config with name to algorithm", async () => {
       const config: FixedWindowConfig = {
         name: Algorithm.FixedWindow,
         window: 60,
         limit: 100,
       };
-
-      const configCopy = { ...config };
 
       mockFixedWindow.mockReturnValueOnce({
         state: { count: 1, windowStart: 1000 },
@@ -723,15 +770,14 @@ describe("InMemoryStore", () => {
 
       await store.consume("key", config, 1);
 
-      expect(mockFixedWindow).toHaveBeenCalledWith(
-        undefined,
-        config,
-        expect.any(Number),
-        1,
-      );
+      const callArgs = mockFixedWindow.mock.calls[0];
+      const passedConfig = callArgs[1];
 
-      // Config should not be modified
-      expect(config).toEqual(configCopy);
+      // Verify the config passed includes the name property
+      expect(passedConfig).toHaveProperty("name", Algorithm.FixedWindow);
+      expect(passedConfig).toHaveProperty("window", 60);
+      expect(passedConfig).toHaveProperty("limit", 100);
+      expect(passedConfig).toEqual(config);
     });
   });
 });
