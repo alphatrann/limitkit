@@ -55,10 +55,6 @@ export interface TokenBucketConfig {
    * Maximum capacity of the bucket (total tokens it can hold).
    */
   capacity: number;
-  /**
-   * Initial number of tokens in the bucket. Defaults to the capacity if not specified.
-   */
-  initialTokens?: number;
 }
 
 export interface LeakyBucketConfig {

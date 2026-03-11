@@ -30,20 +30,14 @@ export function tokenBucket(
       `Refill rate must be a positive integer, got refill_rate=${config.refillRate}`,
     );
 
-  if (config.initialTokens && config.initialTokens <= 0)
-    throw new BadArgumentsException(
-      `Initial tokens must be a positive integer, got initial_tokens=${config.initialTokens}`,
-    );
-
   const capacity = config.capacity;
   const refillRate = config.refillRate; // tokens per second
-  const initialTokens = config.initialTokens ?? capacity;
 
   let { tokens, lastRefill } = state;
 
   if (lastRefill === null) {
-    tokens = initialTokens;
     lastRefill = now;
+    tokens = capacity;
   }
 
   // ----- refill -----
