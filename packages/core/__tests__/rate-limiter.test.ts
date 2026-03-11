@@ -1,7 +1,13 @@
 import { MockStore } from "../__mocks__";
-import { BadArgumentsException, RateLimiter, addConfigToKey } from "../src";
-import { EmptyRulesException } from "../src/exceptions/empty-rules-exception";
-import { Algorithm, AlgorithmConfig } from "../src/types";
+import {
+  EmptyRulesException,
+  Algorithm,
+  AlgorithmConfig,
+  FixedWindowConfig,
+  BadArgumentsException,
+  RateLimiter,
+  addConfigToKey,
+} from "../src";
 
 describe("RateLimiter", () => {
   let store: MockStore;
@@ -25,7 +31,11 @@ describe("RateLimiter", () => {
 
   describe("policy resolution", () => {
     it("should resolve static policy", async () => {
-      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const policy = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      } as FixedWindowConfig;
       const storeSpy = jest.spyOn(store, "consume").mockResolvedValue({
         allowed: true,
         remaining: 50,
@@ -76,7 +86,11 @@ describe("RateLimiter", () => {
         reset: Date.now(),
       });
 
-      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const policy = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      } as FixedWindowConfig;
       const modifiedKey = addConfigToKey(policy, "static-key");
       const rateLimiter = new RateLimiter({
         rules: [
@@ -102,7 +116,11 @@ describe("RateLimiter", () => {
         reset: Date.now(),
       });
 
-      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const policy = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      } as FixedWindowConfig;
       const modifiedKey = addConfigToKey(policy, "dynamic-key-value");
       const ctx = { userId: "user-123" };
       const rateLimiter = new RateLimiter({
@@ -125,7 +143,11 @@ describe("RateLimiter", () => {
 
   describe("cost extraction", () => {
     it("should throw a BadArgumentsException if cost is non-positive", async () => {
-      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const policy = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      } as FixedWindowConfig;
       const rateLimiter = new RateLimiter({
         rules: [
           {
@@ -150,7 +172,11 @@ describe("RateLimiter", () => {
         reset: Date.now(),
       });
 
-      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const policy = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      } as FixedWindowConfig;
       const modifiedKey = addConfigToKey(policy, "key1");
       const rateLimiter = new RateLimiter({
         rules: [
@@ -175,7 +201,11 @@ describe("RateLimiter", () => {
         reset: Date.now(),
       });
 
-      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const policy = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      } as FixedWindowConfig;
       const modifiedKey = addConfigToKey(policy, "key1");
       const rateLimiter = new RateLimiter({
         rules: [
@@ -202,7 +232,11 @@ describe("RateLimiter", () => {
         reset: Date.now(),
       });
 
-      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const policy = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      } as FixedWindowConfig;
       const modifiedKey = addConfigToKey(policy, "key1");
       const ctx = { multiplier: 2 };
       const rateLimiter = new RateLimiter({
