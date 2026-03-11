@@ -6,6 +6,7 @@ import {
   RateLimitResult,
   Store,
 } from "./types";
+import { addConfigToKey } from "./utils";
 
 /**
  * Core rate limiter implementation that enforces rate limiting rules.
@@ -113,7 +114,9 @@ export class RateLimiter<C> implements Limiter<C> {
       const cost =
         typeof rule.cost === "function" ? await rule.cost(ctx) : rule.cost;
 
-      result = await this.store.consume(key, config, cost ?? 1);
+      const keyWithConfig = addConfigToKey(config, key);
+
+      result = await this.store.consume(keyWithConfig, config, cost ?? 1);
       if (this.debug) {
         debugRules.push({ ...result, name: rule.name });
         if (result.allowed) console.log(debugRules);
