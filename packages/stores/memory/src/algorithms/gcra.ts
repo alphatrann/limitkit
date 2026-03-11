@@ -52,7 +52,6 @@ export function gcra(
   // ----- reject -----
   if (now < allowAt) {
     const retryAfter = Math.max(0, Math.ceil((allowAt - now) / 1000));
-    const reset = allowAt;
 
     return {
       state,
@@ -60,7 +59,7 @@ export function gcra(
         allowed: false,
         remaining: 0,
         retryAfter,
-        reset,
+        reset: tat,
       },
     };
   }
@@ -74,14 +73,12 @@ export function gcra(
     Math.floor((burstTolerance - backlog) / interval),
   );
 
-  const reset = tat - burstTolerance;
-
   return {
     state: { tat },
     output: {
       allowed: true,
       remaining,
-      reset,
+      reset: tat,
     },
   };
 }

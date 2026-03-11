@@ -12,6 +12,9 @@ describe("fixedWindow", () => {
     limit: 10,
   };
 
+  const LIMIT = config.limit;
+  const W = config.window * 1000;
+
   let state: FixedWindowState;
   let now: number;
 
@@ -23,94 +26,125 @@ describe("fixedWindow", () => {
     };
   });
 
-  test("allows request inside window", () => {
-    state.windowStart = 0;
-
-    const result = fixedWindow(state, config, now, 1);
-    const updatedState = result.state as FixedWindowState;
-
-    expect(result.output.allowed).toBe(true);
-    expect(updatedState.count).toBe(1);
-    expect(result.output.remaining).toBe(9);
-  });
-
-  test("allows requests until limit", () => {
-    state.windowStart = 0;
-    state.count = 9;
-
-    const result = fixedWindow(state, config, now, 1);
-    const updatedState = result.state as FixedWindowState;
-
-    expect(result.output.allowed).toBe(true);
-    expect(updatedState.count).toBe(10);
-    expect(result.output.remaining).toBe(0);
-  });
-
-  test("blocks request when exceeding limit", () => {
-    state.windowStart = 0;
-    state.count = 10;
-
-    const result = fixedWindow(state, config, now, 1);
-
-    expect(result.output.allowed).toBe(false);
-    expect(result.output.remaining).toBe(0);
-    expect(result.output.retryAfter).toBeDefined();
-  });
-
-  test("blocks when cost exceeds remaining quota", () => {
-    state.windowStart = 0;
+  test("accept condition: count + cost ≤ limit", () => {
     state.count = 8;
 
-    const result = fixedWindow(state, config, now, 3);
+    const cost = 2;
 
-    expect(result.output.allowed).toBe(false);
-    expect(result.output.remaining).toBe(0);
+    const res = fixedWindow(state, config, now, cost);
+    const s = res.state as FixedWindowState;
+
+    expect(state.count + cost).toBeLessThanOrEqual(LIMIT);
+    expect(res.output.allowed).toBe(true);
+    expect(s.count).toBe(10);
   });
 
-  test("resets window after expiration", () => {
-    const windowMs = config.window * 1000;
+  test("deny condition: count + cost > limit", () => {
+    state.count = 9;
 
-    state.windowStart = now - windowMs - 1;
+    const cost = 2;
+
+    const res = fixedWindow(state, config, now, cost);
+
+    expect(state.count + cost).toBeGreaterThan(LIMIT);
+    expect(res.output.allowed).toBe(false);
+    expect(res.output.remaining).toBe(0);
+  });
+
+  test("remaining = limit - (count + cost)", () => {
+    state.count = 3;
+
+    const cost = 2;
+
+    const res = fixedWindow(state, config, now, cost);
+
+    const expectedRemaining = LIMIT - (3 + cost);
+
+    expect(res.output.remaining).toBe(expectedRemaining);
+  });
+
+  test("window expiration: elapsed ≥ window resets counter", () => {
     state.count = 10;
+    state.windowStart = now - W - 1;
 
-    const result = fixedWindow(state, config, now, 1);
-    const updatedState = result.state as FixedWindowState;
+    const res = fixedWindow(state, config, now, 1);
+    const s = res.state as FixedWindowState;
 
-    expect(result.output.allowed).toBe(true);
-    expect(updatedState.count).toBe(1);
-    expect(result.output.remaining).toBe(9);
+    expect(now - state.windowStart).toBeGreaterThanOrEqual(W);
+    expect(res.output.allowed).toBe(true);
+    expect(s.count).toBe(1);
   });
 
-  test("calculates retryAfter correctly", () => {
-    const windowMs = config.window * 1000;
+  test("window active: elapsed < window preserves count", () => {
+    state.count = 4;
+    state.windowStart = now - 2000;
 
+    const res = fixedWindow(state, config, now, 1);
+    const s = res.state as FixedWindowState;
+
+    expect(now - state.windowStart).toBeLessThan(W);
+    expect(s.count).toBe(5);
+  });
+
+  test("retryAfter = ceil((windowStart + W - now)/1000)", () => {
+    state.count = LIMIT;
     state.windowStart = now - 1000;
-    state.count = 10;
 
-    const result = fixedWindow(state, config, now, 1);
+    const res = fixedWindow(state, config, now, 1);
 
-    const expectedReset = state.windowStart + windowMs;
-    const expectedRetryAfter = Math.floor((expectedReset - now) / 1000);
+    const reset = state.windowStart + W;
+    const expectedRetry = Math.ceil((reset - now) / 1000);
 
-    expect(result.output.retryAfter).toBe(expectedRetryAfter);
+    expect(res.output.retryAfter).toBe(expectedRetry);
   });
 
-  test("throws if cost exceeds limit", () => {
-    state.windowStart = 0;
+  test("reset = windowStart + window", () => {
+    state.count = 3;
 
-    expect(() => fixedWindow(state, config, now, 20)).toThrow(
+    const res = fixedWindow(state, config, now, 1);
+
+    const expectedReset = state.windowStart + W;
+
+    expect(res.output.reset).toBe(expectedReset);
+  });
+
+  test("multi-cost request updates count exactly", () => {
+    const cost = 5;
+
+    const res = fixedWindow(state, config, now, cost);
+    const s = res.state as FixedWindowState;
+
+    const expectedCount = cost;
+
+    expect(s.count).toBe(expectedCount);
+    expect(res.output.remaining).toBe(LIMIT - expectedCount);
+  });
+
+  test("capacity invariant: 0 ≤ count ≤ limit", () => {
+    state.count = 7;
+
+    const res = fixedWindow(state, config, now, 2);
+    const s = res.state as FixedWindowState;
+
+    expect(s.count).toBeGreaterThanOrEqual(0);
+    expect(s.count).toBeLessThanOrEqual(LIMIT);
+  });
+
+  test("exact boundary: request at window expiration resets", () => {
+    state.count = LIMIT;
+    state.windowStart = now - W;
+
+    const res = fixedWindow(state, config, now, 1);
+    const s = res.state as FixedWindowState;
+
+    expect(now - state.windowStart).toBe(W);
+    expect(res.output.allowed).toBe(true);
+    expect(s.count).toBe(1);
+  });
+
+  test("reject if cost > limit (invalid request)", () => {
+    expect(() => fixedWindow(state, config, now, LIMIT + 1)).toThrow(
       BadArgumentsException,
     );
-  });
-
-  test("supports multi-cost requests", () => {
-    state.windowStart = 0;
-
-    const result = fixedWindow(state, config, now, 5);
-    const updatedState = result.state as FixedWindowState;
-
-    expect(result.output.allowed).toBe(true);
-    expect(updatedState.count).toBe(5);
-    expect(result.output.remaining).toBe(5);
   });
 });

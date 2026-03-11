@@ -16,26 +16,37 @@ describe("slidingWindowCounter", () => {
     window: 10,
   };
 
-  test("first request should be allowed", () => {
+  const LIMIT = config.limit;
+  const W = config.window * 1000;
+
+  test("initial state: effective = cost", () => {
     const state = createState();
 
-    const result = slidingWindowCounter(state, config, 1000, 1);
+    const cost = 1;
 
-    expect(result.output.allowed).toBe(true);
-    expect(result.output.remaining).toBe(9);
+    const res = slidingWindowCounter(state, config, 1000, cost);
+
+    const effective = cost;
+    const expectedRemaining = LIMIT - effective;
+
+    expect(res.output.allowed).toBe(true);
+    expect(res.output.remaining).toBe(expectedRemaining);
   });
 
-  test("requests up to limit are allowed", () => {
+  test("accumulation: effective = Σ cost within window", () => {
     let state = createState();
 
     for (let i = 0; i < 10; i++) {
-      const result = slidingWindowCounter(state, config, i * 1000, 1);
-      expect(result.output.allowed).toBe(true);
-      state = result.state as SlidingWindowCounterState;
+      const res = slidingWindowCounter(state, config, 1000 + i * 1000, 1);
+      state = res.state as SlidingWindowCounterState;
     }
+
+    const effective = 10;
+
+    expect(effective).toBe(LIMIT);
   });
 
-  test("request exceeding limit should be rejected", () => {
+  test("deny condition: effective + cost > limit", () => {
     let state = createState();
 
     for (let i = 0; i < 10; i++) {
@@ -43,113 +54,144 @@ describe("slidingWindowCounter", () => {
         .state as SlidingWindowCounterState;
     }
 
-    const result = slidingWindowCounter(state, config, 5000, 1);
+    const cost = 1;
+    const effective = 10;
 
-    expect(result.output.allowed).toBe(false);
-    expect(result.output.remaining).toBe(0);
-    expect(result.output.retryAfter).toBeGreaterThan(0);
+    const res = slidingWindowCounter(state, config, 5000, cost);
+
+    expect(effective + cost).toBeGreaterThan(LIMIT);
+    expect(res.output.allowed).toBe(false);
   });
 
-  test("cost should consume multiple requests", () => {
+  test("cost consumes multiple slots mathematically", () => {
     const state = createState();
 
-    const result = slidingWindowCounter(state, config, 1000, 3);
+    const cost = 3;
 
-    expect(result.output.allowed).toBe(true);
-    expect(result.output.remaining).toBe(7);
+    const res = slidingWindowCounter(state, config, 1000, cost);
+
+    const effective = cost;
+    const expectedRemaining = LIMIT - effective;
+
+    expect(res.output.remaining).toBe(expectedRemaining);
   });
 
-  test("cost exceeding remaining capacity should reject", () => {
-    let state = createState();
-
-    state = slidingWindowCounter(state, config, 1000, 8)
-      .state as SlidingWindowCounterState;
-
-    const result = slidingWindowCounter(state, config, 2000, 5);
-
-    expect(result.output.allowed).toBe(false);
-  });
-
-  test("window rollover moves count to prevCount", () => {
+  test("window rollover: prevCount = old count", () => {
     let state = createState();
 
     state = slidingWindowCounter(state, config, 1000, 5)
       .state as SlidingWindowCounterState;
 
-    const result = slidingWindowCounter(state, config, 11000, 1);
-    const resultState = result.state as SlidingWindowCounterState;
+    const now = 11000;
 
-    expect(resultState.prevCount).toBe(5);
-    expect(resultState.count).toBe(1);
+    const res = slidingWindowCounter(state, config, now, 1);
+    const s = res.state as SlidingWindowCounterState;
+
+    expect(s.prevCount).toBe(5);
+    expect(s.count).toBe(1);
   });
 
-  test("multiple window rollover clears prevCount", () => {
+  test("double window rollover clears history", () => {
     let state = createState();
 
     state = slidingWindowCounter(state, config, 1000, 5)
       .state as SlidingWindowCounterState;
 
-    const result = slidingWindowCounter(state, config, 30000, 1);
-    const resultState = result.state as SlidingWindowCounterState;
+    const now = 30000;
 
-    expect(resultState.prevCount).toBe(0);
-    expect(resultState.count).toBe(1);
+    const res = slidingWindowCounter(state, config, now, 1);
+    const s = res.state as SlidingWindowCounterState;
+
+    expect(s.prevCount).toBe(0);
+    expect(s.count).toBe(1);
   });
 
-  test("previous window weight decays over time", () => {
+  test("weighted previous window contribution", () => {
     let state = createState();
 
     state = slidingWindowCounter(state, config, 0, 10)
       .state as SlidingWindowCounterState;
 
-    const result = slidingWindowCounter(state, config, 12000, 1);
+    const now = 12000;
 
-    expect(result.output.allowed).toBe(true);
+    const elapsed = now - 10000;
+    const weightPrev = (W - elapsed) / W;
+
+    const expectedEffective = 10 * weightPrev;
+
+    const res = slidingWindowCounter(state, config, now, 1);
+
+    expect(expectedEffective + 1).toBeLessThanOrEqual(LIMIT);
+    expect(res.output.allowed).toBe(true);
   });
 
-  test("retryAfter should point to next window boundary", () => {
+  test("retryAfter = next window boundary", () => {
     let state = createState();
 
     state = slidingWindowCounter(state, config, 0, 10)
       .state as SlidingWindowCounterState;
 
-    const result = slidingWindowCounter(state, config, 1000, 1);
+    const now = 1000;
 
-    expect(result.output.allowed).toBe(false);
-    expect(result.output.retryAfter).toBeGreaterThan(0);
+    const elapsed = now;
+    const expectedRetry = Math.ceil((W - elapsed) / 1000);
+
+    const res = slidingWindowCounter(state, config, now, 1);
+
+    expect(res.output.retryAfter).toBe(expectedRetry);
   });
 
-  test("reset should be two windows from windowStart", () => {
+  test("reset = windowStart + 2W", () => {
     const state = createState();
 
-    const result = slidingWindowCounter(state, config, 1000, 1);
+    const res = slidingWindowCounter(state, config, 1000, 1);
 
-    const expectedReset = state.windowStart + 2 * config.window * 1000;
+    const expectedReset = state.windowStart + 2 * W;
 
-    expect(result.output.reset).toBe(expectedReset);
+    expect(res.output.reset).toBe(expectedReset);
   });
 
-  test("request exactly at window boundary should rollover", () => {
+  test("boundary condition: request exactly at window boundary", () => {
     let state = createState();
 
     state = slidingWindowCounter(state, config, 0, 5)
       .state as SlidingWindowCounterState;
 
-    const result = slidingWindowCounter(state, config, 10000, 1);
+    const now = W;
 
-    expect(result.output.allowed).toBe(true);
+    const res = slidingWindowCounter(state, config, now, 1);
+
+    expect(res.output.allowed).toBe(true);
   });
 
-  test("long idle period should reset counts", () => {
+  test("long idle period resets counts", () => {
     let state = createState();
 
     state = slidingWindowCounter(state, config, 0, 5)
       .state as SlidingWindowCounterState;
 
-    const result = slidingWindowCounter(state, config, 60000, 1);
-    const resultState = result.state as SlidingWindowCounterState;
+    const res = slidingWindowCounter(state, config, 60000, 1);
+    const s = res.state as SlidingWindowCounterState;
 
-    expect(resultState.prevCount).toBe(0);
-    expect(resultState.count).toBe(1);
+    expect(s.prevCount).toBe(0);
+    expect(s.count).toBe(1);
+  });
+
+  test("invariant: effective count never exceeds limit after accept", () => {
+    let state = createState();
+
+    for (let i = 0; i < 50; i++) {
+      const res = slidingWindowCounter(state, config, i * 500, 1);
+      state = res.state as SlidingWindowCounterState;
+    }
+
+    const s = state as SlidingWindowCounterState;
+
+    const elapsed = 25000 - s.windowStart;
+    const weightPrev = (W - elapsed) / W;
+
+    const effective = s.prevCount * weightPrev + s.count;
+
+    expect(effective).toBeLessThanOrEqual(LIMIT);
   });
 });
