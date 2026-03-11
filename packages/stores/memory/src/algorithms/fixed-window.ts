@@ -14,10 +14,6 @@ export function fixedWindow(
   now: number,
   cost: number = 1,
 ): AlgorithmResult {
-  if (cost <= 0)
-    throw new BadArgumentsException(
-      `Cost must be a positive integer, got cost=${cost}`,
-    );
   if (config.limit <= 0)
     throw new BadArgumentsException(
       `Rate limit must be a positive integer, got limit=${config.limit}`,

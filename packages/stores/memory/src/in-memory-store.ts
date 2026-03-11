@@ -72,7 +72,6 @@ export class InMemoryStore implements Store {
     { name, ...config }: AlgorithmConfig,
     cost: number = 1,
   ): Promise<RateLimitResult> {
-    // Create a consistent config representation by sorting keys
     const state = this.map.get(key);
 
     const now = Date.now();
