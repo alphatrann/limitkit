@@ -29,7 +29,6 @@ import {
   slidingWindowCounter,
   tokenBucket,
 } from "./algorithms";
-import { createHash } from "crypto";
 
 /**
  * In-memory implementation of the Store interface.
@@ -38,28 +37,18 @@ import { createHash } from "crypto";
  * Sliding Window Counter, Token Bucket, Leaky Bucket, and GCRA) to track and enforce rate limits
  * for identifiers (keys) in memory.
  *
- * ## State Management Strategy
+ * ## State Management
  *
- * The store maintains independent rate limit state for each unique combination of:
- * - **Algorithm name**: The type of rate limiting algorithm (e.g., "fixed-window")
- * - **Algorithm configuration**: The specific parameters for that algorithm (e.g., window size, limit)
- * - **Key**: The identifier being rate limited (e.g., user ID, API token)
- *
- * This is achieved through composite key generation: `ratelimit:{name}:{configHash}:{key}`,
- * where `configHash` is a SHA-256 hash of the sorted config properties. This approach allows
- * the same key to maintain separate rate limit state for different configurations.
+ * The store maintains rate limit state for each key. Keys are pre-modified by the RateLimiter
+ * to include algorithm configuration information, ensuring different rate limit rules can share
+ * identifiers without state collision. The store receives these modified keys and treats them
+ * as simple string identifiers.
  *
  * @example
  * ```typescript
  * const store = new InMemoryStore();
- *
- * // Two different rate limit configs for the same key
- * const config1 = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
- * const config2 = { name: Algorithm.FixedWindow, window: 60, limit: 200 };
- *
- * // These maintain independent state internally
- * const result1 = await store.consume('user-123', config1, 1); // state for config1
- * const result2 = await store.consume('user-123', config2, 1); // separate state for config2
+ * const config = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+ * const result = await store.consume('user-123', config, 1);
  * ```
  *
  * ## Characteristics
@@ -68,11 +57,12 @@ import { createHash } from "crypto";
  * - **Single-instance**: Each InMemoryStore instance maintains its own isolated state map
  * - **Not distributed**: Cannot share state across multiple server instances
  * - **Algorithm agnostic**: The implementation delegates rate limiting logic to specific algorithm functions
+ * - **Key-based storage**: Uses keys as-is (pre-modified by RateLimiter to ensure uniqueness)
  *
  * @remarks
  * - All operations are asynchronous to maintain API consistency with the Store interface
  * - State is preserved across calls, allowing accumulated rate limit tracking
- * - Configuration changes are detected via hash-based comparison, ensuring proper state isolation
+ * - Key modification for config uniqueness is handled upstream by the RateLimiter
  */
 export class InMemoryStore implements Store {
   private map = new Map<string, State>();
@@ -83,15 +73,7 @@ export class InMemoryStore implements Store {
     cost: number = 1,
   ): Promise<RateLimitResult> {
     // Create a consistent config representation by sorting keys
-    const sortedKeys = Object.keys(config).sort();
-    const sortedConfig = sortedKeys.reduce((acc, k) => {
-      acc[k] = (config as any)[k];
-      return acc;
-    }, {} as any);
-    const configJson = JSON.stringify(sortedConfig);
-    const hashedConfig = createHash("sha256").update(configJson).digest("hex");
-    const modifiedKey = `ratelimit:${name}:${hashedConfig}:${key}`;
-    const state = this.map.get(modifiedKey);
+    const state = this.map.get(key);
 
     const now = Date.now();
     let result: AlgorithmResult;
@@ -148,7 +130,7 @@ export class InMemoryStore implements Store {
         throw new UnknownAlgorithmException(name);
     }
 
-    this.map.set(modifiedKey, result.state);
+    this.map.set(key, result.state);
 
     return result.output;
   }

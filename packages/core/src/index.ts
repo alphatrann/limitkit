@@ -38,3 +38,4 @@
 export * from "./rate-limiter";
 export * from "./types";
 export * from "./exceptions";
+export * from "./utils";
