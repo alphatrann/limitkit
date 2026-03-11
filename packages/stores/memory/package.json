@@ -2,8 +2,7 @@
   "name": "@limitkit/memory",
   "version": "0.1.0",
   "dependencies": {
-    "@limitkit/core": "workspace:*",
-    "@types/node": "^25.4.0"
+    "@limitkit/core": "workspace:*"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
