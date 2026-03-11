@@ -5,7 +5,6 @@ const config: TokenBucketConfig = {
   name: Algorithm.TokenBucket,
   capacity: 10,
   refillRate: 2, // tokens per second
-  initialTokens: 10,
 };
 
 function createState(): TokenBucketState {

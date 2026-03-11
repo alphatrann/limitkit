@@ -2,7 +2,7 @@ import { BadArgumentsException, LeakyBucketConfig } from "@limitkit/core";
 import { AlgorithmResult, LeakyBucketState } from "../types";
 
 /**
- * Implementation of leaky bucket (floating token version)
+ * Implementation of leaky bucket
  * Total time complexity: O(1)
  *
  * @param state internal state of leaky bucket algorithm
@@ -59,7 +59,7 @@ export function leakyBucket(
   queueSize += cost;
 
   const reset = now + (queueSize / leakRate) * 1000;
-  const remaining = Math.max(0, capacity - Math.floor(queueSize));
+  const remaining = Math.max(0, Math.floor(capacity - queueSize));
 
   return {
     state: { queueSize, lastLeak },
