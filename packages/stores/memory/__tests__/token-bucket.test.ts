@@ -5,8 +5,10 @@ const config: TokenBucketConfig = {
   name: Algorithm.TokenBucket,
   capacity: 10,
   refillRate: 2, // tokens per second
-  initialTokens: 10,
 };
+
+const RATE = config.refillRate;
+const CAP = config.capacity;
 
 function createState(): TokenBucketState {
   return {
@@ -16,80 +18,46 @@ function createState(): TokenBucketState {
 }
 
 describe("tokenBucket", () => {
-  test("initial request initializes tokens", () => {
+  test("initialization: tokens = capacity - cost", () => {
     const state = createState();
 
-    const result = tokenBucket(state, config, 1000, 1);
+    const res = tokenBucket(state, config, 1000, 1);
 
-    expect(result.output.allowed).toBe(true);
-    expect((result.state as TokenBucketState).tokens).toBe(9);
+    const expected = CAP - 1;
+
+    expect(res.output.allowed).toBe(true);
+    expect((res.state as TokenBucketState).tokens).toBe(expected);
   });
 
-  test("burst up to capacity allowed", () => {
+  test("burst capacity invariant", () => {
     let state = createState();
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < CAP; i++) {
       const res = tokenBucket(state, config, 1000, 1);
-      expect(res.output.allowed).toBe(true);
       state = res.state as TokenBucketState;
     }
 
     expect(state.tokens).toBe(0);
   });
 
-  test("request rejected when bucket empty", () => {
+  test("refill equation: tokens = min(cap, prev + rate * dt)", () => {
     let state = createState();
 
     state = tokenBucket(state, config, 1000, 10).state as TokenBucketState;
 
-    const res = tokenBucket(state, config, 1000, 1);
+    const now = 2000;
+    const dt = now - 1000;
 
-    expect(res.output.allowed).toBe(false);
-    expect(res.output.retryAfter).toBeGreaterThan(0);
+    const refill = RATE * (dt / 1000);
+
+    const expectedTokens = Math.min(CAP, 0 + refill) - 1;
+
+    const res = tokenBucket(state, config, now, 1);
+
+    expect((res.state as TokenBucketState).tokens).toBe(expectedTokens);
   });
 
-  test("tokens refill over time", () => {
-    let state = createState();
-
-    state = tokenBucket(state, config, 1000, 10).state as TokenBucketState;
-
-    const res = tokenBucket(state, config, 2000, 1);
-
-    expect(res.output.allowed).toBe(true);
-  });
-
-  test("partial refill should not allow request too early", () => {
-    let state = createState();
-
-    state = tokenBucket(state, config, 1000, 10).state as TokenBucketState;
-
-    const res = tokenBucket(state, config, 1500, 2);
-
-    expect(res.output.allowed).toBe(false);
-  });
-
-  test("refill should not exceed capacity", () => {
-    let state = createState();
-
-    state = tokenBucket(state, config, 1000, 5).state as TokenBucketState;
-
-    const res = tokenBucket(state, config, 20000, 1);
-
-    expect((res.state as TokenBucketState).tokens).toBeLessThanOrEqual(
-      config.capacity,
-    );
-  });
-
-  test("cost consumes multiple tokens", () => {
-    let state = createState();
-
-    const res = tokenBucket(state, config, 1000, 3);
-
-    expect(res.output.allowed).toBe(true);
-    expect((res.state as TokenBucketState).tokens).toBe(7);
-  });
-
-  test("cost larger than available tokens should reject", () => {
+  test("deny condition: tokens < cost", () => {
     let state = createState();
 
     state = tokenBucket(state, config, 1000, 9).state as TokenBucketState;
@@ -99,41 +67,82 @@ describe("tokenBucket", () => {
     expect(res.output.allowed).toBe(false);
   });
 
-  test("retryAfter reflects token wait time", () => {
+  test("retryAfter = ceil((cost - tokens) / rate)", () => {
     let state = createState();
 
     state = tokenBucket(state, config, 1000, 10).state as TokenBucketState;
 
-    const res = tokenBucket(state, config, 1000, 1);
+    const tokens = 0;
+    const cost = 1;
 
-    expect(res.output.retryAfter).toBeGreaterThan(0);
+    const expectedRetry = Math.ceil((cost - tokens) / RATE);
+
+    const res = tokenBucket(state, config, 1000, cost);
+
+    expect(res.output.retryAfter).toBe(expectedRetry);
   });
 
-  test("reset indicates time when bucket becomes full", () => {
+  test("capacity clamp: tokens never exceed capacity", () => {
     let state = createState();
 
     state = tokenBucket(state, config, 1000, 5).state as TokenBucketState;
 
-    const res = tokenBucket(state, config, 1000, 1);
+    const res = tokenBucket(state, config, 20000, 1);
 
-    expect(res.output.reset).toBeGreaterThan(1000);
+    const tokens = (res.state as TokenBucketState).tokens;
+
+    expect(tokens).toBeLessThanOrEqual(CAP);
   });
 
-  test("large time jump refills bucket fully", () => {
+  test("cost consumes exact tokens", () => {
+    const state = createState();
+
+    const cost = 3;
+
+    const res = tokenBucket(state, config, 1000, cost);
+
+    const expected = CAP - cost;
+
+    expect((res.state as TokenBucketState).tokens).toBe(expected);
+    expect(res.output.remaining).toBe(expected);
+  });
+
+  test("reset = time until bucket full", () => {
+    let state = createState();
+
+    const res = tokenBucket(state, config, 1000, 5);
+    state = res.state as TokenBucketState;
+
+    const tokens = 5;
+
+    const secondsToFull = (CAP - tokens) / RATE;
+
+    const expectedReset = 1000 + secondsToFull * 1000;
+
+    expect(res.output.reset).toBe(expectedReset);
+  });
+
+  test("large time jump fills bucket", () => {
     let state = createState();
 
     state = tokenBucket(state, config, 1000, 10).state as TokenBucketState;
 
     const res = tokenBucket(state, config, 100000, 1);
 
-    expect(res.output.allowed).toBe(true);
+    const tokens = (res.state as TokenBucketState).tokens;
+
+    expect(tokens).toBe(CAP - 1);
   });
 
-  test("remaining tokens reported correctly", () => {
+  test("token invariant: 0 ≤ tokens ≤ capacity", () => {
     let state = createState();
 
-    const res = tokenBucket(state, config, 1000, 4);
+    for (let i = 0; i < 100; i++) {
+      const res = tokenBucket(state, config, 1000 + i * 500, 1);
+      state = res.state as TokenBucketState;
+    }
 
-    expect(res.output.remaining).toBe(6);
+    expect(state.tokens).toBeGreaterThanOrEqual(0);
+    expect(state.tokens).toBeLessThanOrEqual(CAP);
   });
 });

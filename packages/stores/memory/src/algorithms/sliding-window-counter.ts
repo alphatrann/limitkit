@@ -48,7 +48,7 @@ export function slidingWindowCounter(
   if (effective + cost > limit) {
     const retryAfter = Math.max(
       0,
-      Math.ceil(windowStart + windowInMs - now) / 1000,
+      Math.ceil((windowStart + windowInMs - now) / 1000),
     );
     return {
       state: { windowStart, prevCount, count },

@@ -1,4 +1,4 @@
-import { EmptyRulesException } from "./exceptions";
+import { BadArgumentsException, EmptyRulesException } from "./exceptions";
 import {
   DebugLimitResult,
   Limiter,
@@ -113,6 +113,11 @@ export class RateLimiter<C> implements Limiter<C> {
 
       const cost =
         typeof rule.cost === "function" ? await rule.cost(ctx) : rule.cost;
+
+      if (cost && cost <= 0)
+        throw new BadArgumentsException(
+          `Cost must be a positive integer, got cost=${cost}`,
+        );
 
       const keyWithConfig = addConfigToKey(config, key);
 
