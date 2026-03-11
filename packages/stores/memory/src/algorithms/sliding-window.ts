@@ -16,11 +16,6 @@ export function slidingWindow(
   now: number,
   cost: number = 1,
 ): AlgorithmResult {
-  if (cost <= 0)
-    throw new BadArgumentsException(
-      `Cost must be a positive integer, got cost=${cost}`,
-    );
-
   if (config.limit <= 0)
     throw new BadArgumentsException(
       `Rate limit must be a positive integer, got limit=${config.limit}`,
@@ -42,10 +37,9 @@ export function slidingWindow(
 
   // reject
   if (size + cost > limit) {
-    const oldest = buffer[head];
     const newest = buffer[(head + size - 1) % limit];
     const reset = newest + windowMs;
-    const retryAfter = Math.max(0, Math.ceil(oldest + windowMs) / 1000);
+    const retryAfter = Math.max(0, Math.ceil(reset - now) / 1000);
     return {
       state,
       output: {

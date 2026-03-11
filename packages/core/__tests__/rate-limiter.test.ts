@@ -1,5 +1,5 @@
 import { MockStore } from "../__mocks__";
-import { RateLimiter, addConfigToKey } from "../src";
+import { BadArgumentsException, RateLimiter, addConfigToKey } from "../src";
 import { EmptyRulesException } from "../src/exceptions/empty-rules-exception";
 import { Algorithm, AlgorithmConfig } from "../src/types";
 
@@ -124,6 +124,25 @@ describe("RateLimiter", () => {
   });
 
   describe("cost extraction", () => {
+    it("should throw a BadArgumentsException if cost is non-positive", async () => {
+      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const rateLimiter = new RateLimiter({
+        rules: [
+          {
+            name: "rule1",
+            key: "key1",
+            policy,
+            cost: -1,
+          },
+        ],
+        store,
+      });
+
+      await expect(rateLimiter.consume({})).rejects.toThrow(
+        BadArgumentsException,
+      );
+    });
+
     it("should use default cost of 1 when not specified", async () => {
       const storeSpy = jest.spyOn(store, "consume").mockResolvedValue({
         allowed: true,
