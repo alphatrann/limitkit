@@ -956,6 +956,8 @@ __metadata:
 "@limitkit/core@workspace:*, @limitkit/core@workspace:packages/core":
   version: 0.0.0-use.local
   resolution: "@limitkit/core@workspace:packages/core"
+  dependencies:
+    "@types/node": "npm:^25.4.0"
   languageName: unknown
   linkType: soft
 
@@ -972,7 +974,6 @@ __metadata:
   resolution: "@limitkit/memory@workspace:packages/stores/memory"
   dependencies:
     "@limitkit/core": "workspace:*"
-    "@types/node": "npm:^25.4.0"
   languageName: unknown
   linkType: soft
 

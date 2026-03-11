@@ -1,7 +1,7 @@
 import { MockStore } from "../__mocks__";
-import { RateLimiter } from "../src";
+import { RateLimiter, addConfigToKey } from "../src";
 import { EmptyRulesException } from "../src/exceptions/empty-rules-exception";
-import { Algorithm, AlgorithmConfig, RateLimitResult } from "../src/types";
+import { Algorithm, AlgorithmConfig } from "../src/types";
 
 describe("RateLimiter", () => {
   let store: MockStore;
@@ -32,6 +32,7 @@ describe("RateLimiter", () => {
         reset: Date.now(),
       });
 
+      const modifiedKey = addConfigToKey(policy, "key1");
       const rateLimiter = new RateLimiter({
         rules: [{ name: "rule1", key: "key1", policy }],
         store,
@@ -39,7 +40,7 @@ describe("RateLimiter", () => {
 
       await rateLimiter.consume({});
 
-      expect(storeSpy).toHaveBeenCalledWith("key1", policy, 1);
+      expect(storeSpy).toHaveBeenCalledWith(modifiedKey, policy, 1);
     });
 
     it("should resolve dynamic policy function", async () => {
@@ -75,12 +76,14 @@ describe("RateLimiter", () => {
         reset: Date.now(),
       });
 
+      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const modifiedKey = addConfigToKey(policy, "static-key");
       const rateLimiter = new RateLimiter({
         rules: [
           {
             name: "rule1",
             key: "static-key",
-            policy: { name: Algorithm.FixedWindow, window: 60, limit: 100 },
+            policy,
           },
         ],
         store,
@@ -88,11 +91,7 @@ describe("RateLimiter", () => {
 
       await rateLimiter.consume({});
 
-      expect(storeSpy).toHaveBeenCalledWith(
-        "static-key",
-        expect.any(Object),
-        1,
-      );
+      expect(storeSpy).toHaveBeenCalledWith(modifiedKey, policy, 1);
     });
 
     it("should extract dynamic key from function", async () => {
@@ -103,13 +102,15 @@ describe("RateLimiter", () => {
         reset: Date.now(),
       });
 
+      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const modifiedKey = addConfigToKey(policy, "dynamic-key-value");
       const ctx = { userId: "user-123" };
       const rateLimiter = new RateLimiter({
         rules: [
           {
             name: "rule1",
             key: keyResolver,
-            policy: { name: Algorithm.FixedWindow, window: 60, limit: 100 },
+            policy,
           },
         ],
         store,
@@ -118,11 +119,7 @@ describe("RateLimiter", () => {
       await rateLimiter.consume(ctx);
 
       expect(keyResolver).toHaveBeenCalledWith(ctx);
-      expect(storeSpy).toHaveBeenCalledWith(
-        "dynamic-key-value",
-        expect.any(Object),
-        1,
-      );
+      expect(storeSpy).toHaveBeenCalledWith(modifiedKey, policy, 1);
     });
   });
 
@@ -134,12 +131,14 @@ describe("RateLimiter", () => {
         reset: Date.now(),
       });
 
+      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const modifiedKey = addConfigToKey(policy, "key1");
       const rateLimiter = new RateLimiter({
         rules: [
           {
             name: "rule1",
             key: "key1",
-            policy: { name: Algorithm.FixedWindow, window: 60, limit: 100 },
+            policy,
           },
         ],
         store,
@@ -147,7 +146,7 @@ describe("RateLimiter", () => {
 
       await rateLimiter.consume({});
 
-      expect(storeSpy).toHaveBeenCalledWith("key1", expect.any(Object), 1);
+      expect(storeSpy).toHaveBeenCalledWith(modifiedKey, policy, 1);
     });
 
     it("should extract static cost", async () => {
@@ -157,13 +156,15 @@ describe("RateLimiter", () => {
         reset: Date.now(),
       });
 
+      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const modifiedKey = addConfigToKey(policy, "key1");
       const rateLimiter = new RateLimiter({
         rules: [
           {
             name: "rule1",
             key: "key1",
             cost: 5,
-            policy: { name: Algorithm.FixedWindow, window: 60, limit: 100 },
+            policy,
           },
         ],
         store,
@@ -171,7 +172,7 @@ describe("RateLimiter", () => {
 
       await rateLimiter.consume({});
 
-      expect(storeSpy).toHaveBeenCalledWith("key1", expect.any(Object), 5);
+      expect(storeSpy).toHaveBeenCalledWith(modifiedKey, policy, 5);
     });
 
     it("should extract dynamic cost from function", async () => {
@@ -182,6 +183,8 @@ describe("RateLimiter", () => {
         reset: Date.now(),
       });
 
+      const policy = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+      const modifiedKey = addConfigToKey(policy, "key1");
       const ctx = { multiplier: 2 };
       const rateLimiter = new RateLimiter({
         rules: [
@@ -189,7 +192,7 @@ describe("RateLimiter", () => {
             name: "rule1",
             key: "key1",
             cost: costResolver,
-            policy: { name: Algorithm.FixedWindow, window: 60, limit: 100 },
+            policy,
           },
         ],
         store,
@@ -198,12 +201,12 @@ describe("RateLimiter", () => {
       await rateLimiter.consume(ctx);
 
       expect(costResolver).toHaveBeenCalledWith(ctx);
-      expect(storeSpy).toHaveBeenCalledWith("key1", expect.any(Object), 10);
+      expect(storeSpy).toHaveBeenCalledWith(modifiedKey, policy, 10);
     });
   });
 
   describe("store receives correct arguments", () => {
-    it("should call store.consume with correct arguments for single rule", async () => {
+    it("should call store.consume with modified key, policy, and cost", async () => {
       const storeSpy = jest.spyOn(store, "consume").mockResolvedValue({
         allowed: true,
         remaining: 42,
@@ -215,11 +218,14 @@ describe("RateLimiter", () => {
         window: 60,
         limit: 100,
       };
+      const originalKey = "my-key";
+      const modifiedKey = addConfigToKey(policy, originalKey);
+
       const rateLimiter = new RateLimiter({
         rules: [
           {
             name: "rule1",
-            key: "my-key",
+            key: originalKey,
             cost: 3,
             policy,
           },
@@ -230,10 +236,10 @@ describe("RateLimiter", () => {
       await rateLimiter.consume({});
 
       expect(storeSpy).toHaveBeenCalledTimes(1);
-      expect(storeSpy).toHaveBeenCalledWith("my-key", policy, 3);
+      expect(storeSpy).toHaveBeenCalledWith(modifiedKey, policy, 3);
     });
 
-    it("should call store.consume for each rule until one fails", async () => {
+    it("should call store.consume for each rule with modified keys", async () => {
       const storeSpy = jest
         .spyOn(store, "consume")
         .mockResolvedValueOnce({
@@ -242,8 +248,8 @@ describe("RateLimiter", () => {
           reset: Date.now(),
         })
         .mockResolvedValueOnce({
-          allowed: false,
-          remaining: 0,
+          allowed: true,
+          remaining: 99,
           reset: Date.now(),
         });
 
@@ -258,6 +264,9 @@ describe("RateLimiter", () => {
         limit: 50,
       };
 
+      const modifiedKey1 = addConfigToKey(policy1, "key1");
+      const modifiedKey2 = addConfigToKey(policy2, "key2");
+
       const rateLimiter = new RateLimiter({
         rules: [
           { name: "rule1", key: "key1", policy: policy1 },
@@ -269,8 +278,197 @@ describe("RateLimiter", () => {
       await rateLimiter.consume({});
 
       expect(storeSpy).toHaveBeenCalledTimes(2);
-      expect(storeSpy).toHaveBeenNthCalledWith(1, "key1", policy1, 1);
-      expect(storeSpy).toHaveBeenNthCalledWith(2, "key2", policy2, 1);
+      expect(storeSpy).toHaveBeenNthCalledWith(1, modifiedKey1, policy1, 1);
+      expect(storeSpy).toHaveBeenNthCalledWith(2, modifiedKey2, policy2, 1);
+    });
+  });
+
+  describe("key modification with addConfigToKey", () => {
+    it("should apply addConfigToKey to static keys", async () => {
+      const storeSpy = jest.spyOn(store, "consume").mockResolvedValue({
+        allowed: true,
+        remaining: 50,
+        reset: Date.now(),
+      });
+
+      const policy: AlgorithmConfig = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      };
+      const staticKey = "user-123";
+      const expectedModifiedKey = addConfigToKey(policy, staticKey);
+
+      const rateLimiter = new RateLimiter({
+        rules: [{ name: "rule1", key: staticKey, policy }],
+        store,
+      });
+
+      await rateLimiter.consume({});
+
+      expect(storeSpy).toHaveBeenCalledWith(expectedModifiedKey, policy, 1);
+    });
+
+    it("should apply addConfigToKey to dynamic keys from function", async () => {
+      const storeSpy = jest.spyOn(store, "consume").mockResolvedValue({
+        allowed: true,
+        remaining: 50,
+        reset: Date.now(),
+      });
+
+      const policy: AlgorithmConfig = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      };
+      const dynamicKey = "user-from-context";
+      const expectedModifiedKey = addConfigToKey(policy, dynamicKey);
+
+      const rateLimiter = new RateLimiter({
+        rules: [
+          {
+            name: "rule1",
+            key: () => dynamicKey,
+            policy,
+          },
+        ],
+        store,
+      });
+
+      await rateLimiter.consume({});
+
+      expect(storeSpy).toHaveBeenCalledWith(expectedModifiedKey, policy, 1);
+    });
+
+    it("should create different modified keys for same original key with different policies", async () => {
+      const storeSpy = jest
+        .spyOn(store, "consume")
+        .mockResolvedValueOnce({
+          allowed: true,
+          remaining: 50,
+          reset: Date.now(),
+        })
+        .mockResolvedValueOnce({
+          allowed: true,
+          remaining: 100,
+          reset: Date.now(),
+        });
+
+      const policy1: AlgorithmConfig = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      };
+      const policy2: AlgorithmConfig = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 200,
+      };
+
+      const originalKey = "same-key";
+      const modifiedKey1 = addConfigToKey(policy1, originalKey);
+      const modifiedKey2 = addConfigToKey(policy2, originalKey);
+
+      expect(modifiedKey1).not.toBe(modifiedKey2);
+
+      const rateLimiter = new RateLimiter({
+        rules: [
+          { name: "rule1", key: originalKey, policy: policy1 },
+          { name: "rule2", key: originalKey, policy: policy2 },
+        ],
+        store,
+      });
+
+      await rateLimiter.consume({});
+
+      expect(storeSpy).toHaveBeenNthCalledWith(1, modifiedKey1, policy1, 1);
+      expect(storeSpy).toHaveBeenNthCalledWith(2, modifiedKey2, policy2, 1);
+    });
+
+    it("should create different modified keys for different original keys with same policy", async () => {
+      const storeSpy = jest
+        .spyOn(store, "consume")
+        .mockResolvedValueOnce({
+          allowed: true,
+          remaining: 50,
+          reset: Date.now(),
+        })
+        .mockResolvedValueOnce({
+          allowed: true,
+          remaining: 50,
+          reset: Date.now(),
+        });
+
+      const policy: AlgorithmConfig = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      };
+
+      const modifiedKey1 = addConfigToKey(policy, "user-1");
+      const modifiedKey2 = addConfigToKey(policy, "user-2");
+
+      expect(modifiedKey1).not.toBe(modifiedKey2);
+
+      const rateLimiter = new RateLimiter({
+        rules: [
+          { name: "rule1", key: "user-1", policy },
+          { name: "rule2", key: "user-2", policy },
+        ],
+        store,
+      });
+
+      await rateLimiter.consume({});
+
+      expect(storeSpy).toHaveBeenNthCalledWith(1, modifiedKey1, policy, 1);
+      expect(storeSpy).toHaveBeenNthCalledWith(2, modifiedKey2, policy, 1);
+    });
+
+    it("should produce consistent modified keys across calls", async () => {
+      const storeSpy = jest.spyOn(store, "consume").mockResolvedValue({
+        allowed: true,
+        remaining: 50,
+        reset: Date.now(),
+      });
+
+      const policy: AlgorithmConfig = {
+        name: Algorithm.FixedWindow,
+        window: 60,
+        limit: 100,
+      };
+      const key = "test-key";
+      const expectedModifiedKey = addConfigToKey(policy, key);
+
+      const rateLimiter = new RateLimiter({
+        rules: [{ name: "rule1", key, policy }],
+        store,
+      });
+
+      // Call consume multiple times
+      await rateLimiter.consume({});
+      await rateLimiter.consume({});
+      await rateLimiter.consume({});
+
+      // All calls should use the same modified key
+      expect(storeSpy).toHaveBeenCalledTimes(3);
+      expect(storeSpy).toHaveBeenNthCalledWith(
+        1,
+        expectedModifiedKey,
+        policy,
+        1,
+      );
+      expect(storeSpy).toHaveBeenNthCalledWith(
+        2,
+        expectedModifiedKey,
+        policy,
+        1,
+      );
+      expect(storeSpy).toHaveBeenNthCalledWith(
+        3,
+        expectedModifiedKey,
+        policy,
+        1,
+      );
     });
   });
 
