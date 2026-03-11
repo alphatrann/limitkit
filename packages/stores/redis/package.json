@@ -2,9 +2,14 @@
   "name": "@limitkit/redis",
   "version": "0.1.0",
   "dependencies": {
-    "@limitkit/core": "workspace:*"
+    "@limitkit/core": "workspace:*",
+    "redis": "^5.11.0"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts"
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0"
   }
 }

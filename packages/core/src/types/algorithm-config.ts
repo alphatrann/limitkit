@@ -82,13 +82,6 @@ export interface GCRAConfig {
 }
 
 /**
- * Interface defining parameters for a custom rate limiting algorithm.
- */
-export interface CustomConfig extends Record<string, any> {
-  name: string;
-}
-
-/**
  * Configuration for supported rate limiting algorithms.
  *
  * Use the appropriate algorithm configuration based on your use case:
@@ -96,7 +89,6 @@ export interface CustomConfig extends Record<string, any> {
  * - TokenBucket: Supports traffic bursts while maintaining average rate
  * - LeakyBucket: Smooths traffic, prevents bursts
  * - GCRA: Precise rate limiting with low memory overhead
- * - Custom algorithm support via generic name + properties
  */
 export type AlgorithmConfig =
   | FixedWindowConfig
@@ -104,5 +96,4 @@ export type AlgorithmConfig =
   | SlidingWindowCounterConfig
   | TokenBucketConfig
   | LeakyBucketConfig
-  | GCRAConfig
-  | CustomConfig;
+  | GCRAConfig;
