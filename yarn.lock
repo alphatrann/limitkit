@@ -1570,6 +1570,7 @@ __metadata:
   resolution: "@limitkit/express@workspace:packages/adapters/express"
   dependencies:
     "@limitkit/core": "workspace:*"
+    "@limitkit/memory": "workspace:^"
     "@types/express": "npm:^5.0.6"
     "@types/node": "npm:^25.4.0"
     "@types/supertest": "npm:^7"
@@ -1578,7 +1579,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@limitkit/memory@workspace:packages/stores/memory":
+"@limitkit/memory@workspace:^, @limitkit/memory@workspace:packages/stores/memory":
   version: 0.0.0-use.local
   resolution: "@limitkit/memory@workspace:packages/stores/memory"
   dependencies:

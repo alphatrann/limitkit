@@ -135,7 +135,12 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
 
       const keyWithConfig = addConfigToKey(config, key);
 
-      result = await this.store.consume(keyWithConfig, config, cost ?? 1);
+      result = await this.store.consume(
+        keyWithConfig,
+        config,
+        Date.now(),
+        cost ?? 1,
+      );
 
       minRemaining = Math.min(result.remaining, minRemaining);
       minLimit = Math.min(result.limit, minLimit);
