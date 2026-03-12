@@ -8,7 +8,8 @@
     "redis": "^5.11.0"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "build": "tsup src/index.ts --format esm,cjs --dts && yarn copy-lua",
+    "copy-lua": "cp -r src/scripts dist/scripts",
     "test": "jest"
   },
   "devDependencies": {

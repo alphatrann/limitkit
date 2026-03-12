@@ -65,8 +65,6 @@ export class RedisStore implements Store {
    * Creates a new RedisStore instance.
    *
    * @param redis - Connected Redis client instance
-   * @param clock - Optional clock implementation for getting current time.
-   *               Defaults to SystemClock if not provided. Useful for testing.
    */
   constructor(private redis: RedisClientType) {}
 
