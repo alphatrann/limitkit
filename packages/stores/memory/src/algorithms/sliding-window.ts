@@ -44,6 +44,7 @@ export function slidingWindow(
       state,
       output: {
         allowed: false,
+        limit,
         remaining: 0,
         reset,
         retryAfter,
@@ -63,5 +64,5 @@ export function slidingWindow(
 
   const remaining = limit - size;
   const reset = buffer[(head + size - 1) % limit] + windowMs;
-  return { state, output: { allowed: true, remaining, reset } };
+  return { state, output: { allowed: true, limit, remaining, reset } };
 }

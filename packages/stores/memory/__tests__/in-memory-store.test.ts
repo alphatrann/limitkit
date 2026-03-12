@@ -63,6 +63,7 @@ describe("InMemoryStore", () => {
       const cost = 5;
       const now = Date.now();
       const expectedOutput: RateLimitResult = {
+        limit: 100,
         allowed: true,
         remaining: 95,
         reset: now + 60000,
@@ -98,6 +99,7 @@ describe("InMemoryStore", () => {
         windowStart: 1000,
       };
       const firstOutput: RateLimitResult = {
+        limit: 100,
         allowed: true,
         remaining: 95,
         reset: 61000,
@@ -108,6 +110,7 @@ describe("InMemoryStore", () => {
         windowStart: 1000,
       };
       const secondOutput: RateLimitResult = {
+        limit: 100,
         allowed: true,
         remaining: 90,
         reset: 61000,
@@ -148,6 +151,7 @@ describe("InMemoryStore", () => {
       };
       const expectedOutput: RateLimitResult = {
         allowed: true,
+        limit: 100,
         remaining: 99,
         reset: 61000,
       };
@@ -181,6 +185,7 @@ describe("InMemoryStore", () => {
       const cost = 3;
       const expectedOutput: RateLimitResult = {
         allowed: true,
+        limit: 100,
         remaining: 97,
         reset: Date.now() + 60000,
       };
@@ -218,6 +223,7 @@ describe("InMemoryStore", () => {
       };
       const firstOutput: RateLimitResult = {
         allowed: true,
+        limit: 100,
         remaining: 98,
         reset: 61000,
       };
@@ -229,6 +235,7 @@ describe("InMemoryStore", () => {
       };
       const secondOutput: RateLimitResult = {
         allowed: true,
+        limit: 100,
         remaining: 97,
         reset: 61000,
       };
@@ -269,6 +276,7 @@ describe("InMemoryStore", () => {
       const cost = 4;
       const expectedOutput: RateLimitResult = {
         allowed: true,
+        limit: 100,
         remaining: 96,
         reset: Date.now() + 60000,
       };
@@ -308,6 +316,7 @@ describe("InMemoryStore", () => {
       const cost = 5;
       const expectedOutput: RateLimitResult = {
         allowed: true,
+        limit: 100,
         remaining: 95,
         reset: Date.now() + 10000,
       };
@@ -343,6 +352,7 @@ describe("InMemoryStore", () => {
       };
       const firstOutput: RateLimitResult = {
         allowed: true,
+        limit: 100,
         remaining: 95,
         reset: 11000,
       };
@@ -353,6 +363,7 @@ describe("InMemoryStore", () => {
       };
       const secondOutput: RateLimitResult = {
         allowed: true,
+        limit: 100,
         remaining: 93,
         reset: 12000,
       };
@@ -393,6 +404,7 @@ describe("InMemoryStore", () => {
       const cost = 3;
       const expectedOutput: RateLimitResult = {
         allowed: true,
+        limit: 100,
         remaining: 97,
         reset: Date.now() + 10000,
       };
@@ -428,6 +440,7 @@ describe("InMemoryStore", () => {
       };
       const firstOutput: RateLimitResult = {
         allowed: true,
+        limit: 100,
         remaining: 95,
         reset: 11000,
       };
@@ -438,6 +451,7 @@ describe("InMemoryStore", () => {
       };
       const secondOutput: RateLimitResult = {
         allowed: true,
+        limit: 100,
         remaining: 93,
         reset: 12000,
       };
@@ -477,6 +491,7 @@ describe("InMemoryStore", () => {
       const key = "test-key";
       const cost = 2;
       const expectedOutput: RateLimitResult = {
+        limit: 100,
         allowed: true,
         remaining: 98,
         reset: Date.now() + 60000,
@@ -510,6 +525,7 @@ describe("InMemoryStore", () => {
         tat: 5000,
       };
       const firstOutput: RateLimitResult = {
+        limit: 100,
         allowed: true,
         remaining: 97,
         reset: 65000,
@@ -519,6 +535,7 @@ describe("InMemoryStore", () => {
         tat: 6000,
       };
       const secondOutput: RateLimitResult = {
+        limit: 100,
         allowed: true,
         remaining: 97,
         reset: 66000,
@@ -562,23 +579,33 @@ describe("InMemoryStore", () => {
       mockFixedWindow
         .mockReturnValueOnce({
           state: state1,
-          output: { allowed: true, remaining: 95, reset: 61000 },
+          output: { allowed: true, limit: 100, remaining: 95, reset: 61000 },
         })
         .mockReturnValueOnce({
           state: state2,
-          output: { allowed: true, remaining: 90, reset: 62000 },
+          output: { allowed: true, limit: 100, remaining: 90, reset: 62000 },
         });
 
       const result1 = await store.consume("key1", config, 5);
       const result2 = await store.consume("key2", config, 10);
 
-      expect(result1).toEqual({ allowed: true, remaining: 95, reset: 61000 });
-      expect(result2).toEqual({ allowed: true, remaining: 90, reset: 62000 });
+      expect(result1).toEqual({
+        allowed: true,
+        limit: 100,
+        remaining: 95,
+        reset: 61000,
+      });
+      expect(result2).toEqual({
+        allowed: true,
+        limit: 100,
+        remaining: 90,
+        reset: 62000,
+      });
 
       // Third call to key1 should use state1, not state2
       mockFixedWindow.mockReturnValueOnce({
         state: { count: 6, windowStart: 1000 },
-        output: { allowed: true, remaining: 94, reset: 61000 },
+        output: { allowed: true, limit: 100, remaining: 94, reset: 61000 },
       });
 
       await store.consume("key1", config, 1);
@@ -606,6 +633,7 @@ describe("InMemoryStore", () => {
         windowStart: 1000,
       };
       const rejectedOutput: RateLimitResult = {
+        limit: 100,
         allowed: false,
         remaining: 0,
         reset: 61000,
@@ -617,6 +645,7 @@ describe("InMemoryStore", () => {
         windowStart: 61000,
       };
       const successOutput: RateLimitResult = {
+        limit: 100,
         allowed: true,
         remaining: 99,
         reset: 121000,
@@ -671,7 +700,7 @@ describe("InMemoryStore", () => {
 
       mockFixedWindow.mockReturnValueOnce({
         state: { count: 1, windowStart: 1000 },
-        output: { allowed: true, remaining: 99, reset: 61000 },
+        output: { allowed: true, limit: 100, remaining: 99, reset: 61000 },
       });
 
       const beforeCall = Date.now();
@@ -693,7 +722,7 @@ describe("InMemoryStore", () => {
 
       mockFixedWindow.mockReturnValueOnce({
         state: { count: 7, windowStart: 1000 },
-        output: { allowed: true, remaining: 93, reset: 61000 },
+        output: { allowed: true, limit: 100, remaining: 93, reset: 61000 },
       });
 
       const cost = 7;
@@ -716,7 +745,7 @@ describe("InMemoryStore", () => {
 
       mockFixedWindow.mockReturnValueOnce({
         state: { count: 1, windowStart: 1000 },
-        output: { allowed: true, remaining: 99, reset: 61000 },
+        output: { allowed: true, limit: 100, remaining: 99, reset: 61000 },
       });
 
       await store.consume("key", config, 1);
