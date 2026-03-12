@@ -5,7 +5,7 @@ import { RateLimitResult } from "./rate-limit-result";
  *
  * @template C The context type passed to the limiter to determine dynamic rule values.
  */
-export interface Limiter<C> {
+export interface Limiter<C = unknown> {
   /**
    * Check if a request is allowed under the configured rate limits.
    *

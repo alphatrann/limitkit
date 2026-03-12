@@ -9,7 +9,7 @@ import { AlgorithmConfig } from "./algorithm-config";
  *
  * @template C The context type used to dynamically determine rule parameters.
  */
-export interface LimitRule<C> {
+export interface LimitRule<C = unknown> {
   /**
    * Unique name/identifier for this rule, used for tracking which rule caused a rate limit.
    * Appears in debug results when the rule is exceeded.
