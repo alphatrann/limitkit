@@ -1,0 +1,16 @@
+{
+  "projects": {
+    "limit": {
+      "type": "library",
+      "root": "libs/limit",
+      "entryFile": "index",
+      "sourceRoot": "libs/limit/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/limit/tsconfig.lib.json"
+      }
+    }
+  },
+  "compilerOptions": {
+    "webpack": true
+  }
+}

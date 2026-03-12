@@ -2,9 +2,23 @@
   "name": "@limitkit/nest",
   "version": "0.1.0",
   "dependencies": {
-    "@limitkit/core": "workspace:*"
+    "@limitkit/core": "workspace:*",
+    "@nestjs/common": "^11.1.16",
+    "@nestjs/core": "^11.1.16",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts"
+    "build": "nest build limit",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.16",
+    "@nestjs/testing": "^11.1.16",
+    "@types/jest": "^29",
+    "jest": "^29",
+    "ts-jest": "^29",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3"
   }
 }
