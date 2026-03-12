@@ -16,7 +16,7 @@ function createApp() {
         policy: {
           name: Algorithm.FixedWindow,
           window: 60,
-          limit: 2,
+          limit: 5,
         },
       },
     ],
@@ -48,6 +48,9 @@ describe("limit middleware (e2e)", () => {
 
     await request(app).get("/test");
     await request(app).get("/test");
+    await request(app).get("/test");
+    await request(app).get("/test");
+    await request(app).get("/test");
 
     const res = await request(app).get("/test");
 
@@ -64,10 +67,34 @@ describe("limit middleware (e2e)", () => {
     const app = createApp();
 
     const first = await request(app).get("/test");
-    const second = await request(app).get("/test");
+    await request(app).get("/test");
+    await request(app).get("/test");
+    const fourth = await request(app).get("/test");
 
-    expect(Number(first.headers["ratelimit-remaining"])).toBeGreaterThan(
-      Number(second.headers["ratelimit-remaining"]),
+    expect(Number(first.headers["ratelimit-remaining"])).toBe(
+      Number(fourth.headers["ratelimit-remaining"]) + 3,
     );
+  });
+
+  it("blocks requests when limit exceeded under concurrency", async () => {
+    const app = createApp();
+
+    await Promise.all([
+      request(app).get("/test"),
+      request(app).get("/test"),
+      request(app).get("/test"),
+      request(app).get("/test"),
+      request(app).get("/test"),
+    ]);
+
+    const res = await request(app).get("/test");
+
+    expect(res.status).toBe(429);
+    expect(res.body).toEqual({
+      status: 429,
+      error: "Too many requests",
+    });
+
+    expect(res.headers["retry-after"]).toBeDefined();
   });
 });
