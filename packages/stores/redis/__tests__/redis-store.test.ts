@@ -46,6 +46,11 @@ describe("RedisStore", () => {
     await redis.flushDb();
   });
 
+  afterEach(async () => {
+    // Ensure complete cleanup between tests
+    await redis.flushDb();
+  });
+
   describe("FixedWindow Algorithm", () => {
     const config: FixedWindowConfig = {
       name: Algorithm.FixedWindow,

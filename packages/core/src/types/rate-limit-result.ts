@@ -11,6 +11,11 @@ export interface RateLimitResult {
   allowed: boolean;
 
   /**
+   * The maximum number of requests the client can make
+   */
+  limit: number;
+
+  /**
    * Number of requests remaining in the current rate limit window.
    * When `allowed` is false, this is typically 0.
    */

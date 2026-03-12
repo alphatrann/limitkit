@@ -33,7 +33,13 @@ export function fixedWindow(
     const retryAfter = Math.max(0, Math.ceil((reset - now) / 1000));
     return {
       state,
-      output: { allowed: false, remaining: 0, reset, retryAfter },
+      output: {
+        allowed: false,
+        remaining: 0,
+        limit: config.limit,
+        reset,
+        retryAfter,
+      },
     };
   }
   const newState = { ...state };
@@ -44,5 +50,8 @@ export function fixedWindow(
   const reset = newState.windowStart + windowInMs;
   newState.count += cost;
   const remaining = config.limit - newState.count;
-  return { state: newState, output: { allowed: true, remaining, reset } };
+  return {
+    state: newState,
+    output: { allowed: true, limit: config.limit, remaining, reset },
+  };
 }

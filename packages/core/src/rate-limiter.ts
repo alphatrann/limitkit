@@ -3,6 +3,7 @@ import {
   DebugLimitResult,
   Limiter,
   LimitRule,
+  RateLimitConfig,
   RateLimitResult,
   Store,
 } from "./types";
@@ -57,15 +58,7 @@ export class RateLimiter<C> implements Limiter<C> {
    * @param config.debug - Optional. When true, returns detailed information about
    *                       each evaluated rule. Useful for troubleshooting. Defaults to false.
    */
-  constructor({
-    rules,
-    debug,
-    store,
-  }: {
-    rules: LimitRule<C>[];
-    store: Store;
-    debug?: boolean;
-  }) {
+  constructor({ rules, debug, store }: RateLimitConfig<C>) {
     if (rules.length === 0) throw new EmptyRulesException();
     this.rules = rules ?? this.rules;
     this.debug = debug ?? this.debug;
@@ -73,9 +66,26 @@ export class RateLimiter<C> implements Limiter<C> {
   }
 
   /**
+   * Partially override rate limiting config
+   * @param value - Required. Partial object of type `RateLimitConfig<C>`
+   */
+  set config(value: Partial<RateLimitConfig<C>>) {
+    this.rules = value.rules ?? this.rules;
+    this.debug = value.debug ?? this.debug;
+    this.store = value.store ?? this.store;
+  }
+
+  /**
+   * Return config object of rate limiter class
+   */
+  get config(): RateLimitConfig<C> {
+    return { rules: this.rules, debug: this.debug, store: this.store };
+  }
+
+  /**
    * Check if a request should be allowed under the configured rate limits.
    *
-   * Evaluates each rule in order. Returns as soon as a rule is exceeded (request denied).
+   * Evaluates each rule in order from left to right. Returns as soon as a rule is exceeded (request denied).
    * If all rules allow the request, returns the result of the last rule evaluated.
    *
    * Each rule resolution (key, cost, policy) can be static or dynamic:
@@ -102,6 +112,10 @@ export class RateLimiter<C> implements Limiter<C> {
    */
   async consume(ctx: C): Promise<RateLimitResult> {
     let result;
+    let minRemaining = Infinity;
+    let maxReset = 0;
+    let minLimit = Infinity;
+
     const debugRules = [];
     for (const rule of this.rules) {
       const config =
@@ -122,6 +136,11 @@ export class RateLimiter<C> implements Limiter<C> {
       const keyWithConfig = addConfigToKey(config, key);
 
       result = await this.store.consume(keyWithConfig, config, cost ?? 1);
+
+      minRemaining = Math.min(result.remaining, minRemaining);
+      minLimit = Math.min(result.limit, minLimit);
+      maxReset = Math.max(result.reset, maxReset);
+
       if (this.debug) {
         debugRules.push({ ...result, name: rule.name });
         if (result.allowed) console.log(debugRules);
@@ -136,7 +155,12 @@ export class RateLimiter<C> implements Limiter<C> {
           };
           return debugResults;
         }
-        return result;
+        return {
+          ...result,
+          reset: maxReset,
+          limit: minLimit,
+          remaining: minRemaining,
+        };
       }
     }
     if (this.debug) {
@@ -148,6 +172,11 @@ export class RateLimiter<C> implements Limiter<C> {
       return final as DebugLimitResult;
     }
 
-    return result!;
+    return {
+      ...result!,
+      reset: maxReset,
+      limit: minLimit,
+      remaining: minRemaining,
+    };
   }
 }
