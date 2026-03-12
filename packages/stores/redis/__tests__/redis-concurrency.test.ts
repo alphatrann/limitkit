@@ -28,11 +28,14 @@ describe("RedisStore Concurrency Tests", () => {
   });
 
   beforeEach(async () => {
-    // Create a new FakeClock - DO NOT share across test files
     fakeClock = new FakeClock();
     store = new RedisStore(redis, fakeClock);
     await store.init();
-    // Clear Redis before each test
+    await redis.flushDb();
+  });
+
+  afterEach(async () => {
+    // Ensure complete cleanup between tests
     await redis.flushDb();
   });
 

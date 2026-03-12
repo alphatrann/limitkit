@@ -2,9 +2,17 @@
   "name": "@limitkit/express",
   "version": "0.1.0",
   "dependencies": {
-    "@limitkit/core": "workspace:*"
+    "@limitkit/core": "workspace:*",
+    "express": "^5.2.1"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts"
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.4.0",
+    "@types/supertest": "^7",
+    "supertest": "^7.2.2"
   }
 }
