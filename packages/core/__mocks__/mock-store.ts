@@ -8,6 +8,7 @@ export class MockStore implements Store {
   ): Promise<RateLimitResult> {
     return await Promise.resolve({
       allowed: true,
+      limit: 1,
       remaining: 1,
       reset: Date.now(),
     });

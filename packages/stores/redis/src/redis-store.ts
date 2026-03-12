@@ -131,6 +131,7 @@ export class RedisStore implements Store {
    * @param cost - Number of tokens to consume (default: 1)
    *
    * @returns Promise resolving to RateLimitResult containing:
+   *          - limit: The maximum number of requests the client can send
    *          - allowed: Whether the request is allowed
    *          - remaining: Tokens/requests remaining in current window
    *          - reset: Unix timestamp when the limit resets
@@ -152,11 +153,13 @@ export class RedisStore implements Store {
     let remaining: number;
     let reset: number;
     let retryAfter: number;
+    let limit: number;
 
     switch (config.name) {
       case Algorithm.FixedWindow:
       case Algorithm.SlidingWindow:
       case Algorithm.SlidingWindowCounter:
+        limit = config.limit;
         [allowed, remaining, reset, retryAfter] = (await this.redis.evalSha(
           sha,
           {
@@ -180,7 +183,7 @@ export class RedisStore implements Store {
           throw new BadArgumentsException(
             `Refill rate must be a positive integer, got refill_rate=${config.refillRate}`,
           );
-
+        limit = config.capacity;
         [allowed, remaining, reset, retryAfter] = (await this.redis.evalSha(
           sha,
           {
@@ -203,6 +206,7 @@ export class RedisStore implements Store {
           throw new BadArgumentsException(
             `Leak rate must be a positive integer, got leak_rate=${config.leakRate}`,
           );
+        limit = config.capacity;
         [allowed, remaining, reset, retryAfter] = (await this.redis.evalSha(
           sha,
           {
@@ -231,6 +235,7 @@ export class RedisStore implements Store {
           throw new BadArgumentsException(
             `Cost must never exceed burst, got burst=${config.interval}, cost=${cost}`,
           );
+        limit = config.burst;
         [allowed, remaining, reset, retryAfter] = (await this.redis.evalSha(
           sha,
           {
@@ -246,6 +251,6 @@ export class RedisStore implements Store {
         break;
     }
 
-    return { allowed: !!allowed, remaining, reset, retryAfter };
+    return { allowed: !!allowed, limit, remaining, reset, retryAfter };
   }
 }

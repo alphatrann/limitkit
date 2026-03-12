@@ -46,7 +46,13 @@ export function leakyBucket(
     const reset = now + (queueSize / leakRate) * 1000;
     return {
       state: { lastLeak, queueSize },
-      output: { allowed: false, remaining: 0, reset, retryAfter },
+      output: {
+        allowed: false,
+        limit: capacity,
+        remaining: 0,
+        reset,
+        retryAfter,
+      },
     };
   }
 
@@ -60,6 +66,7 @@ export function leakyBucket(
     state: { queueSize, lastLeak },
     output: {
       allowed: true,
+      limit: capacity,
       remaining,
       reset,
     },
