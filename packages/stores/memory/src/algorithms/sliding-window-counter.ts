@@ -48,7 +48,7 @@ export function slidingWindowCounter(
     );
     return {
       state: { windowStart, prevCount, count },
-      output: { reset, remaining: 0, retryAfter, allowed: false },
+      output: { reset, limit, remaining: 0, retryAfter, allowed: false },
     };
   }
 
@@ -56,6 +56,6 @@ export function slidingWindowCounter(
   const remaining = Math.max(0, Math.floor(limit - (effective + cost)));
   return {
     state: { count, prevCount, windowStart },
-    output: { reset, remaining, allowed: true },
+    output: { reset, limit, remaining, allowed: true },
   };
 }

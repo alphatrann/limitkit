@@ -54,6 +54,7 @@ export function gcra(
         allowed: false,
         remaining: 0,
         retryAfter,
+        limit: burst,
         reset: tat,
       },
     };
@@ -73,6 +74,7 @@ export function gcra(
     output: {
       allowed: true,
       remaining,
+      limit: burst,
       reset: tat,
     },
   };

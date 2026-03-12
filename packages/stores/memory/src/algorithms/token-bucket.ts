@@ -53,6 +53,7 @@ export function tokenBucket(
       state: { tokens, lastRefill },
       output: {
         allowed: false,
+        limit: capacity,
         remaining: Math.floor(tokens),
         retryAfter,
         reset,
@@ -69,6 +70,7 @@ export function tokenBucket(
     state: { tokens, lastRefill },
     output: {
       allowed: true,
+      limit: capacity,
       remaining: Math.floor(tokens),
       reset,
     },
