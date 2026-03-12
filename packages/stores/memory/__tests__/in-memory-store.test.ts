@@ -1,763 +1,781 @@
-import {
-  Algorithm,
-  FixedWindowConfig,
-  GCRAConfig,
-  LeakyBucketConfig,
-  RateLimitResult,
-  SlidingWindowConfig,
-  SlidingWindowCounterConfig,
-  TokenBucketConfig,
-  UnknownAlgorithmException,
-} from "@limitkit/core";
-import { InMemoryStore } from "../src";
-import {
-  AlgorithmResult,
-  FixedWindowState,
-  GCRAState,
-  LeakyBucketState,
-  SlidingWindowCounterState,
-  SlidingWindowState,
-  TokenBucketState,
-} from "../src/types";
-import * as algorithms from "../src/algorithms";
-
-// Mock all algorithm functions
-jest.mock("../src/algorithms");
+import { Algorithm, AlgorithmConfig } from "@limitkit/core";
+import { InMemoryStore } from "../src/in-memory-store";
 
 describe("InMemoryStore", () => {
   let store: InMemoryStore;
-  const mockFixedWindow = algorithms.fixedWindow as jest.MockedFunction<
-    typeof algorithms.fixedWindow
-  >;
-  const mockSlidingWindow = algorithms.slidingWindow as jest.MockedFunction<
-    typeof algorithms.slidingWindow
-  >;
-  const mockSlidingWindowCounter =
-    algorithms.slidingWindowCounter as jest.MockedFunction<
-      typeof algorithms.slidingWindowCounter
-    >;
-  const mockTokenBucket = algorithms.tokenBucket as jest.MockedFunction<
-    typeof algorithms.tokenBucket
-  >;
-  const mockLeakyBucket = algorithms.leakyBucket as jest.MockedFunction<
-    typeof algorithms.leakyBucket
-  >;
-  const mockGCRA = algorithms.gcra as jest.MockedFunction<
-    typeof algorithms.gcra
-  >;
+  const now = 1000000;
 
   beforeEach(() => {
     store = new InMemoryStore();
-    jest.clearAllMocks();
   });
 
-  describe("FixedWindow algorithm", () => {
-    const config: FixedWindowConfig = {
-      name: Algorithm.FixedWindow,
-      window: 60,
-      limit: 100,
-    };
+  describe("Fixed Window Algorithm", () => {
+    describe("default args", () => {
+      it("should use default cost of 1 when not provided", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.FixedWindow,
+          window: 60,
+          limit: 10,
+        };
+        const result = await store.consume("key1", config, now);
 
-    it("should call fixedWindow with correct parameters on first call", async () => {
-      const key = "test-key";
-      const cost = 5;
-      const now = Date.now();
-      const expectedOutput: RateLimitResult = {
-        limit: 100,
-        allowed: true,
-        remaining: 95,
-        reset: now + 60000,
-      };
-      const expectedNewState: FixedWindowState = {
-        count: 5,
-        windowStart: now,
-      };
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(9);
+        expect(result.limit).toBe(10);
+      });
+    });
 
-      mockFixedWindow.mockReturnValueOnce({
-        state: expectedNewState,
-        output: expectedOutput,
+    describe("non-default args", () => {
+      it("should respect custom cost value", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.FixedWindow,
+          window: 60,
+          limit: 10,
+        };
+        const result = await store.consume("key1", config, now, 3);
+
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(7);
+        expect(result.limit).toBe(10);
       });
 
-      const result = await store.consume(key, config, cost);
+      it("should respect custom window duration", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.FixedWindow,
+          window: 120,
+          limit: 5,
+        };
+        const result = await store.consume("key1", config, now);
 
-      expect(mockFixedWindow).toHaveBeenCalledTimes(1);
-      expect(mockFixedWindow).toHaveBeenCalledWith(
-        undefined,
-        config,
-        expect.any(Number),
-        cost,
-      );
-      expect(result).toEqual(expectedOutput);
-    });
-
-    it("should persist state and pass persisted state on second call", async () => {
-      const key = "test-key";
-      const cost = 5;
-
-      const firstState: FixedWindowState = {
-        count: 5,
-        windowStart: 1000,
-      };
-      const firstOutput: RateLimitResult = {
-        limit: 100,
-        allowed: true,
-        remaining: 95,
-        reset: 61000,
-      };
-
-      const secondState: FixedWindowState = {
-        count: 10,
-        windowStart: 1000,
-      };
-      const secondOutput: RateLimitResult = {
-        limit: 100,
-        allowed: true,
-        remaining: 90,
-        reset: 61000,
-      };
-
-      mockFixedWindow
-        .mockReturnValueOnce({
-          state: firstState,
-          output: firstOutput,
-        })
-        .mockReturnValueOnce({
-          state: secondState,
-          output: secondOutput,
-        });
-
-      const result1 = await store.consume(key, config, cost);
-      expect(result1).toEqual(firstOutput);
-
-      const result2 = await store.consume(key, config, cost);
-
-      expect(mockFixedWindow).toHaveBeenCalledTimes(2);
-      // Second call should receive the persisted state from the first call
-      expect(mockFixedWindow).toHaveBeenNthCalledWith(
-        2,
-        firstState,
-        config,
-        expect.any(Number),
-        cost,
-      );
-      expect(result2).toEqual(secondOutput);
-    });
-
-    it("should use default cost of 1 when not provided", async () => {
-      const key = "test-key";
-      const expectedState: FixedWindowState = {
-        count: 1,
-        windowStart: 1000,
-      };
-      const expectedOutput: RateLimitResult = {
-        allowed: true,
-        limit: 100,
-        remaining: 99,
-        reset: 61000,
-      };
-
-      mockFixedWindow.mockReturnValueOnce({
-        state: expectedState,
-        output: expectedOutput,
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(4);
       });
 
-      const result = await store.consume(key, config);
+      it("should respect custom limit", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.FixedWindow,
+          window: 60,
+          limit: 50,
+        };
+        const result = await store.consume("key1", config, now);
 
-      expect(mockFixedWindow).toHaveBeenCalledWith(
-        undefined,
-        config,
-        expect.any(Number),
-        1,
-      );
-      expect(result).toEqual(expectedOutput);
+        expect(result.allowed).toBe(true);
+        expect(result.limit).toBe(50);
+        expect(result.remaining).toBe(49);
+      });
     });
-  });
 
-  describe("SlidingWindow algorithm", () => {
-    const config: SlidingWindowConfig = {
-      name: Algorithm.SlidingWindow,
-      window: 60,
-      limit: 100,
-    };
+    describe("persistence", () => {
+      it("should maintain state across multiple consume calls within the same window", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.FixedWindow,
+          window: 60,
+          limit: 10,
+        };
+        const key = "user:123";
 
-    it("should call slidingWindow with correct parameters", async () => {
-      const key = "test-key";
-      const cost = 3;
-      const expectedOutput: RateLimitResult = {
-        allowed: true,
-        limit: 100,
-        remaining: 97,
-        reset: Date.now() + 60000,
-      };
-      const expectedNewState: SlidingWindowState = {
-        buffer: [Date.now()],
-        head: 0,
-        size: 1,
-      };
+        const result1 = await store.consume(key, config, now);
+        expect(result1.remaining).toBe(9);
 
-      mockSlidingWindow.mockReturnValueOnce({
-        state: expectedNewState,
-        output: expectedOutput,
+        const result2 = await store.consume(key, config, now + 5000);
+        expect(result2.remaining).toBe(8);
+
+        const result3 = await store.consume(key, config, now + 10000);
+        expect(result3.remaining).toBe(7);
       });
 
-      const result = await store.consume(key, config, cost);
+      it("should reset counter when moving to a new window", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.FixedWindow,
+          window: 60,
+          limit: 10,
+        };
+        const key = "user:123";
 
-      expect(mockSlidingWindow).toHaveBeenCalledTimes(1);
-      expect(mockSlidingWindow).toHaveBeenCalledWith(
-        undefined,
-        config,
-        expect.any(Number),
-        cost,
-      );
-      expect(result).toEqual(expectedOutput);
+        await store.consume(key, config, now);
+        await store.consume(key, config, now + 5000);
+
+        const windowDuration = 60 * 1000;
+        const result = await store.consume(key, config, now + windowDuration);
+
+        expect(result.remaining).toBe(9);
+      });
+
+      it("should prevent access when limit is exceeded", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.FixedWindow,
+          window: 60,
+          limit: 2,
+        };
+        const key = "user:123";
+
+        const result1 = await store.consume(key, config, now);
+        expect(result1.allowed).toBe(true);
+
+        const result2 = await store.consume(key, config, now + 5000);
+        expect(result2.allowed).toBe(true);
+
+        const result3 = await store.consume(key, config, now + 10000);
+        expect(result3.allowed).toBe(false);
+        expect(result3.remaining).toBe(0);
+      });
     });
 
-    it("should persist and retrieve sliding window state correctly", async () => {
-      const key = "test-key";
-      const cost = 2;
+    describe("returned object", () => {
+      it("should return valid RateLimitResult structure", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.FixedWindow,
+          window: 60,
+          limit: 10,
+        };
+        const result = await store.consume("key1", config, now);
 
-      const firstState: SlidingWindowState = {
-        buffer: [1000, 2000],
-        head: 0,
-        size: 2,
-      };
-      const firstOutput: RateLimitResult = {
-        allowed: true,
-        limit: 100,
-        remaining: 98,
-        reset: 61000,
-      };
+        expect(result).toHaveProperty("allowed");
+        expect(result).toHaveProperty("limit");
+        expect(result).toHaveProperty("remaining");
+        expect(result).toHaveProperty("reset");
+        expect(typeof result.allowed).toBe("boolean");
+        expect(typeof result.limit).toBe("number");
+        expect(typeof result.remaining).toBe("number");
+        expect(typeof result.reset).toBe("number");
+      });
 
-      const secondState: SlidingWindowState = {
-        buffer: [1000, 2000, 3000],
-        head: 0,
-        size: 3,
-      };
-      const secondOutput: RateLimitResult = {
-        allowed: true,
-        limit: 100,
-        remaining: 97,
-        reset: 61000,
-      };
+      it("should include retryAfter when request is denied", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.FixedWindow,
+          window: 60,
+          limit: 1,
+        };
+        const key = "user:123";
 
-      mockSlidingWindow
-        .mockReturnValueOnce({
-          state: firstState,
-          output: firstOutput,
-        })
-        .mockReturnValueOnce({
-          state: secondState,
-          output: secondOutput,
-        });
+        await store.consume(key, config, now);
+        const deniedResult = await store.consume(key, config, now + 5000);
 
-      await store.consume(key, config, cost);
-      const result2 = await store.consume(key, config, cost);
-
-      expect(mockSlidingWindow).toHaveBeenNthCalledWith(
-        2,
-        firstState,
-        config,
-        expect.any(Number),
-        cost,
-      );
-      expect(result2).toEqual(secondOutput);
+        expect(deniedResult.allowed).toBe(false);
+        expect(deniedResult).toHaveProperty("retryAfter");
+        expect(typeof deniedResult.retryAfter).toBe("number");
+      });
     });
   });
 
-  describe("SlidingWindowCounter algorithm", () => {
-    const config: SlidingWindowCounterConfig = {
-      name: Algorithm.SlidingWindowCounter,
-      window: 60,
-      limit: 100,
-    };
+  describe("Sliding Window Algorithm", () => {
+    describe("default args", () => {
+      it("should use default cost of 1 when not provided", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.SlidingWindow,
+          window: 60,
+          limit: 10,
+        };
+        const result = await store.consume("key1", config, now);
 
-    it("should call slidingWindowCounter with correct parameters", async () => {
-      const key = "test-key";
-      const cost = 4;
-      const expectedOutput: RateLimitResult = {
-        allowed: true,
-        limit: 100,
-        remaining: 96,
-        reset: Date.now() + 60000,
-      };
-      const expectedNewState: SlidingWindowCounterState = {
-        count: 4,
-        prevCount: 0,
-        windowStart: Date.now(),
-      };
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(9);
+      });
+    });
 
-      mockSlidingWindowCounter.mockReturnValueOnce({
-        state: expectedNewState,
-        output: expectedOutput,
+    describe("non-default args", () => {
+      it("should respect custom cost value", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.SlidingWindow,
+          window: 60,
+          limit: 10,
+        };
+        const result = await store.consume("key1", config, now, 5);
+
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(5);
       });
 
-      const result = await store.consume(key, config, cost);
+      it("should respect custom window duration", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.SlidingWindow,
+          window: 30,
+          limit: 5,
+        };
+        const result = await store.consume("key1", config, now);
 
-      expect(mockSlidingWindowCounter).toHaveBeenCalledTimes(1);
-      expect(mockSlidingWindowCounter).toHaveBeenCalledWith(
-        undefined,
-        config,
-        expect.any(Number),
-        cost,
-      );
-      expect(result).toEqual(expectedOutput);
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(4);
+      });
+    });
+
+    describe("persistence", () => {
+      it("should maintain state across multiple calls", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.SlidingWindow,
+          window: 60,
+          limit: 10,
+        };
+        const key = "user:456";
+
+        const result1 = await store.consume(key, config, now);
+        expect(result1.remaining).toBe(9);
+
+        const result2 = await store.consume(key, config, now + 5000);
+        expect(result2.remaining).toBe(8);
+
+        const result3 = await store.consume(key, config, now + 10000);
+        expect(result3.remaining).toBe(7);
+      });
+
+      it("should allow requests after window has passed", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.SlidingWindow,
+          window: 10,
+          limit: 5,
+        };
+        const key = "user:456";
+
+        await store.consume(key, config, now);
+        await store.consume(key, config, now);
+        await store.consume(key, config, now);
+        await store.consume(key, config, now);
+        await store.consume(key, config, now);
+
+        const result = await store.consume(key, config, now + 11000);
+        expect(result.allowed).toBe(true);
+      });
+    });
+
+    describe("returned object", () => {
+      it("should return valid RateLimitResult structure", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.SlidingWindow,
+          window: 60,
+          limit: 10,
+        };
+        const result = await store.consume("key1", config, now);
+
+        expect(result).toHaveProperty("allowed");
+        expect(result).toHaveProperty("limit");
+        expect(result).toHaveProperty("remaining");
+        expect(result).toHaveProperty("reset");
+      });
     });
   });
 
-  describe("TokenBucket algorithm", () => {
-    const config: TokenBucketConfig = {
-      name: Algorithm.TokenBucket,
-      capacity: 100,
-      refillRate: 10,
-    };
+  describe("Sliding Window Counter Algorithm", () => {
+    describe("default args", () => {
+      it("should use default cost of 1 when not provided", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.SlidingWindowCounter,
+          window: 60,
+          limit: 10,
+        };
+        const result = await store.consume("key1", config, now);
 
-    it("should call tokenBucket with correct parameters", async () => {
-      const key = "test-key";
-      const cost = 5;
-      const expectedOutput: RateLimitResult = {
-        allowed: true,
-        limit: 100,
-        remaining: 95,
-        reset: Date.now() + 10000,
-      };
-      const expectedNewState: TokenBucketState = {
-        tokens: 95,
-        lastRefill: Date.now(),
-      };
-
-      mockTokenBucket.mockReturnValueOnce({
-        state: expectedNewState,
-        output: expectedOutput,
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(9);
       });
-
-      const result = await store.consume(key, config, cost);
-
-      expect(mockTokenBucket).toHaveBeenCalledTimes(1);
-      expect(mockTokenBucket).toHaveBeenCalledWith(
-        undefined,
-        config,
-        expect.any(Number),
-        cost,
-      );
-      expect(result).toEqual(expectedOutput);
     });
 
-    it("should persist and retrieve token bucket state correctly", async () => {
-      const key = "test-key";
-      const cost = 2;
+    describe("non-default args", () => {
+      it("should respect custom cost value", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.SlidingWindowCounter,
+          window: 60,
+          limit: 10,
+        };
+        const result = await store.consume("key1", config, now, 4);
 
-      const firstState: TokenBucketState = {
-        tokens: 95,
-        lastRefill: 1000,
-      };
-      const firstOutput: RateLimitResult = {
-        allowed: true,
-        limit: 100,
-        remaining: 95,
-        reset: 11000,
-      };
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(6);
+      });
 
-      const secondState: TokenBucketState = {
-        tokens: 93,
-        lastRefill: 2000,
-      };
-      const secondOutput: RateLimitResult = {
-        allowed: true,
-        limit: 100,
-        remaining: 93,
-        reset: 12000,
-      };
+      it("should respect custom window and limit", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.SlidingWindowCounter,
+          window: 45,
+          limit: 20,
+        };
+        const result = await store.consume("key1", config, now);
 
-      mockTokenBucket
-        .mockReturnValueOnce({
-          state: firstState,
-          output: firstOutput,
-        })
-        .mockReturnValueOnce({
-          state: secondState,
-          output: secondOutput,
-        });
+        expect(result.allowed).toBe(true);
+        expect(result.limit).toBe(20);
+      });
+    });
 
-      await store.consume(key, config, cost);
-      const result2 = await store.consume(key, config, cost);
+    describe("persistence", () => {
+      it("should maintain state across multiple calls", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.SlidingWindowCounter,
+          window: 60,
+          limit: 10,
+        };
+        const key = "user:789";
 
-      expect(mockTokenBucket).toHaveBeenNthCalledWith(
-        2,
-        firstState,
-        config,
-        expect.any(Number),
-        cost,
-      );
-      expect(result2).toEqual(secondOutput);
+        const result1 = await store.consume(key, config, now);
+        expect(result1.remaining).toBe(9);
+
+        const result2 = await store.consume(key, config, now + 5000);
+        expect(result2.remaining).toBe(8);
+
+        const result3 = await store.consume(key, config, now + 10000);
+        expect(result3.remaining).toBe(7);
+      });
+
+      it("should apply sliding window counter logic correctly", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.SlidingWindowCounter,
+          window: 10,
+          limit: 5,
+        };
+        const key = "user:789";
+
+        await store.consume(key, config, now);
+        await store.consume(key, config, now + 1000);
+
+        const midWindowResult = await store.consume(key, config, now + 5000);
+        expect(midWindowResult.allowed).toBe(true);
+        expect(midWindowResult.remaining).toBe(2);
+      });
+    });
+
+    describe("returned object", () => {
+      it("should return valid RateLimitResult structure", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.SlidingWindowCounter,
+          window: 60,
+          limit: 10,
+        };
+        const result = await store.consume("key1", config, now);
+
+        expect(result).toHaveProperty("allowed");
+        expect(result).toHaveProperty("limit");
+        expect(result).toHaveProperty("remaining");
+        expect(result).toHaveProperty("reset");
+      });
     });
   });
 
-  describe("LeakyBucket algorithm", () => {
-    const config: LeakyBucketConfig = {
-      name: Algorithm.LeakyBucket,
-      capacity: 100,
-      leakRate: 10,
-    };
+  describe("Token Bucket Algorithm", () => {
+    describe("default args", () => {
+      it("should use default cost of 1 when not provided", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.TokenBucket,
+          capacity: 10,
+          refillRate: 1,
+        };
+        const result = await store.consume("key1", config, now);
 
-    it("should call leakyBucket with correct parameters", async () => {
-      const key = "test-key";
-      const cost = 3;
-      const expectedOutput: RateLimitResult = {
-        allowed: true,
-        limit: 100,
-        remaining: 97,
-        reset: Date.now() + 10000,
-      };
-      const expectedNewState: LeakyBucketState = {
-        queueSize: 3,
-        lastLeak: Date.now(),
-      };
-
-      mockLeakyBucket.mockReturnValueOnce({
-        state: expectedNewState,
-        output: expectedOutput,
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(9);
       });
 
-      const result = await store.consume(key, config, cost);
+      it("should initialize with full capacity", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.TokenBucket,
+          capacity: 100,
+          refillRate: 5,
+        };
+        const result = await store.consume("key1", config, now);
 
-      expect(mockLeakyBucket).toHaveBeenCalledTimes(1);
-      expect(mockLeakyBucket).toHaveBeenCalledWith(
-        undefined,
-        config,
-        expect.any(Number),
-        cost,
-      );
-      expect(result).toEqual(expectedOutput);
+        expect(result.remaining).toBe(99);
+      });
     });
 
-    it("should persist and retrieve leaky bucket state correctly", async () => {
-      const key = "test-key";
-      const cost = 2;
+    describe("non-default args", () => {
+      it("should respect custom cost value", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.TokenBucket,
+          capacity: 10,
+          refillRate: 1,
+        };
+        const result = await store.consume("key1", config, now, 5);
 
-      const firstState: LeakyBucketState = {
-        queueSize: 5,
-        lastLeak: 1000,
-      };
-      const firstOutput: RateLimitResult = {
-        allowed: true,
-        limit: 100,
-        remaining: 95,
-        reset: 11000,
-      };
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(5);
+      });
 
-      const secondState: LeakyBucketState = {
-        queueSize: 7,
-        lastLeak: 2000,
-      };
-      const secondOutput: RateLimitResult = {
-        allowed: true,
-        limit: 100,
-        remaining: 93,
-        reset: 12000,
-      };
+      it("should respect custom capacity", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.TokenBucket,
+          capacity: 50,
+          refillRate: 2,
+        };
+        const result = await store.consume("key1", config, now);
 
-      mockLeakyBucket
-        .mockReturnValueOnce({
-          state: firstState,
-          output: firstOutput,
-        })
-        .mockReturnValueOnce({
-          state: secondState,
-          output: secondOutput,
-        });
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(49);
+      });
 
-      await store.consume(key, config, cost);
-      const result2 = await store.consume(key, config, cost);
+      it("should respect custom refillRate", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.TokenBucket,
+          capacity: 10,
+          refillRate: 5,
+        };
+        const result1 = await store.consume("key1", config, now);
+        const result2 = await store.consume("key2", config, now + 2000);
 
-      expect(mockLeakyBucket).toHaveBeenNthCalledWith(
-        2,
-        firstState,
-        config,
-        expect.any(Number),
-        cost,
-      );
-      expect(result2).toEqual(secondOutput);
+        expect(result1.allowed).toBe(true);
+        expect(result2.allowed).toBe(true);
+      });
+    });
+
+    describe("persistence", () => {
+      it("should maintain tokens across multiple calls", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.TokenBucket,
+          capacity: 10,
+          refillRate: 1,
+        };
+        const key = "bucket:1";
+
+        const result1 = await store.consume(key, config, now);
+        expect(result1.remaining).toBe(9);
+
+        const result2 = await store.consume(key, config, now + 500);
+        expect(result2.remaining).toBe(8);
+
+        const result3 = await store.consume(key, config, now + 500);
+        expect(result3.remaining).toBe(7);
+      });
+
+      it("should refill tokens over time up to capacity", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.TokenBucket,
+          capacity: 5,
+          refillRate: 1,
+        };
+        const key = "bucket:2";
+
+        await store.consume(key, config, now);
+        await store.consume(key, config, now + 100);
+        await store.consume(key, config, now + 200);
+        await store.consume(key, config, now + 300);
+        await store.consume(key, config, now + 400);
+
+        const deniedResult = await store.consume(key, config, now + 500);
+        expect(deniedResult.allowed).toBe(false);
+
+        const allowedResult = await store.consume(key, config, now + 1500);
+        expect(allowedResult.allowed).toBe(true);
+      });
+    });
+
+    describe("returned object", () => {
+      it("should return valid RateLimitResult structure", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.TokenBucket,
+          capacity: 10,
+          refillRate: 1,
+        };
+        const result = await store.consume("key1", config, now);
+
+        expect(result).toHaveProperty("allowed");
+        expect(result).toHaveProperty("limit");
+        expect(result).toHaveProperty("remaining");
+        expect(result).toHaveProperty("reset");
+      });
+
+      it("should include retryAfter when bucket is empty", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.TokenBucket,
+          capacity: 1,
+          refillRate: 1,
+        };
+        const key = "bucket:3";
+
+        await store.consume(key, config, now);
+        const deniedResult = await store.consume(key, config, now + 100);
+
+        expect(deniedResult.allowed).toBe(false);
+        expect(deniedResult).toHaveProperty("retryAfter");
+      });
     });
   });
 
-  describe("GCRA algorithm", () => {
-    const config: GCRAConfig = {
-      name: Algorithm.GCRA,
-      burst: 100,
-      interval: 60,
-    };
+  describe("Leaky Bucket Algorithm", () => {
+    describe("default args", () => {
+      it("should use default cost of 1 when not provided", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.LeakyBucket,
+          capacity: 10,
+          leakRate: 1,
+        };
+        const result = await store.consume("key1", config, now);
 
-    it("should call gcra with correct parameters", async () => {
-      const key = "test-key";
-      const cost = 2;
-      const expectedOutput: RateLimitResult = {
-        limit: 100,
-        allowed: true,
-        remaining: 98,
-        reset: Date.now() + 60000,
-      };
-      const expectedNewState: GCRAState = {
-        tat: Date.now(),
-      };
-
-      mockGCRA.mockReturnValueOnce({
-        state: expectedNewState,
-        output: expectedOutput,
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(9);
       });
 
-      const result = await store.consume(key, config, cost);
+      it("should initialize with full capacity", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.LeakyBucket,
+          capacity: 20,
+          leakRate: 2,
+        };
+        const result = await store.consume("key1", config, now);
 
-      expect(mockGCRA).toHaveBeenCalledTimes(1);
-      expect(mockGCRA).toHaveBeenCalledWith(
-        undefined,
-        config,
-        expect.any(Number),
-        cost,
-      );
-      expect(result).toEqual(expectedOutput);
+        expect(result.remaining).toBe(19);
+      });
     });
 
-    it("should persist and retrieve GCRA state correctly", async () => {
-      const key = "test-key";
-      const cost = 3;
+    describe("non-default args", () => {
+      it("should respect custom cost value", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.LeakyBucket,
+          capacity: 10,
+          leakRate: 1,
+        };
+        const result = await store.consume("key1", config, now, 3);
 
-      const firstState: GCRAState = {
-        tat: 5000,
-      };
-      const firstOutput: RateLimitResult = {
-        limit: 100,
-        allowed: true,
-        remaining: 97,
-        reset: 65000,
-      };
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(7);
+      });
 
-      const secondState: GCRAState = {
-        tat: 6000,
-      };
-      const secondOutput: RateLimitResult = {
-        limit: 100,
-        allowed: true,
-        remaining: 97,
-        reset: 66000,
-      };
+      it("should respect custom capacity", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.LeakyBucket,
+          capacity: 50,
+          leakRate: 5,
+        };
+        const result = await store.consume("key1", config, now);
 
-      mockGCRA
-        .mockReturnValueOnce({
-          state: firstState,
-          output: firstOutput,
-        })
-        .mockReturnValueOnce({
-          state: secondState,
-          output: secondOutput,
-        });
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(49);
+      });
 
-      await store.consume(key, config, cost);
-      const result2 = await store.consume(key, config, cost);
+      it("should respect custom leakRate", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.LeakyBucket,
+          capacity: 10,
+          leakRate: 3,
+        };
+        const result1 = await store.consume("key1", config, now);
+        const result2 = await store.consume("key2", config, now + 1000);
 
-      expect(mockGCRA).toHaveBeenNthCalledWith(
-        2,
-        firstState,
-        config,
-        expect.any(Number),
-        cost,
-      );
-      expect(result2).toEqual(secondOutput);
+        expect(result1.allowed).toBe(true);
+        expect(result2.allowed).toBe(true);
+      });
+    });
+
+    describe("persistence", () => {
+      it("should maintain queue state across multiple calls", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.LeakyBucket,
+          capacity: 10,
+          leakRate: 1,
+        };
+        const key = "bucket:4";
+
+        const result1 = await store.consume(key, config, now);
+        expect(result1.remaining).toBe(9);
+
+        const result2 = await store.consume(key, config, now + 1000);
+        expect(result2.remaining).toBe(9);
+
+        const result3 = await store.consume(key, config, now + 2000);
+        expect(result3.remaining).toBe(9);
+      });
+
+      it("should leak requests over time", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.LeakyBucket,
+          capacity: 5,
+          leakRate: 1,
+        };
+        const key = "bucket:5";
+
+        await store.consume(key, config, now);
+        await store.consume(key, config, now + 100);
+        await store.consume(key, config, now + 200);
+        await store.consume(key, config, now + 300);
+        await store.consume(key, config, now + 400);
+
+        const deniedResult = await store.consume(key, config, now + 500);
+        expect(deniedResult.allowed).toBe(false);
+
+        const allowedResult = await store.consume(key, config, now + 2000);
+        expect(allowedResult.allowed).toBe(true);
+      });
+    });
+
+    describe("returned object", () => {
+      it("should return valid RateLimitResult structure", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.LeakyBucket,
+          capacity: 10,
+          leakRate: 1,
+        };
+        const result = await store.consume("key1", config, now);
+
+        expect(result).toHaveProperty("allowed");
+        expect(result).toHaveProperty("limit");
+        expect(result).toHaveProperty("remaining");
+        expect(result).toHaveProperty("reset");
+      });
+
+      it("should include retryAfter when bucket is full", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.LeakyBucket,
+          capacity: 1,
+          leakRate: 1,
+        };
+        const key = "bucket:6";
+
+        await store.consume(key, config, now);
+        const deniedResult = await store.consume(key, config, now + 100);
+
+        expect(deniedResult.allowed).toBe(false);
+        expect(deniedResult).toHaveProperty("retryAfter");
+      });
     });
   });
 
-  describe("Multiple keys state isolation", () => {
-    it("should maintain independent state for different keys", async () => {
-      const config: FixedWindowConfig = {
+  describe("GCRA Algorithm", () => {
+    describe("default args", () => {
+      it("should use default cost of 1 when not provided", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.GCRA,
+          interval: 10,
+          burst: 5,
+        };
+        const result = await store.consume("key1", config, now);
+
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(4);
+      });
+
+      it("should initialize with burst capacity", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.GCRA,
+          interval: 10,
+          burst: 10,
+        };
+        const result = await store.consume("key1", config, now);
+
+        expect(result.remaining).toBe(9);
+      });
+    });
+
+    describe("non-default args", () => {
+      it("should respect custom cost value", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.GCRA,
+          interval: 10,
+          burst: 5,
+        };
+        const result = await store.consume("key1", config, now, 2);
+
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(3);
+      });
+
+      it("should respect custom interval", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.GCRA,
+          interval: 20,
+          burst: 5,
+        };
+        const result = await store.consume("key1", config, now);
+
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(4);
+      });
+
+      it("should respect custom burst", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.GCRA,
+          interval: 10,
+          burst: 20,
+        };
+        const result = await store.consume("key1", config, now);
+
+        expect(result.allowed).toBe(true);
+        expect(result.remaining).toBe(19);
+      });
+    });
+
+    describe("persistence", () => {
+      it("should maintain TAT (Theoretical Arrival Time) across calls", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.GCRA,
+          interval: 10,
+          burst: 5,
+        };
+        const key = "gcra:1";
+
+        const result1 = await store.consume(key, config, now);
+        expect(result1.allowed).toBe(true);
+        expect(result1.remaining).toBe(4);
+
+        const result2 = await store.consume(key, config, now + 1000);
+        expect(result2.allowed).toBe(true);
+        expect(result2.remaining).toBe(3);
+
+        const result3 = await store.consume(key, config, now + 2000);
+        expect(result3.allowed).toBe(true);
+        expect(result3.remaining).toBe(2);
+      });
+
+      it("should allow requests after interval has passed", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.GCRA,
+          interval: 5,
+          burst: 2,
+        };
+        const key = "gcra:2";
+
+        await store.consume(key, config, now);
+        await store.consume(key, config, now + 100);
+
+        const deniedResult = await store.consume(key, config, now + 200);
+        expect(deniedResult.allowed).toBe(false);
+
+        const allowedResult = await store.consume(key, config, now + 6000);
+        expect(allowedResult.allowed).toBe(true);
+      });
+    });
+
+    describe("returned object", () => {
+      it("should return valid RateLimitResult structure", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.GCRA,
+          interval: 10,
+          burst: 5,
+        };
+        const result = await store.consume("key1", config, now);
+
+        expect(result).toHaveProperty("allowed");
+        expect(result).toHaveProperty("limit");
+        expect(result).toHaveProperty("remaining");
+        expect(result).toHaveProperty("reset");
+      });
+
+      it("should include retryAfter when burst is exceeded", async () => {
+        const config: AlgorithmConfig = {
+          name: Algorithm.GCRA,
+          interval: 10,
+          burst: 1,
+        };
+        const key = "gcra:3";
+
+        await store.consume(key, config, now);
+        const deniedResult = await store.consume(key, config, now + 100);
+
+        expect(deniedResult.allowed).toBe(false);
+        expect(deniedResult).toHaveProperty("retryAfter");
+      });
+    });
+  });
+
+  describe("Multiple Keys Isolation", () => {
+    it("should maintain separate state for different keys", async () => {
+      const config: AlgorithmConfig = {
         name: Algorithm.FixedWindow,
         window: 60,
-        limit: 100,
+        limit: 5,
       };
 
-      const state1: FixedWindowState = { count: 5, windowStart: 1000 };
-      const state2: FixedWindowState = { count: 10, windowStart: 2000 };
+      const result1 = await store.consume("user:1", config, now);
+      const result2 = await store.consume("user:2", config, now);
+      const result3 = await store.consume("user:1", config, now + 1000);
 
-      mockFixedWindow
-        .mockReturnValueOnce({
-          state: state1,
-          output: { allowed: true, limit: 100, remaining: 95, reset: 61000 },
-        })
-        .mockReturnValueOnce({
-          state: state2,
-          output: { allowed: true, limit: 100, remaining: 90, reset: 62000 },
-        });
-
-      const result1 = await store.consume("key1", config, 5);
-      const result2 = await store.consume("key2", config, 10);
-
-      expect(result1).toEqual({
-        allowed: true,
-        limit: 100,
-        remaining: 95,
-        reset: 61000,
-      });
-      expect(result2).toEqual({
-        allowed: true,
-        limit: 100,
-        remaining: 90,
-        reset: 62000,
-      });
-
-      // Third call to key1 should use state1, not state2
-      mockFixedWindow.mockReturnValueOnce({
-        state: { count: 6, windowStart: 1000 },
-        output: { allowed: true, limit: 100, remaining: 94, reset: 61000 },
-      });
-
-      await store.consume("key1", config, 1);
-
-      expect(mockFixedWindow).toHaveBeenNthCalledWith(
-        3,
-        state1,
-        config,
-        expect.any(Number),
-        1,
-      );
-    });
-  });
-
-  describe("Rate limit rejection with state persistence", () => {
-    it("should persist state even when request is rejected", async () => {
-      const config: FixedWindowConfig = {
-        name: Algorithm.FixedWindow,
-        window: 60,
-        limit: 100,
-      };
-
-      const rejectedState: FixedWindowState = {
-        count: 100,
-        windowStart: 1000,
-      };
-      const rejectedOutput: RateLimitResult = {
-        limit: 100,
-        allowed: false,
-        remaining: 0,
-        reset: 61000,
-        retryAfter: 30,
-      };
-
-      const successState: FixedWindowState = {
-        count: 100,
-        windowStart: 61000,
-      };
-      const successOutput: RateLimitResult = {
-        limit: 100,
-        allowed: true,
-        remaining: 99,
-        reset: 121000,
-      };
-
-      mockFixedWindow
-        .mockReturnValueOnce({
-          state: rejectedState,
-          output: rejectedOutput,
-        })
-        .mockReturnValueOnce({
-          state: successState,
-          output: successOutput,
-        });
-
-      const result1 = await store.consume("key", config, 100);
-      expect(result1).toEqual(rejectedOutput);
-
-      const result2 = await store.consume("key", config, 1);
-
-      // The second call should receive the persisted rejected state
-      expect(mockFixedWindow).toHaveBeenNthCalledWith(
-        2,
-        rejectedState,
-        config,
-        expect.any(Number),
-        1,
-      );
-      expect(result2).toEqual(successOutput);
-    });
-  });
-
-  describe("Error handling", () => {
-    it("should throw UnknownAlgorithmException for unsupported algorithm", async () => {
-      const invalidConfig = {
-        name: "unknown-algorithm",
-      } as any;
-
-      await expect(store.consume("key", invalidConfig, 1)).rejects.toThrow(
-        UnknownAlgorithmException,
-      );
-    });
-  });
-
-  describe("Parameter passing accuracy", () => {
-    it("should pass exact timestamp from Date.now() to algorithm", async () => {
-      const config: FixedWindowConfig = {
-        name: Algorithm.FixedWindow,
-        window: 60,
-        limit: 100,
-      };
-
-      mockFixedWindow.mockReturnValueOnce({
-        state: { count: 1, windowStart: 1000 },
-        output: { allowed: true, limit: 100, remaining: 99, reset: 61000 },
-      });
-
-      const beforeCall = Date.now();
-      await store.consume("key", config, 1);
-      const afterCall = Date.now();
-
-      // Verify that the timestamp passed falls within the expected range
-      const passedTimestamp = mockFixedWindow.mock.calls[0][2];
-      expect(passedTimestamp).toBeGreaterThanOrEqual(beforeCall);
-      expect(passedTimestamp).toBeLessThanOrEqual(afterCall);
-    });
-
-    it("should pass exact cost parameter to algorithm", async () => {
-      const config: FixedWindowConfig = {
-        name: Algorithm.FixedWindow,
-        window: 60,
-        limit: 100,
-      };
-
-      mockFixedWindow.mockReturnValueOnce({
-        state: { count: 7, windowStart: 1000 },
-        output: { allowed: true, limit: 100, remaining: 93, reset: 61000 },
-      });
-
-      const cost = 7;
-      await store.consume("key", config, cost);
-
-      expect(mockFixedWindow).toHaveBeenCalledWith(
-        undefined,
-        config,
-        expect.any(Number),
-        cost,
-      );
-    });
-
-    it("should pass reconstructed config with name to algorithm", async () => {
-      const config: FixedWindowConfig = {
-        name: Algorithm.FixedWindow,
-        window: 60,
-        limit: 100,
-      };
-
-      mockFixedWindow.mockReturnValueOnce({
-        state: { count: 1, windowStart: 1000 },
-        output: { allowed: true, limit: 100, remaining: 99, reset: 61000 },
-      });
-
-      await store.consume("key", config, 1);
-
-      const callArgs = mockFixedWindow.mock.calls[0];
-      const passedConfig = callArgs[1];
-
-      // Verify the config passed includes the name property
-      expect(passedConfig).toHaveProperty("name", Algorithm.FixedWindow);
-      expect(passedConfig).toHaveProperty("window", 60);
-      expect(passedConfig).toHaveProperty("limit", 100);
-      expect(passedConfig).toEqual(config);
+      expect(result1.remaining).toBe(4);
+      expect(result2.remaining).toBe(4);
+      expect(result3.remaining).toBe(3);
     });
   });
 });

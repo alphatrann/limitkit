@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "devDependencies": {
+    "@limitkit/memory": "workspace:^",
     "@types/express": "^5.0.6",
     "@types/node": "^25.4.0",
     "@types/supertest": "^7",

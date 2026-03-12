@@ -21,13 +21,9 @@ describe("gcra", () => {
     const res = gcra(state, config, now, 1);
 
     expect(res.output.allowed).toBe(true);
-    // TAT = max(now, tat) + cost * interval = max(1000, 1000) + 1*1000 = 2000
     expect((res.state as GCRAState).tat).toBe(2000);
     expect(res.output.reset).toBe(2000);
-    // backlog = 2000 - 1000 = 1000
-    // remaining = floor((burstTolerance - backlog) / interval)
-    // remaining = floor((2000 - 1000) / 1000) = 1
-    expect(res.output.remaining).toBe(1);
+    expect(res.output.remaining).toBe(2);
   });
 
   test("burst allows exactly 3 requests at same time", () => {
@@ -37,18 +33,18 @@ describe("gcra", () => {
     // 1st request: remaining goes 1->0
     let res = gcra(state, config, t, 1);
     expect(res.output.allowed).toBe(true);
-    expect(res.output.remaining).toBe(1);
+    expect(res.output.remaining).toBe(2);
     state = res.state as GCRAState;
 
     // 2nd request: remaining goes to 0
-    res = gcra(state, config, t, 1);
+    res = gcra(state, config, t, 2);
     expect(res.output.allowed).toBe(true);
     expect(res.output.remaining).toBe(0);
     state = res.state as GCRAState;
 
-    // 3rd request: still allowed (remaining was 0, becomes negative but capped)
+    // 3rd request: rejected
     res = gcra(state, config, t, 1);
-    expect(res.output.allowed).toBe(true);
+    expect(res.output.allowed).toBe(false);
     expect(res.output.remaining).toBe(0);
     state = res.state as GCRAState;
 
@@ -81,14 +77,11 @@ describe("gcra", () => {
     let state = createState();
     const t = 1000;
 
-    // cost=2: new_tat = max(1000,1000) + 2*1000 = 3000
     const res = gcra(state, config, t, 2);
 
     expect(res.output.allowed).toBe(true);
     expect((res.state as GCRAState).tat).toBe(3000);
-    // backlog = 3000 - 1000 = 2000
-    // remaining = floor((2000 - 2000) / 1000) = 0
-    expect(res.output.remaining).toBe(0);
+    expect(res.output.remaining).toBe(1);
   });
 
   test("allowAt threshold: now < allowAt leads to rejection", () => {
@@ -123,27 +116,23 @@ describe("gcra", () => {
     // backlog = 3000 - 2000 = 1000
     // remaining = floor((2000 - 1000) / 1000) = 1
     expect(res.output.allowed).toBe(true);
-    expect(res.output.remaining).toBe(1);
+    expect(res.output.remaining).toBe(2);
   });
 
   test("retryAfter = ceil((allowAt - now) / 1000)", () => {
     let state = createState();
     const t = 1000;
 
-    // Consume all burst: tat = 4000, allowAt = 2000
     for (let i = 0; i < 3; i++) {
       state = gcra(state, config, t, 1).state as GCRAState;
     }
 
-    // At t + 500ms: retryAfter = ceil((2000 - 1500) / 1000) = ceil(0.5) = 1
     const res1 = gcra(state, config, t + 500, 1);
     expect(res1.output.retryAfter).toBe(1);
 
-    // At t + 999ms: retryAfter = ceil((2000 - 1999) / 1000) = ceil(0.001) = 1
     const res2 = gcra(state, config, t + 999, 1);
     expect(res2.output.retryAfter).toBe(1);
 
-    // At t + 1001ms: retryAfter = ceil((2000 - 2001) / 1000) = 0 (but request allowed)
     const res3 = gcra(state, config, t + 1001, 1);
     expect(res3.output.allowed).toBe(true);
   });
@@ -166,24 +155,21 @@ describe("gcra", () => {
     expect((res.state as GCRAState).tat).toBe(12000);
     // backlog = 12000 - 11000 = 1000
     // remaining = floor((2000 - 1000) / 1000) = 1
-    expect(res.output.remaining).toBe(1);
+    expect(res.output.remaining).toBe(2);
   });
 
   test("backlog = new_tat - now tracks debt accumulated", () => {
     let state = createState();
     const t = 1000;
 
-    // cost=1: tat=2000, backlog=2000-1000=1000, remaining=1
     let res = gcra(state, config, t, 1);
+    expect(res.output.remaining).toBe(2);
+    state = res.state as GCRAState;
+
+    res = gcra(state, config, t, 1);
     expect(res.output.remaining).toBe(1);
     state = res.state as GCRAState;
 
-    // cost=1 again: tat=3000, backlog=3000-1000=2000, remaining=0
-    res = gcra(state, config, t, 1);
-    expect(res.output.remaining).toBe(0);
-    state = res.state as GCRAState;
-
-    // cost=1 again: tat=4000, backlog=4000-1000=3000, remaining=-1 capped to 0
     res = gcra(state, config, t, 1);
     expect(res.output.remaining).toBe(0);
   });
@@ -229,25 +215,19 @@ describe("gcra", () => {
     expect(allowRes.output.allowed).toBe(true);
   });
 
-  test("remaining = floor((burstTolerance - backlog) / interval)", () => {
+  test("remaining = floor((burstTolerance - backlog) / interval) + 1", () => {
     let state = createState();
     const t = 1000;
 
-    // Request with cost=1.5 would test fractions, but cost must be integer
-    // Instead, verify the floor behavior:
-
-    // After 1 request: backlog=1000, remaining=floor((2000-1000)/1000)=1
     let res = gcra(state, config, t, 1);
-    expect(res.output.remaining).toBe(Math.floor((2000 - 1000) / 1000));
+    expect(res.output.remaining).toBe(2);
     state = res.state as GCRAState;
 
-    // After 2 requests: backlog=2000, remaining=floor((2000-2000)/1000)=0
     res = gcra(state, config, t, 1);
-    expect(res.output.remaining).toBe(Math.floor((2000 - 2000) / 1000));
+    expect(res.output.remaining).toBe(1);
     state = res.state as GCRAState;
 
-    // After 3 requests: backlog=3000, remaining=floor((2000-3000)/1000)=-1 capped to 0
-    res = gcra(state, config, t, 1);
+    res = gcra(state, config, t, 2);
     expect(res.output.remaining).toBe(
       Math.max(0, Math.floor((2000 - 3000) / 1000)),
     );

@@ -2,13 +2,13 @@ import * as express from "express";
 import * as request from "supertest";
 import { limit } from "../src";
 import { Algorithm, RateLimiter } from "@limitkit/core";
-import { FakeStore } from "../__mocks__";
+import { InMemoryStore } from "@limitkit/memory";
 
 function createApp() {
   const app = express();
 
   const limiter = new RateLimiter({
-    store: new FakeStore(),
+    store: new InMemoryStore(),
     rules: [
       {
         name: "global-limit",

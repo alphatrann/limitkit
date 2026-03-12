@@ -66,7 +66,7 @@ export function gcra(
   const backlog = tat - now;
   const remaining = Math.max(
     0,
-    Math.floor((burstTolerance - backlog) / interval),
+    Math.floor((burstTolerance - backlog) / interval) + 1,
   );
 
   return {
