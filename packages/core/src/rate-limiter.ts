@@ -43,7 +43,7 @@ import { addConfigToKey } from "./utils";
  * }
  * ```
  */
-export class RateLimiter<C> implements Limiter<C> {
+export class RateLimiter<C = unknown> implements Limiter<C> {
   private rules: LimitRule<C>[] = [];
   private debug: boolean = false;
   private store: Store;

@@ -81,13 +81,14 @@ export class RedisStore implements Store {
    * Must be called before using the store. Idempotent - safe to call multiple times.
    * Loads Lua scripts for each supported algorithm and caches their SHAs for efficient execution.
    *
-   * @returns Promise that resolves when all scripts are loaded
+   * @returns RedisStore instance itself
    * @throws Error if Redis connection fails or scripts cannot be read
    */
-  async init(): Promise<void> {
-    if (this.scriptsLoaded) return;
+  async init(): Promise<RedisStore> {
+    if (this.scriptsLoaded) return this;
     await this.loadScripts();
     this.scriptsLoaded = true;
+    return this;
   }
 
   /**

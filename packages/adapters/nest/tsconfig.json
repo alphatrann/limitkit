@@ -1,3 +1,12 @@
 {
-  "extends": "../../../tsconfig.base.json"
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "paths": {
+      "limitkit/limit": ["libs/limit/src"],
+      "limitkit/limit/*": ["libs/limit/src/*"]
+    }
+  }
 }
