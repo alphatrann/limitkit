@@ -132,6 +132,7 @@ export function limit(
 
       next();
     } catch (err) {
+      console.error(err);
       next(err);
     }
   };

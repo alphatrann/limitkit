@@ -9,8 +9,6 @@ import {
 import { RedisClientType } from "redis";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { Clock } from "./types";
-import { SystemClock } from "./system-clock";
 
 /**
  * Redis-based implementation of the Store interface.
@@ -67,13 +65,8 @@ export class RedisStore implements Store {
    * Creates a new RedisStore instance.
    *
    * @param redis - Connected Redis client instance
-   * @param clock - Optional clock implementation for getting current time.
-   *               Defaults to SystemClock if not provided. Useful for testing.
    */
-  constructor(
-    private redis: RedisClientType,
-    private clock: Clock = new SystemClock(),
-  ) {}
+  constructor(private redis: RedisClientType) {}
 
   /**
    * Initializes the store by loading all rate limiting algorithm scripts into Redis.
@@ -144,11 +137,11 @@ export class RedisStore implements Store {
   async consume(
     key: string,
     config: AlgorithmConfig,
+    now: number,
     cost: number = 1,
   ): Promise<RateLimitResult> {
     const sha = this.scriptsSha.get(config.name);
     if (!sha) throw new UnknownAlgorithmException(config.name);
-    const now = this.clock.now();
 
     let allowed: number;
     let remaining: number;
