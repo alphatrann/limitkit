@@ -14,7 +14,7 @@ describe("RedisStore Concurrency Tests", () => {
 
   beforeAll(async () => {
     redis = createClient({
-      url: "redis://localhost:6379",
+      url: "redis://localhost:6380",
     });
 
     await redis.connect();

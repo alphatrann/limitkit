@@ -13,7 +13,7 @@ describe("RedisStore", () => {
   async function createApp() {
     const app = express();
     redis = createClient({
-      url: "redis://localhost:6379",
+      url: "redis://localhost:6381",
     });
     await redis.connect();
     await redis.flushDb();
