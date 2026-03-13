@@ -1,0 +1,156 @@
+import { Test } from "@nestjs/testing";
+import { INestApplication } from "@nestjs/common";
+import * as request from "supertest";
+import { LimitModule } from "../src/limit.module";
+import { InMemoryStore } from "@limitkit/memory";
+import { Algorithm } from "@limitkit/core";
+import { TestController, NoLimitController } from "./controllers";
+import { getUserTier } from "./utils";
+
+describe("LimitModule + in-memory tests", () => {
+  let app: INestApplication;
+
+  describe("LimitModule forRoot", () => {
+    beforeEach(async () => {
+      const moduleRef = await Test.createTestingModule({
+        imports: [
+          LimitModule.forRoot({
+            store: new InMemoryStore(),
+            debug: false,
+            rules: [
+              {
+                name: "global-ip-limit",
+                key: (req: any) => req.ip,
+                policy: {
+                  name: Algorithm.FixedWindow,
+                  window: 60,
+                  limit: 5,
+                },
+              },
+            ],
+          }),
+        ],
+        controllers: [TestController, NoLimitController],
+      }).compile();
+
+      app = moduleRef.createNestApplication();
+      await app.init();
+    });
+
+    afterEach(async () => {
+      await app.close();
+    });
+
+    const server = () => app.getHttpServer();
+
+    it("should skip rate limit when @SkipRateLimit is used", async () => {
+      await request(server()).get("/open").expect(200);
+      await request(server()).get("/open").expect(200);
+      await request(server()).get("/open").expect(200);
+      await request(server()).get("/open").expect(200);
+      await request(server()).get("/open").expect(200);
+      await request(server()).get("/open").expect(200);
+    });
+    it("should enforce global rate limit", async () => {
+      await request(server()).get("/limited").expect(200);
+      await request(server()).get("/limited").expect(200);
+      await request(server()).get("/limited").expect(200);
+      await request(server()).get("/limited").expect(200);
+      await request(server()).get("/limited").expect(200);
+      await request(server()).get("/limited").expect(429);
+    });
+
+    it("should override global rule with route rule", async () => {
+      await request(server()).get("/route-limit").expect(200);
+      await request(server()).get("/route-limit").expect(429);
+    });
+
+    it("should enforce controller level rules", async () => {
+      await request(server()).get("/controller").expect(200);
+      await request(server()).get("/controller").expect(200);
+      await request(server()).get("/controller").expect(200);
+      await request(server()).get("/controller").expect(429);
+    });
+  });
+
+  describe("LimitModule forRootAsync", () => {
+    beforeEach(async () => {
+      const moduleRef = await Test.createTestingModule({
+        imports: [
+          LimitModule.forRootAsync({
+            useFactory: () => {
+              return {
+                store: new InMemoryStore(),
+                rules: [
+                  {
+                    key: (req: any) =>
+                      "user:" +
+                      String(
+                        req.headers["user-id"] ? +req.headers["user-id"] : 1001,
+                      ),
+                    policy: async (req: any) => {
+                      const userId = req.headers["user-id"]
+                        ? +req.headers["user-id"]
+                        : 1001;
+                      const tier = await getUserTier(userId);
+                      if (tier === "enterprise")
+                        return {
+                          name: Algorithm.FixedWindow,
+                          window: 60,
+                          limit: 5,
+                        };
+                      if (tier === "pro")
+                        return {
+                          name: Algorithm.FixedWindow,
+                          window: 60,
+                          limit: 3,
+                        };
+                      return {
+                        name: Algorithm.FixedWindow,
+                        window: 60,
+                        limit: 1,
+                      };
+                    },
+                    name: "tier-limit",
+                  },
+                ],
+                debug: false,
+              };
+            },
+          }),
+        ],
+        controllers: [NoLimitController],
+      }).compile();
+
+      app = moduleRef.createNestApplication();
+      await app.init();
+    });
+
+    afterEach(async () => {
+      await app.close();
+    });
+
+    const server = () => app.getHttpServer();
+
+    it("enterprise tier should get higher limits", async () => {
+      await request(server()).get("/limited").set("user-id", "1").expect(200);
+      await request(server()).get("/limited").set("user-id", "1").expect(200);
+      await request(server()).get("/limited").set("user-id", "1").expect(200);
+      await request(server()).get("/limited").set("user-id", "1").expect(200);
+      await request(server()).get("/limited").set("user-id", "1").expect(200);
+      await request(server()).get("/limited").set("user-id", "1").expect(429);
+    });
+
+    it("pro tier should get lower limits than enterprise", async () => {
+      await request(server()).get("/limited").set("user-id", "101").expect(200);
+      await request(server()).get("/limited").set("user-id", "101").expect(200);
+      await request(server()).get("/limited").set("user-id", "101").expect(200);
+      await request(server()).get("/limited").set("user-id", "101").expect(429);
+    });
+
+    it("basic tier should get lower limits than pro", async () => {
+      await request(server()).get("/limited").expect(200);
+      await request(server()).get("/limited").expect(429);
+    });
+  });
+});
