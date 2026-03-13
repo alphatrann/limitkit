@@ -60,7 +60,7 @@ end
 
 tat = math.max(now, tat) + cost * interval
 local backlog = tat - now
-local remaining = math.max(0, math.floor((burstTolerance - backlog) / interval))
+local remaining = math.max(0, math.floor((burstTolerance - backlog) / interval) + 1)
 
 redis.call("SET", key, tat, "PX", burst * interval)
 return {1, remaining, tat, 0}

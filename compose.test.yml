@@ -3,6 +3,24 @@ name: limitkit-test
 services:
   redis:
     image: redis:alpine
-    container_name: limitkit-redis
+    container_name: limitkit-redis-1
     ports:
       - 6379:6379
+
+  redis2:
+    image: redis:alpine
+    container_name: limitkit-redis-2
+    ports:
+      - 6380:6379
+
+  redis3:
+    image: redis:alpine
+    container_name: limitkit-redis-3
+    ports:
+      - 6381:6379
+
+  redis4:
+    image: redis:alpine
+    container_name: limitkit-redis-4
+    ports:
+      - 6382:6379

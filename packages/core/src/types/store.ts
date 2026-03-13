@@ -18,6 +18,7 @@ export interface Store {
    *              (e.g., "user-123", "ip-192.168.1.1"). Requests with the same key
    *              share the same rate limit quota.
    * @param algorithm - The rate limiting algorithm configuration to apply.
+   * @param now - Unix timestamp in millisecond
    * @param cost - The cost/weight of this request. Defaults to 1. Higher costs consume
    *               more quota (useful for charging different amounts for different operations).
    * @returns A promise that resolves to the rate limit check result.
@@ -25,6 +26,7 @@ export interface Store {
   consume(
     key: string,
     algorithm: AlgorithmConfig,
+    now: number,
     cost?: number,
   ): Promise<RateLimitResult>;
 }

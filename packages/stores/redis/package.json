@@ -1,12 +1,15 @@
 {
   "name": "@limitkit/redis",
   "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "dependencies": {
     "@limitkit/core": "workspace:*",
     "redis": "^5.11.0"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "build": "tsup src/index.ts --format esm,cjs --dts && yarn copy-lua",
+    "copy-lua": "cp -r src/scripts dist/scripts",
     "test": "jest"
   },
   "devDependencies": {

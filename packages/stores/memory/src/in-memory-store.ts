@@ -69,64 +69,76 @@ export class InMemoryStore implements Store {
 
   async consume(
     key: string,
-    { name, ...config }: AlgorithmConfig,
+    config: AlgorithmConfig,
+    now: number,
     cost: number = 1,
   ): Promise<RateLimitResult> {
-    const state = this.map.get(key);
+    let state = this.map.get(key);
 
-    const now = Date.now();
     let result: AlgorithmResult;
-    switch (name) {
+    switch (config.name) {
       case Algorithm.FixedWindow:
+        if (!state) state = { windowStart: now, count: 0 };
         result = fixedWindow(
           state as FixedWindowState,
-          { name, ...config } as FixedWindowConfig,
+          config as FixedWindowConfig,
           now,
           cost,
         );
         break;
       case Algorithm.SlidingWindow:
+        if (!state)
+          state = {
+            buffer: new Array(config.limit).map(() => null),
+            head: 0,
+            size: 0,
+          };
         result = slidingWindow(
           state as SlidingWindowState,
-          { name, ...config } as SlidingWindowConfig,
+          config as SlidingWindowConfig,
           now,
           cost,
         );
         break;
       case Algorithm.SlidingWindowCounter:
+        if (!state) state = { windowStart: now, count: 0, prevCount: 0 };
         result = slidingWindowCounter(
           state as SlidingWindowCounterState,
-          { name, ...config } as SlidingWindowCounterConfig,
+          config as SlidingWindowCounterConfig,
           now,
           cost,
         );
         break;
       case Algorithm.TokenBucket:
+        if (!state)
+          state = {
+            lastRefill: now,
+            tokens: config.capacity,
+          };
         result = tokenBucket(
           state as TokenBucketState,
-          { name, ...config } as TokenBucketConfig,
+          config as TokenBucketConfig,
           now,
           cost,
         );
         break;
       case Algorithm.LeakyBucket:
+        if (!state)
+          state = {
+            lastLeak: now,
+            queueSize: 0,
+          };
         result = leakyBucket(
           state as LeakyBucketState,
-          { name, ...config } as LeakyBucketConfig,
+          config as LeakyBucketConfig,
           now,
           cost,
         );
         break;
       case Algorithm.GCRA:
-        result = gcra(
-          state as GCRAState,
-          { name, ...config } as GCRAConfig,
-          now,
-          cost,
-        );
+        if (!state) state = { tat: now };
+        result = gcra(state as GCRAState, config as GCRAConfig, now, cost);
         break;
-      default:
-        throw new UnknownAlgorithmException(name);
     }
 
     this.map.set(key, result.state);
