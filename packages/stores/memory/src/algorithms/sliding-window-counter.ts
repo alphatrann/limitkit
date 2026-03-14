@@ -5,16 +5,55 @@ import {
 } from "@limitkit/core";
 import { InMemoryCompatible, SlidingWindowCounterState } from "../types";
 
+/**
+ * In-memory implementation of the **Sliding Window Counter** algorithm.
+ *
+ * This algorithm approximates a sliding window by combining the counts
+ * from the current and previous window using linear interpolation.
+ *
+ * It provides smoother rate limiting than fixed windows while requiring
+ * constant memory.
+ *
+ * ## Characteristics
+ * - O(1) state
+ * - Smooth transitions between windows
+ * - Slight approximation error
+ *
+ * ## Usage
+ * ```ts
+ * import { InMemorySlidingWindowCounter } from "@limitkit/memory";
+ *
+ * const limiter = new InMemorySlidingWindowCounter({
+ *   name: "sliding-window-counter",
+ *   limit: 100,
+ *   window: 60
+ * });
+ * ```
+ *
+ * @extends SlidingWindowCounter
+ * @implements {InMemoryCompatible<SlidingWindowCounterState>}
+ */
 export class InMemorySlidingWindowCounter
   extends SlidingWindowCounter
   implements InMemoryCompatible<SlidingWindowCounterState>
 {
   /**
-   * In-memory implementation of the sliding window counter
-   * Total time complexity: O(1)
-   * @param state internal state of sliding window counter algorithm
-   * @param now unix timestamp in millisecond
-   * @param cost cost per request, must never exceed `this.config.limit`
+   * Processes a request using the sliding window counter algorithm.
+   *
+   * Calculates the effective request count using a weighted combination
+   * of the current and previous window counts.
+   *
+   * ## Complexity
+   * - Time: **O(1)**
+   * - Space: **O(1)**
+   *
+   * @param state Previous algorithm state
+   * @param now Current Unix timestamp **in milliseconds**
+   * @param cost Number of tokens to consume (default: `1`)
+   *
+   * @returns Updated state and rate limit result
+   *
+   * @throws BadArgumentsException if `cost > config.limit`
    */
   process(
     state: SlidingWindowCounterState | undefined,

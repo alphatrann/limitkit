@@ -8,15 +8,15 @@
  *
  * ```typescript
  * import { RateLimiter } from '@limitkit/core';
- * import { MemoryStore } from '@limitkit/memory';
+ * import { InMemoryStore } from '@limitkit/memory';
  *
  * const limiter = new RateLimiter({
- *   store: new MemoryStore(),
+ *   store: new InMemoryStore(),
  *   rules: [
  *     {
  *       name: 'api-limit',
  *       key: (ctx) => ctx.userId,
- *       policy: { name: 'fixed-window', window: 60, limit: 100 }
+ *       policy: new InMemoryFixedWindow({ name: 'fixed-window', window: 60, limit: 100 })
  *     }
  *   ]
  * });

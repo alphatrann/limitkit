@@ -2,18 +2,53 @@ import { BadArgumentsException, LeakyBucket } from "@limitkit/core";
 import { InMemoryCompatible, LeakyBucketState } from "../types";
 
 /**
- * In-memory implementation of leaky bucket
- * Total time complexity: O(1)
+ * In-memory implementation of the **Leaky Bucket** rate limiting algorithm.
  *
- * @param state internal state of leaky bucket algorithm
- * @param now unix timestamp in milliseconds
- * @param cost cost per request
+ * Requests enter a queue (the bucket) and leak out at a constant rate.
+ * If the bucket overflows, new requests are rejected.
+ *
+ * This algorithm smooths bursts by enforcing a steady processing rate.
+ *
+ * ## Characteristics
+ * - Smooth request rate
+ * - Predictable output rate
+ * - Queue-based model
+ *
+ * ## Usage
+ * ```ts
+ * import { InMemoryLeakyBucket } from "@limitkit/memory";
+ *
+ * const limiter = new InMemoryLeakyBucket({
+ *   name: "leaky-bucket",
+ *   capacity: 100,
+ *   leakRate: 2
+ * });
+ * ```
+ *
+ * @extends LeakyBucket
+ * @implements {InMemoryCompatible<LeakyBucketState>}
  */
-
 export class InMemoryLeakyBucket
   extends LeakyBucket
   implements InMemoryCompatible<LeakyBucketState>
 {
+  /**
+   * Processes a request using the leaky bucket algorithm.
+   *
+   * The bucket leaks requests over time based on the configured leak rate.
+   *
+   * ## Complexity
+   * - Time: **O(1)**
+   * - Space: **O(1)**
+   *
+   * @param state Previous leaky bucket state
+   * @param now Current Unix timestamp **in milliseconds**
+   * @param cost Number of tokens to consume (default: `1`)
+   *
+   * @returns Updated state and rate limit result
+   *
+   * @throws BadArgumentsException if `cost > config.capacity`
+   */
   process(state: LeakyBucketState | undefined, now: number, cost: number = 1) {
     if (cost > this.config.capacity)
       throw new BadArgumentsException(

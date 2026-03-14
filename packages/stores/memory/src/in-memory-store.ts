@@ -22,23 +22,50 @@ import { InMemoryCompatible, State } from "./types";
  *
  * @example
  * ```typescript
+ * import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory";
+ *
  * const store = new InMemoryStore();
- * const config = { name: "fixed-window", window: 60, limit: 100 };
- * const result = await store.consume('user-123', config, 1);
+ * const config = new InMemoryFixedWindow({ name: "fixed-window", window: 60, limit: 100 });
+ * const result = await store.consume('user-123', config, Date.now(), 1);
  * ```
  *
  * ## Characteristics
- *
+ * - **Atomic**: No race conditions
  * - **Non-persistent**: All state is lost when the process terminates
  * - **Single-instance**: Each InMemoryStore instance maintains its own isolated state map
  * - **Not distributed**: Cannot share state across multiple server instances
  * - **Algorithm agnostic**: The implementation delegates rate limiting logic to specific algorithm functions
  * - **Key-based storage**: Uses keys as-is (pre-modified by RateLimiter to ensure uniqueness)
  *
+ * ## Concurrency Model
+ *
+ * The store guarantees atomic updates per key using a Promise queue.
+ * Each key maintains a chain of Promises representing pending operations.
+ * New operations are appended to the chain and executed sequentially.
+ *
+ * This ensures that concurrent `consume()` calls for the same key
+ * cannot interleave state reads and writes, preventing race conditions.
+ *
+ * Example execution order:
+ *
+ * Request A → Request B → Request C
+ *
+ * Even if the requests arrive simultaneously, they will be processed
+ * sequentially in the order they were queued.
+ *
+ * The queue is implemented by storing the tail Promise for each key
+ * and chaining new operations using `prev.then(...)`.
+ *
+ * Errors are swallowed when updating the queue tail to prevent a
+ * rejected Promise from breaking the chain.
+ *
  * @remarks
  * - All operations are asynchronous to maintain API consistency with the Store interface
  * - State is preserved across calls, allowing accumulated rate limit tracking
  * - Key modification for config uniqueness is handled upstream by the RateLimiter
+ * - Operations for the same key are serialized using a Promise-based queue to guarantee atomic state updates and prevent race conditions.
+ *
+ * @implements {Store}
  */
 export class InMemoryStore implements Store {
   private queues = new Map<string, Promise<any>>();
@@ -50,6 +77,7 @@ export class InMemoryStore implements Store {
     now: number,
     cost: number = 1,
   ): Promise<RateLimitResult> {
+    algorithm.validate();
     const prev = this.queues.get(key) ?? Promise.resolve();
     const next = prev.then(() => {
       const state = this.map.get(key);
@@ -62,6 +90,12 @@ export class InMemoryStore implements Store {
       key,
       next.catch(() => {}),
     );
+
+    next.finally(() => {
+      if (this.queues.get(key) === next) {
+        this.queues.delete(key);
+      }
+    });
 
     return next;
   }

@@ -3,28 +3,48 @@ import { SetMetadata } from "@nestjs/common";
 import { RATE_LIMIT_CONFIG_METADATA_KEY } from "../limit.tokens";
 
 /**
- * Enforce rate limiting at controller or route level
+ * Apply additional rate limiting rules at the controller or route level.
  *
- * ## Behavior
- *   - Controller config overrides global config, route config overrides controller config and global config
- *   - Controller rules override global rules if the names match
- *   - Handler rules override controller and global rules if the names match
- *   - Rules are executed from left to right in the array
- *   - Execution order: global rules -> controller rules -> route rules
+ * This decorator allows routes or controllers to define extra rate limiting
+ * rules that are merged with the global rules configured in `LimitModule`.
  *
- * Example:
+ * ## Rule Resolution
+ *
+ * Rules are resolved using the following precedence:
+ *
+ * ```
+ * Global rules (LimitModule)
+ *      ↓
+ * Controller rules (@RateLimit on controller)
+ *      ↓
+ * Route rules (@RateLimit on handler)
+ * ```
+ *
+ * Rules with the same `name` override earlier rules during merging.
+ *
+ * ## Notes
+ *
+ * - Only **rules** can be configured at the decorator level.
+ * - Infrastructure configuration such as `store` or `debug`
+ *   must be defined globally in `LimitModule`.
+ *
+ * @param config Optional configuration containing additional rate limit rules.
+ *
+ * @example
  *
  * ```ts
- * @RateLimit({...}) // define controller-level config
- * @Controller('posts')
- * class PostController {
- *
- *   // Route rules overrides controller rules
- *   @RateLimit({...})
- *   @Get('search')
- *   search() {}
- * }
+ * @RateLimit({
+ *   rules: [
+ *     {
+ *       name: "per-ip",
+ *       key: (req) => req.ip,
+ *       policy: new RedisFixedWindow({ name: "fixed-window", window: 60, limit: 100 })
+ *     }
+ *   ]
+ * })
+ * @Get("/posts")
+ * findPosts() {}
  * ```
  */
-export const RateLimit = (config: Partial<RateLimitConfig>) =>
+export const RateLimit = (config?: Pick<RateLimitConfig, "rules">) =>
   SetMetadata(RATE_LIMIT_CONFIG_METADATA_KEY, config);
