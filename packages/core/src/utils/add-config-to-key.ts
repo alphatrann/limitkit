@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { AlgorithmConfig } from "../types";
 
 export function addConfigToKey(config: AlgorithmConfig, key: string) {
+  config = config ?? {};
   const sortedKeys = Object.keys(config).sort();
   const sortedConfig = sortedKeys.reduce((acc, k) => {
     acc[k] = (config as any)[k];

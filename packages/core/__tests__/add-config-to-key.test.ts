@@ -5,7 +5,7 @@ describe("addConfigToKey", () => {
   describe("basic functionality", () => {
     it("should create a modified key with algorithm name, hash, and original key", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
@@ -18,7 +18,7 @@ describe("addConfigToKey", () => {
 
     it("should include the algorithm name in the modified key", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.TokenBucket,
+        name: "token-bucket",
         capacity: 100,
         refillRate: 10,
       };
@@ -31,7 +31,7 @@ describe("addConfigToKey", () => {
 
     it("should include the original key at the end", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
@@ -44,7 +44,7 @@ describe("addConfigToKey", () => {
 
     it("should produce a 64-character hex hash (SHA-256)", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.SlidingWindow,
+        name: "sliding-window",
         window: 120,
         limit: 500,
       };
@@ -60,13 +60,13 @@ describe("addConfigToKey", () => {
   describe("config property ordering", () => {
     it("should produce same hash regardless of property order", () => {
       const config1: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
       const config2: AlgorithmConfig = {
         limit: 100,
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
       };
       const key = "test-key";
@@ -80,14 +80,14 @@ describe("addConfigToKey", () => {
     it("should produce same hash when properties are added in different order", () => {
       const key = "test-key";
       const config1: AlgorithmConfig = {
-        name: Algorithm.TokenBucket,
+        name: "token-bucket",
         capacity: 100,
         refillRate: 10,
       };
       const config2: AlgorithmConfig = {
         refillRate: 10,
         capacity: 100,
-        name: Algorithm.TokenBucket,
+        name: "token-bucket",
       };
 
       const result1 = addConfigToKey(config1, key);
@@ -100,12 +100,12 @@ describe("addConfigToKey", () => {
   describe("uniqueness for different configs", () => {
     it("should produce different hashes for different config values", () => {
       const config1: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
       const config2: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 200,
       };
@@ -119,12 +119,12 @@ describe("addConfigToKey", () => {
 
     it("should produce different hashes for different algorithms", () => {
       const config1: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
       const config2: AlgorithmConfig = {
-        name: Algorithm.SlidingWindow,
+        name: "sliding-window",
         window: 60,
         limit: 100,
       };
@@ -138,12 +138,12 @@ describe("addConfigToKey", () => {
 
     it("should produce different hashes for different window/capacity values", () => {
       const config1: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
       const config2: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 120,
         limit: 100,
       };
@@ -159,7 +159,7 @@ describe("addConfigToKey", () => {
   describe("uniqueness for different keys", () => {
     it("should produce different modified keys for different original keys", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
@@ -174,7 +174,7 @@ describe("addConfigToKey", () => {
 
     it("should preserve original key even with special characters", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
@@ -189,7 +189,7 @@ describe("addConfigToKey", () => {
   describe("algorithm-specific configs", () => {
     it("should handle FixedWindow config correctly", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
@@ -202,7 +202,7 @@ describe("addConfigToKey", () => {
 
     it("should handle TokenBucket config correctly", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.TokenBucket,
+        name: "token-bucket",
         capacity: 100,
         refillRate: 10,
       };
@@ -215,7 +215,7 @@ describe("addConfigToKey", () => {
 
     it("should handle LeakyBucket config correctly", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.LeakyBucket,
+        name: "leaky-bucket",
         capacity: 100,
         leakRate: 10,
       };
@@ -228,7 +228,7 @@ describe("addConfigToKey", () => {
 
     it("should handle SlidingWindow config correctly", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.SlidingWindow,
+        name: "sliding-window",
         window: 60,
         limit: 100,
       };
@@ -241,7 +241,7 @@ describe("addConfigToKey", () => {
 
     it("should handle SlidingWindowCounter config correctly", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.SlidingWindowCounter,
+        name: "sliding-window-counter",
         window: 60,
         limit: 100,
       };
@@ -256,7 +256,7 @@ describe("addConfigToKey", () => {
 
     it("should handle GCRA config correctly", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.GCRA,
+        name: "gcra",
         burst: 100,
         interval: 60,
       };
@@ -271,7 +271,7 @@ describe("addConfigToKey", () => {
   describe("consistency", () => {
     it("should always produce the same result for same inputs", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
@@ -289,7 +289,7 @@ describe("addConfigToKey", () => {
   describe("edge cases", () => {
     it("should handle keys with colons", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
@@ -302,7 +302,7 @@ describe("addConfigToKey", () => {
 
     it("should handle empty string key", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
@@ -315,7 +315,7 @@ describe("addConfigToKey", () => {
 
     it("should handle numeric values in config", () => {
       const config: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 3600,
         limit: 10000,
       };

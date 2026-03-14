@@ -1,5 +1,5 @@
 import { limit } from "../src";
-import { Algorithm, RateLimiter } from "@limitkit/core";
+import { FixedWindow, RateLimiter } from "@limitkit/core";
 import { Request, Response, NextFunction } from "express";
 
 describe("limit middleware", () => {
@@ -39,7 +39,11 @@ describe("limit middleware", () => {
         {
           name: "test",
           key: "global",
-          policy: { name: Algorithm.FixedWindow, window: 60, limit: 100 },
+          policy: new FixedWindow({
+            name: "fixed-window",
+            window: 60,
+            limit: 100,
+          }),
         },
       ],
     });
@@ -66,7 +70,11 @@ describe("limit middleware", () => {
         {
           name: "test",
           key: "global",
-          policy: { name: Algorithm.FixedWindow, window: 60, limit: 100 },
+          policy: new FixedWindow({
+            name: "fixed-window",
+            window: 60,
+            limit: 100,
+          }),
         },
       ],
     });
@@ -96,7 +104,11 @@ describe("limit middleware", () => {
         {
           name: "test",
           key: "global",
-          policy: { name: Algorithm.FixedWindow, window: 60, limit: 100 },
+          policy: new FixedWindow({
+            name: "fixed-window",
+            window: 60,
+            limit: 100,
+          }),
         },
       ],
     });
@@ -128,7 +140,11 @@ describe("limit middleware", () => {
         {
           name: "test",
           key: "global",
-          policy: { name: Algorithm.FixedWindow, window: 60, limit: 100 },
+          policy: new FixedWindow({
+            name: "fixed-window",
+            window: 60,
+            limit: 100,
+          }),
         },
       ],
     });

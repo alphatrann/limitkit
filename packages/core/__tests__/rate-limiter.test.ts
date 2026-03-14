@@ -8,6 +8,7 @@ import {
 } from "../src/types";
 import { BadArgumentsException, EmptyRulesException } from "../src/exceptions";
 import { MockStore, SpyStore } from "../__mocks__";
+import { FixedWindow } from "../src";
 
 describe("RateLimiter", () => {
   let store: MockStore;
@@ -31,11 +32,11 @@ describe("RateLimiter", () => {
         {
           name: "test",
           key: "test-key",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -48,11 +49,11 @@ describe("RateLimiter", () => {
         {
           name: "test",
           key: "test-key",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -68,11 +69,11 @@ describe("RateLimiter", () => {
         {
           name: "fixed-key",
           key: "static-key",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -88,11 +89,11 @@ describe("RateLimiter", () => {
         {
           name: "dynamic-key",
           key: (ctx) => ctx.userId,
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -112,11 +113,11 @@ describe("RateLimiter", () => {
             await Promise.resolve();
             return ctx.userId;
           },
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -132,11 +133,11 @@ describe("RateLimiter", () => {
         {
           name: "dynamic-key",
           key: (ctx) => ctx.userId,
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -161,11 +162,11 @@ describe("RateLimiter", () => {
         {
           name: "no-cost",
           key: "test-key",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -182,11 +183,11 @@ describe("RateLimiter", () => {
           name: "fixed-cost",
           key: "test-key",
           cost: 5,
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -203,11 +204,11 @@ describe("RateLimiter", () => {
           name: "dynamic-cost",
           key: "test-key",
           cost: (ctx) => ctx.requestSize,
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -228,11 +229,11 @@ describe("RateLimiter", () => {
             await Promise.resolve();
             return ctx.documentId === "large" ? 5 : 1;
           },
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -248,11 +249,11 @@ describe("RateLimiter", () => {
           name: "negative-cost",
           key: "test-key",
           cost: (ctx) => ctx.cost,
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -268,7 +269,7 @@ describe("RateLimiter", () => {
     it("should resolve fixed policy objects", async () => {
       const spyStore = new SpyStore(store);
       const fixedPolicy: FixedWindowConfig = {
-        name: Algorithm.FixedWindow,
+        name: "fixed-window",
         window: 60,
         limit: 100,
       };
@@ -277,7 +278,7 @@ describe("RateLimiter", () => {
         {
           name: "fixed-policy",
           key: "test-key",
-          policy: fixedPolicy,
+          policy: new FixedWindow(fixedPolicy),
         },
       ];
 
@@ -293,11 +294,12 @@ describe("RateLimiter", () => {
         {
           name: "dynamic-policy",
           key: "test-key",
-          policy: (ctx) => ({
-            name: Algorithm.FixedWindow,
-            window: 60,
-            limit: ctx.isPremium ? 1000 : 100,
-          }),
+          policy: (ctx) =>
+            new FixedWindow({
+              name: "fixed-window",
+              window: 60,
+              limit: ctx.isPremium ? 1000 : 100,
+            }),
         },
       ];
 
@@ -325,11 +327,11 @@ describe("RateLimiter", () => {
           policy: async (ctx) => {
             // Simulate async policy lookup
             await Promise.resolve();
-            return {
-              name: Algorithm.FixedWindow,
+            return new FixedWindow({
+              name: "fixed-window",
               window: 60,
               limit: ctx.userId === "vip" ? 10000 : 100,
-            };
+            });
           },
         },
       ];
@@ -356,11 +358,11 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "key1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -403,29 +405,29 @@ describe("RateLimiter", () => {
         {
           name: "user-limit",
           key: (ctx) => `user-limit:${ctx.userId}`,
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "ip-limit",
           key: (ctx) => `ip-limit:${ctx.ip}`,
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 50,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "global-limit",
           key: "global",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 1000,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -471,29 +473,29 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule2",
           key: "rule2",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule3",
           key: "rule3",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -523,29 +525,29 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "key1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule2",
           key: "key2",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule3",
           key: "key3",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -588,29 +590,29 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule2",
           key: "rule2",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 200,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule3",
           key: "rule3",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 300,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -653,29 +655,29 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule2",
           key: "rule2",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule3",
           key: "rule3",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -712,20 +714,20 @@ describe("RateLimiter", () => {
         {
           name: "user-limit",
           key: "user-limit:123",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "global-limit",
           key: "global",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 1000,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -763,20 +765,20 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule2",
           key: "rule2",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -820,29 +822,29 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule2",
           key: "rule2",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule3",
           key: "rule3",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -884,29 +886,29 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule2",
           key: "rule2",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule3",
           key: "rule3",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -943,20 +945,20 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
         {
           name: "rule2",
           key: "rule2",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -985,11 +987,11 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -1019,11 +1021,11 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -1042,11 +1044,11 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "key1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -1060,11 +1062,11 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "key1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -1072,11 +1074,11 @@ describe("RateLimiter", () => {
         {
           name: "rule2",
           key: "key2",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 200,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -1093,11 +1095,11 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "key1",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 100,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
@@ -1107,11 +1109,11 @@ describe("RateLimiter", () => {
         {
           name: "rule2",
           key: "key2",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new FixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 200,
-          } as FixedWindowConfig,
+          }),
         },
       ];
 
