@@ -52,7 +52,7 @@ import {
  *   @Get()
  *   findAll() {}
  *
- *   // Route rule overrides controller skip
+ *   // Route rule skips global rules but overrides controller skip
  *   @RateLimit({ rules: [...] })
  *   @Get('search')
  *   search() {}
@@ -110,7 +110,7 @@ import {
  *       {
  *         name: "per-ip",
  *         key: (req) => req.ip,
- *         policy: { name: "fixed-window", window: 60, limit: 100 }
+ *         policy: new RedisFixedWindow({ name: "fixed-window", window: 60, limit: 100 })
  *       }
  *     ]
  *   })
@@ -139,6 +139,7 @@ export class LimitGuard implements CanActivate {
       RATE_LIMIT_CONFIG_METADATA_KEY,
       context.getHandler(),
     );
+
     const controllerConfig = this.reflector.get(
       RATE_LIMIT_CONFIG_METADATA_KEY,
       context.getClass(),
@@ -148,18 +149,22 @@ export class LimitGuard implements CanActivate {
       SKIP_RATE_LIMIT_METADATA_KEY,
       context.getHandler(),
     );
+
     const controllerSkip = this.reflector.get(
       SKIP_RATE_LIMIT_METADATA_KEY,
       context.getClass(),
     );
 
+    // handler-level skip always wins
     if (handlerSkip) return true;
 
     let rules;
 
     if (controllerSkip) {
+      // controller skipped → only handler rules apply
       rules = handlerConfig?.rules ?? [];
     } else {
+      // merge global + controller + handler
       rules = mergeRules(this.limiter.config.rules, [
         ...(controllerConfig?.rules ?? []),
         ...(handlerConfig?.rules ?? []),
@@ -170,8 +175,6 @@ export class LimitGuard implements CanActivate {
 
     const limiter = new RateLimiter({
       ...this.limiter.config,
-      ...(controllerConfig ?? {}),
-      ...(handlerConfig ?? {}),
       rules,
     });
 

@@ -21,8 +21,10 @@ const defaultRateLimitResponse = {
  * - `RateLimit-Reset` — Time (in seconds) until the limit resets
  * - `Retry-After` — Time (in seconds) the client should wait before retrying (only when limited)
  *
- * Route-specific configuration can override the base limiter configuration such as
- * rules, store, and debug mode. Rules are merged using {@link mergeRules}.
+ * Route-specific configuration may provide additional rate-limit rules.
+ * These rules are merged with the base limiter rules using {@link mergeRules}.
+ * The underlying limiter infrastructure (store, debug settings, etc.)
+ * cannot be overridden at the route level.
  *
  * @template Request
  *
@@ -36,12 +38,6 @@ const defaultRateLimitResponse = {
  * @param config.rules
  * Optional rate-limit rules specific to this route. These are merged with the
  * base limiter rules using {@link mergeRules}.
- *
- * @param config.store
- * Optional store override for this route. If omitted, the base limiter store is used.
- *
- * @param config.debug
- * Enables debug logging for this route limiter.
  *
  * @param config.rateLimitResponse
  * Custom JSON response body returned when the rate limit is exceeded.
@@ -80,7 +76,7 @@ const defaultRateLimitResponse = {
  * app.post(
  *   "/login",
  *   limit(limiter, {
- *     rules: [{ limit: 5, window: "1m" }]
+ *     rules: [new InMemoryFixedWindow({ name: "fixed-window", limit: 5, window: 60 })]
  *   }),
  *   loginHandler
  * );
@@ -113,11 +109,12 @@ export function limit(
   }: RouteRateLimitConfig = {},
 ) {
   const limiterConfig = limiter.config;
-  const newConfig = {
-    debug: routeConfig.debug ?? limiterConfig.debug,
-    rules: mergeRules(limiterConfig.rules, routeConfig.rules),
-    store: routeConfig.store ?? limiterConfig.store,
-  };
+  const mergedRules = routeConfig.rules
+    ? mergeRules(limiterConfig.rules, routeConfig.rules)
+    : limiterConfig.rules;
+
+  const newConfig = { ...limiterConfig, rules: mergedRules };
+
   const routeLimiter = new RateLimiter<Request>(newConfig);
 
   return async (req: Request, res: Response, next: NextFunction) => {
