@@ -25,7 +25,7 @@ import { SKIP_RATE_LIMIT_METADATA_KEY } from "../limit.tokens";
  *   findAll() {}
  *
  *   // Route rule overrides controller skip
- *   @RateLimit({ rules: [...] })
+ *   @RateLimit({ rules: [...], debug: false, store: new InMemoryStore() })
  *   @Get('search')
  *   search() {}
  * }

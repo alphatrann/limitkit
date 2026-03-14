@@ -106,37 +106,6 @@ describe("limit middleware", () => {
     expect(res.status).toHaveBeenCalledWith(429);
   });
 
-  it("overrides debug config from route config", () => {
-    const globalStore = { name: "global-store" } as any;
-    const globalRule = {
-      name: "global-rule",
-      key: "global",
-      policy: new MockFixedWindow({
-        name: "fixed-window",
-        window: 60,
-        limit: 100,
-      }),
-    };
-
-    const limiter = new core.RateLimiter<Request>({
-      debug: false,
-      store: globalStore,
-      rules: [globalRule],
-    });
-
-    MockedRateLimiter.mockClear();
-
-    limit(limiter, { debug: true });
-
-    expect(MockedRateLimiter).toHaveBeenCalledWith(
-      expect.objectContaining({
-        debug: true,
-        rules: [globalRule],
-        store: globalStore,
-      }),
-    );
-  });
-
   it("appends new route rules when name does not exist", () => {
     const store = { name: "store" } as any;
     const globalRule = { name: "global", key: "g", policy: {} as any };
@@ -156,5 +125,65 @@ describe("limit middleware", () => {
         rules: [globalRule, routeRule],
       }),
     );
+  });
+
+  it("calls mergeRules with global and route rules", () => {
+    const store = { name: "store" } as any;
+
+    const globalRule = { name: "global", key: "g", policy: {} as any };
+    const routeRule = { name: "route", key: "r", policy: {} as any };
+
+    const limiter = new core.RateLimiter<Request>({
+      debug: false,
+      store,
+      rules: [globalRule],
+    });
+
+    const mergeSpy = jest.spyOn(core, "mergeRules");
+
+    limit(limiter, { rules: [routeRule] });
+
+    expect(mergeSpy).toHaveBeenCalledWith([globalRule], [routeRule]);
+  });
+
+  it("creates new limiter with merged rules", () => {
+    const store = { name: "store" } as any;
+
+    const globalRule = { name: "global", key: "g", policy: {} as any };
+    const routeRule = { name: "route", key: "r", policy: {} as any };
+
+    const limiter = new core.RateLimiter<Request>({
+      debug: false,
+      store,
+      rules: [globalRule],
+    });
+
+    MockedRateLimiter.mockClear();
+
+    limit(limiter, { rules: [routeRule] });
+
+    expect(MockedRateLimiter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rules: [globalRule, routeRule],
+      }),
+    );
+  });
+
+  it("still calls mergeRules when route rules undefined", () => {
+    const store = { name: "store" } as any;
+
+    const globalRule = { name: "global", key: "g", policy: {} as any };
+
+    const limiter = new core.RateLimiter<Request>({
+      debug: false,
+      store,
+      rules: [globalRule],
+    });
+
+    const mergeSpy = jest.spyOn(core, "mergeRules");
+
+    limit(limiter);
+
+    expect(mergeSpy).not.toHaveBeenCalled();
   });
 });

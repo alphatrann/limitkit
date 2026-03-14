@@ -2,14 +2,14 @@ import { RateLimitConfig } from "@limitkit/core";
 import { Request } from "express";
 
 /**
- * Represents route-level configuration
+ * Route-level rate limit configuration.
  *
- * Route-level configuration overrides global configuration
- *
- * @extends Partial<RateLimitConfig<Request>>
+ * Additional rules provided here are merged with the base limiter rules
+ * using {@link mergeRules}. The underlying store and global limiter
+ * configuration remain unchanged.
  */
 export interface RouteRateLimitConfig extends Partial<
-  RateLimitConfig<Request>
+  Pick<RateLimitConfig<Request>, "rules">
 > {
   /**
    * Custom rate limit response (optional)

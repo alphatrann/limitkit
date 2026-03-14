@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
-    "test": "jest"
+    "test": "jest --silent"
   },
   "devDependencies": {
     "@types/node": "^25.4.0"
