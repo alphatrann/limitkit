@@ -10,6 +10,8 @@ import { BadArgumentsException, EmptyRulesException } from "../src/exceptions";
 import { MockStore, SpyStore } from "../__mocks__";
 import { FixedWindow } from "../src";
 
+class MockFixedWindow extends FixedWindow {}
+
 describe("RateLimiter", () => {
   let store: MockStore;
 
@@ -32,7 +34,7 @@ describe("RateLimiter", () => {
         {
           name: "test",
           key: "test-key",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -49,7 +51,7 @@ describe("RateLimiter", () => {
         {
           name: "test",
           key: "test-key",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -69,7 +71,7 @@ describe("RateLimiter", () => {
         {
           name: "fixed-key",
           key: "static-key",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -89,7 +91,7 @@ describe("RateLimiter", () => {
         {
           name: "dynamic-key",
           key: (ctx) => ctx.userId,
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -113,7 +115,7 @@ describe("RateLimiter", () => {
             await Promise.resolve();
             return ctx.userId;
           },
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -133,7 +135,7 @@ describe("RateLimiter", () => {
         {
           name: "dynamic-key",
           key: (ctx) => ctx.userId,
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -162,7 +164,7 @@ describe("RateLimiter", () => {
         {
           name: "no-cost",
           key: "test-key",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -183,7 +185,7 @@ describe("RateLimiter", () => {
           name: "fixed-cost",
           key: "test-key",
           cost: 5,
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -204,7 +206,7 @@ describe("RateLimiter", () => {
           name: "dynamic-cost",
           key: "test-key",
           cost: (ctx) => ctx.requestSize,
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -229,7 +231,7 @@ describe("RateLimiter", () => {
             await Promise.resolve();
             return ctx.documentId === "large" ? 5 : 1;
           },
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -249,7 +251,7 @@ describe("RateLimiter", () => {
           name: "negative-cost",
           key: "test-key",
           cost: (ctx) => ctx.cost,
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -278,7 +280,7 @@ describe("RateLimiter", () => {
         {
           name: "fixed-policy",
           key: "test-key",
-          policy: new FixedWindow(fixedPolicy),
+          policy: new MockFixedWindow(fixedPolicy),
         },
       ];
 
@@ -295,7 +297,7 @@ describe("RateLimiter", () => {
           name: "dynamic-policy",
           key: "test-key",
           policy: (ctx) =>
-            new FixedWindow({
+            new MockFixedWindow({
               name: "fixed-window",
               window: 60,
               limit: ctx.isPremium ? 1000 : 100,
@@ -327,7 +329,7 @@ describe("RateLimiter", () => {
           policy: async (ctx) => {
             // Simulate async policy lookup
             await Promise.resolve();
-            return new FixedWindow({
+            return new MockFixedWindow({
               name: "fixed-window",
               window: 60,
               limit: ctx.userId === "vip" ? 10000 : 100,
@@ -358,7 +360,7 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "key1",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -405,7 +407,7 @@ describe("RateLimiter", () => {
         {
           name: "user-limit",
           key: (ctx) => `user-limit:${ctx.userId}`,
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -414,7 +416,7 @@ describe("RateLimiter", () => {
         {
           name: "ip-limit",
           key: (ctx) => `ip-limit:${ctx.ip}`,
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 50,
@@ -423,7 +425,7 @@ describe("RateLimiter", () => {
         {
           name: "global-limit",
           key: "global",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 1000,
@@ -473,7 +475,7 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -482,7 +484,7 @@ describe("RateLimiter", () => {
         {
           name: "rule2",
           key: "rule2",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -491,7 +493,7 @@ describe("RateLimiter", () => {
         {
           name: "rule3",
           key: "rule3",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -525,7 +527,7 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "key1",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -534,7 +536,7 @@ describe("RateLimiter", () => {
         {
           name: "rule2",
           key: "key2",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -543,7 +545,7 @@ describe("RateLimiter", () => {
         {
           name: "rule3",
           key: "key3",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -590,7 +592,7 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -599,7 +601,7 @@ describe("RateLimiter", () => {
         {
           name: "rule2",
           key: "rule2",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 200,
@@ -608,7 +610,7 @@ describe("RateLimiter", () => {
         {
           name: "rule3",
           key: "rule3",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 300,
@@ -655,7 +657,7 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -664,7 +666,7 @@ describe("RateLimiter", () => {
         {
           name: "rule2",
           key: "rule2",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -673,7 +675,7 @@ describe("RateLimiter", () => {
         {
           name: "rule3",
           key: "rule3",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -714,7 +716,7 @@ describe("RateLimiter", () => {
         {
           name: "user-limit",
           key: "user-limit:123",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -723,7 +725,7 @@ describe("RateLimiter", () => {
         {
           name: "global-limit",
           key: "global",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 1000,
@@ -765,7 +767,7 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -774,7 +776,7 @@ describe("RateLimiter", () => {
         {
           name: "rule2",
           key: "rule2",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -822,7 +824,7 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -831,7 +833,7 @@ describe("RateLimiter", () => {
         {
           name: "rule2",
           key: "rule2",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -840,7 +842,7 @@ describe("RateLimiter", () => {
         {
           name: "rule3",
           key: "rule3",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -886,7 +888,7 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -895,7 +897,7 @@ describe("RateLimiter", () => {
         {
           name: "rule2",
           key: "rule2",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -904,7 +906,7 @@ describe("RateLimiter", () => {
         {
           name: "rule3",
           key: "rule3",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -945,7 +947,7 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -954,7 +956,7 @@ describe("RateLimiter", () => {
         {
           name: "rule2",
           key: "rule2",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -987,7 +989,7 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -1021,7 +1023,7 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "rule1",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -1044,7 +1046,7 @@ describe("RateLimiter", () => {
         {
           name: "rule1",
           key: "key1",
-          policy: new FixedWindow({
+          policy: new MockFixedWindow({
             name: "fixed-window",
             window: 60,
             limit: 100,
@@ -1055,73 +1057,6 @@ describe("RateLimiter", () => {
       const limiter = new RateLimiter({ store, rules, debug: true });
 
       expect(limiter.config).toEqual({ rules, store, debug: true });
-    });
-
-    it("should update config with partial object", async () => {
-      const rules1: LimitRule[] = [
-        {
-          name: "rule1",
-          key: "key1",
-          policy: new FixedWindow({
-            name: "fixed-window",
-            window: 60,
-            limit: 100,
-          }),
-        },
-      ];
-
-      const rules2: LimitRule[] = [
-        {
-          name: "rule2",
-          key: "key2",
-          policy: new FixedWindow({
-            name: "fixed-window",
-            window: 60,
-            limit: 200,
-          }),
-        },
-      ];
-
-      const limiter = new RateLimiter({ store, rules: rules1 });
-
-      limiter.config = { rules: rules2, debug: true };
-
-      expect(limiter.config.rules).toEqual(rules2);
-      expect(limiter.config.debug).toBe(true);
-    });
-
-    it("should preserve existing config values when partial update", () => {
-      const rules: LimitRule[] = [
-        {
-          name: "rule1",
-          key: "key1",
-          policy: new FixedWindow({
-            name: "fixed-window",
-            window: 60,
-            limit: 100,
-          }),
-        },
-      ];
-
-      const limiter = new RateLimiter({ store, rules, debug: false });
-
-      const newRules: LimitRule[] = [
-        {
-          name: "rule2",
-          key: "key2",
-          policy: new FixedWindow({
-            name: "fixed-window",
-            window: 60,
-            limit: 200,
-          }),
-        },
-      ];
-
-      limiter.config = { rules: newRules };
-
-      expect(limiter.config.rules).toEqual(newRules);
-      expect(limiter.config.debug).toBe(false);
-      expect(limiter.config.store).toBe(store);
     });
   });
 });

@@ -5,17 +5,57 @@ import {
 } from "@limitkit/core";
 import { InMemoryCompatible, SlidingWindowState } from "../types";
 
+/**
+ * In-memory implementation of the **Sliding Window** rate limiting algorithm.
+ *
+ * This algorithm tracks individual request timestamps within a rolling window
+ * and ensures no more than `limit` requests occur within `window` seconds.
+ *
+ * A circular buffer is used to efficiently store timestamps.
+ *
+ * ## Characteristics
+ * - More accurate than fixed window
+ * - Prevents boundary bursts
+ * - Memory proportional to `limit`
+ *
+ * ## Usage
+ * ```ts
+ * import { InMemorySlidingWindow } from "@limitkit/memory";
+ *
+ * const limiter = new InMemorySlidingWindow({
+ *   name: "sliding-window",
+ *   limit: 100,
+ *   window: 60
+ * });
+ * ```
+ *
+ * @warning
+ * The internal buffer is **mutated in place** to avoid unnecessary allocations.
+ *
+ * @extends SlidingWindow
+ * @implements {InMemoryCompatible<SlidingWindowState>}
+ */
 export class InMemorySlidingWindow
   extends SlidingWindow
   implements InMemoryCompatible<SlidingWindowState>
 {
   /**
-   * In-memory implementation of the sliding window algorithm using circular buffer
-   * Total time complexity: O(1)
-   * @warning The timestamps in the state are modified in place to reduce memory allocation.
-   * @param state internal state of sliding window algorithm
-   * @param now unix timestamp in millisecond
-   * @param cost cost per request, must never exceed `this.config.limit`
+   * Processes a request using the sliding window algorithm.
+   *
+   * Expired timestamps are removed from the circular buffer and new
+   * timestamps are inserted if capacity allows.
+   *
+   * ## Complexity
+   * - Time: **Amortized O(1)**
+   * - Space: **O(limit)**
+   *
+   * @param state Previous sliding window state
+   * @param now Current Unix timestamp **in milliseconds**
+   * @param cost Number of requests to consume (default: `1`)
+   *
+   * @returns Updated state and rate limit result
+   *
+   * @throws BadArgumentsException if `cost > config.limit`
    */
   process(
     state: SlidingWindowState | undefined,

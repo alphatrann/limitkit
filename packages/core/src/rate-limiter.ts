@@ -34,7 +34,7 @@ import { addConfigToKey } from "./utils";
  *     {
  *       name: 'per-user-limit',
  *       key: (ctx) => ctx.userId,
- *       policy: { name: 'fixed-window', window: 60, limit: 100 }
+ *       policy: new RedisFixedWindow({ name: 'fixed-window', window: 60, limit: 100 })
  *     }
  *   ]
  * });
@@ -44,6 +44,9 @@ import { addConfigToKey } from "./utils";
  *   return 429 with headers: Retry-After: result.retryAfter
  * }
  * ```
+ * @see Limiter
+ * @see LimitRule
+ * @see Store
  */
 export class RateLimiter<C = unknown> implements Limiter<C> {
   private rules: LimitRule<C>[] = [];
@@ -52,13 +55,9 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
 
   /**
    * Create a new rate limiter instance.
-   *
+   * @throws {EmptyRulesException} If the list of rules is empty
    * @param config - Configuration for the rate limiter
-   * @param config.store - Required. The storage backend for tracking rate limit state.
-   * @param config.rules - Required. Initial set of rate limiting rules to apply.
-   *                       Can be updated later via direct access or new instances.
-   * @param config.debug - Optional. When true, returns detailed information about
-   *                       each evaluated rule. Useful for troubleshooting. Defaults to false.
+   * @see RateLimitConfig
    */
   constructor({ rules, debug, store }: RateLimitConfig<C>) {
     if (rules.length === 0) throw new EmptyRulesException();
@@ -68,17 +67,8 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
   }
 
   /**
-   * Partially override rate limiting config
-   * @param value - Required. Partial object of type `RateLimitConfig<C>`
-   */
-  set config(value: Partial<RateLimitConfig<C>>) {
-    this.rules = value.rules ?? this.rules;
-    this.debug = value.debug ?? this.debug;
-    this.store = value.store ?? this.store;
-  }
-
-  /**
-   * Return config object of rate limiter class
+   * Return the configuration object
+   * @returns {RateLimitConfig<C>}
    */
   get config(): RateLimitConfig<C> {
     return { rules: this.rules, debug: this.debug, store: this.store };

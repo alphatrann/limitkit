@@ -1,8 +1,8 @@
 /**
  * Result of a rate limit check for a single request.
  *
- * Indicates whether the request is allowed, how many requests remain in the current
- * window, and when the limit resets.
+ * Indicates whether the request is allowed, the maximum number of requests can be made, how many requests remain in the current
+ * window, when the limit resets and how many seconds to wait before retrying.
  */
 export interface RateLimitResult {
   /**
@@ -49,7 +49,7 @@ export interface DebugLimitResult extends RateLimitResult {
   failedRule: string | null;
 
   /**
-   * @description all the results of the first rule to the first failed one
+   * An array of results from the first rule to the first failed one
    */
   details: (RateLimitResult & { name: string })[];
 }

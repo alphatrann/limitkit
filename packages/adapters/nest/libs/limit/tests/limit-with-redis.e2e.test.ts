@@ -112,25 +112,56 @@ describe("LimitModule + Redis (e2e)", () => {
       await request(server()).get("/open").expect(200);
       await request(server()).get("/open").expect(200);
     });
-    it("should enforce global rate limit", async () => {
+
+    it("should enforce global rate limit and return headers", async () => {
+      const res1 = await request(server()).get("/limited").expect(200);
+
+      expect(res1.headers["ratelimit-limit"]).toBe("5");
+      expect(res1.headers["ratelimit-remaining"]).toBe("4");
+      expect(res1.headers["ratelimit-reset"]).toBeDefined();
+
+      const res2 = await request(server()).get("/limited").expect(200);
+
+      expect(res2.headers["ratelimit-remaining"]).toBe("3");
+
       await request(server()).get("/limited").expect(200);
       await request(server()).get("/limited").expect(200);
       await request(server()).get("/limited").expect(200);
-      await request(server()).get("/limited").expect(200);
-      await request(server()).get("/limited").expect(200);
-      await request(server()).get("/limited").expect(429);
+
+      const res6 = await request(server()).get("/limited").expect(429);
+
+      expect(res6.headers["retry-after"]).toBeDefined();
     });
 
-    it("should override global rule with route rule", async () => {
-      await request(server()).get("/route-limit").expect(200);
-      await request(server()).get("/route-limit").expect(429);
+    it("should override global rule with route rule and return headers", async () => {
+      const res1 = await request(server()).get("/route-limit").expect(200);
+
+      expect(res1.headers["ratelimit-limit"]).toBe("1");
+      expect(res1.headers["ratelimit-remaining"]).toBe("0");
+
+      const res2 = await request(server()).get("/route-limit").expect(429);
+
+      expect(res2.headers["retry-after"]).toBeDefined();
     });
 
-    it("should enforce controller level rules", async () => {
+    it("should enforce controller level rules and return headers", async () => {
+      const r1 = await request(server()).get("/controller").expect(200);
+      expect(r1.headers["ratelimit-limit"]).toBe("3");
+      expect(r1.headers["ratelimit-remaining"]).toBe("2");
+
       await request(server()).get("/controller").expect(200);
       await request(server()).get("/controller").expect(200);
-      await request(server()).get("/controller").expect(200);
-      await request(server()).get("/controller").expect(429);
+
+      const r4 = await request(server()).get("/controller").expect(429);
+      expect(r4.headers["retry-after"]).toBeDefined();
+    });
+
+    it("should not set rate limit headers when skipped", async () => {
+      const res = await request(server()).get("/open").expect(200);
+
+      expect(res.headers["ratelimit-limit"]).toBeUndefined();
+      expect(res.headers["ratelimit-remaining"]).toBeUndefined();
+      expect(res.headers["ratelimit-reset"]).toBeUndefined();
     });
   });
 
