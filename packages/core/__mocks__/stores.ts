@@ -1,9 +1,15 @@
-import { AlgorithmConfig, RateLimitResult, Store } from "../src/types";
+import {
+  Algorithm,
+  AlgorithmConfig,
+  RateLimitResult,
+  Store,
+} from "../src/types";
 
 export class MockStore implements Store {
-  async consume(
+  async consume<TConfig extends AlgorithmConfig>(
     key: string,
-    algorithm: AlgorithmConfig,
+    algorithm: Algorithm<TConfig>,
+    now: number,
     cost?: number,
   ): Promise<RateLimitResult> {
     return await Promise.resolve({
@@ -18,15 +24,20 @@ export class MockStore implements Store {
 export class SpyStore implements Store {
   calls: Array<{
     key: string;
-    algorithm: any;
+    algorithm: AlgorithmConfig;
     now: number;
     cost: number;
   }> = [];
 
   constructor(private delegate: Store) {}
 
-  async consume(key: string, algorithm: any, now: number, cost: number = 1) {
-    this.calls.push({ key, algorithm, now, cost });
+  async consume<TConfig extends AlgorithmConfig>(
+    key: string,
+    algorithm: Algorithm<TConfig>,
+    now: number,
+    cost: number = 1,
+  ) {
+    this.calls.push({ key, algorithm: algorithm.config, now, cost });
     return this.delegate.consume(key, algorithm, now, cost);
   }
 }

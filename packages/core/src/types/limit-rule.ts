@@ -1,3 +1,4 @@
+import { Algorithm } from "./algorithm";
 import { AlgorithmConfig } from "./algorithm-config";
 
 /**
@@ -26,7 +27,7 @@ export interface LimitRule<C = unknown> {
    *
    * Example: `(ctx) => ctx.userId` to apply per-user rate limits
    */
-  key: string | ((ctx: C) => string) | ((ctx: C) => Promise<string>);
+  key: string | ((ctx: C) => string | Promise<string>);
 
   /**
    * Optional cost/weight of each request. Defaults to 1 if not specified.
@@ -39,7 +40,7 @@ export interface LimitRule<C = unknown> {
    * Useful for implementing tiered request costs where some operations are more resource-intensive
    * and should count as multiple requests against the rate limit.
    */
-  cost?: number | ((ctx: C) => number) | ((ctx: C) => Promise<number>);
+  cost?: number | ((ctx: C) => number | Promise<number>);
 
   /**
    * The rate limiting algorithm and its configuration.
@@ -56,6 +57,7 @@ export interface LimitRule<C = unknown> {
  * Resolver function type for rate limit policies.
  */
 type PolicyResolver<C> =
-  | AlgorithmConfig
-  | ((ctx: C) => AlgorithmConfig)
-  | ((ctx: C) => Promise<AlgorithmConfig>);
+  | Algorithm<AlgorithmConfig>
+  | ((
+      ctx: C,
+    ) => Algorithm<AlgorithmConfig> | Promise<Algorithm<AlgorithmConfig>>);

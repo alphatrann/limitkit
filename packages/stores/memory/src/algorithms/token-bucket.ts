@@ -1,78 +1,80 @@
-import { BadArgumentsException, TokenBucketConfig } from "@limitkit/core";
-import { TokenBucketState, AlgorithmResult } from "../types";
+import {
+  BadArgumentsException,
+  RateLimitResult,
+  TokenBucket,
+} from "@limitkit/core";
+import { InMemoryCompatible, TokenBucketState } from "../types";
 
-/**
- * Implementation of token bucket
- * Total time complexity: O(1)
- *
- * @param state internal state of token bucket algorithm
- * @param config config for token bucket algorithm
- * @param now unix timestamp in milliseconds
- * @param cost cost per request
- */
-export function tokenBucket(
-  state: TokenBucketState,
-  config: TokenBucketConfig,
-  now: number,
-  cost: number = 1,
-): AlgorithmResult {
-  if (config.capacity <= 0)
-    throw new BadArgumentsException(
-      `Capacity must be a positive integer, got capacity=${config.capacity}`,
-    );
+export class InMemoryTokenBucket
+  extends TokenBucket
+  implements InMemoryCompatible<TokenBucketState>
+{
+  /**
+   * In-memory implementation of token bucket
+   * Total time complexity: O(1)
+   *
+   * @param state internal state of token bucket algorithm
+   * @param now unix timestamp in milliseconds
+   * @param cost cost per request
+   */
+  process(
+    state: TokenBucketState | undefined,
+    now: number,
+    cost: number = 1,
+  ): { state: TokenBucketState; output: RateLimitResult } {
+    if (cost > this.config.capacity)
+      throw new BadArgumentsException(
+        `Cost must never exceed config.capacity, (cost=${cost}, config.capacity=${this.config.capacity})`,
+      );
+    if (!state) state = { lastRefill: now, tokens: this.config.capacity };
+    const capacity = this.config.capacity;
+    const refillRate = this.config.refillRate;
 
-  if (config.refillRate <= 0)
-    throw new BadArgumentsException(
-      `Refill rate must be a positive integer, got refill_rate=${config.refillRate}`,
-    );
+    let { tokens, lastRefill } = state;
 
-  const capacity = config.capacity;
-  const refillRate = config.refillRate; // tokens per second
+    if (lastRefill === null) {
+      lastRefill = now;
+      tokens = capacity;
+    }
 
-  let { tokens, lastRefill } = state;
-
-  if (lastRefill === null) {
+    // ----- refill -----
+    const elapsedSeconds = (now - lastRefill) / 1000;
+    tokens = Math.min(capacity, tokens + elapsedSeconds * refillRate);
     lastRefill = now;
-    tokens = capacity;
-  }
 
-  // ----- refill -----
-  const elapsedSeconds = (now - lastRefill) / 1000;
-  tokens = Math.min(capacity, tokens + elapsedSeconds * refillRate);
-  lastRefill = now;
+    // ----- reject -----
+    if (tokens < cost) {
+      const tokensNeeded = cost - tokens;
+      const retryMs = (tokensNeeded / refillRate) * 1000;
 
-  // ----- reject -----
-  if (tokens < cost) {
-    const tokensNeeded = cost - tokens;
-    const retryMs = (tokensNeeded / refillRate) * 1000;
+      const retryAfter = Math.max(0, Math.ceil(retryMs / 1000));
+      const reset = now + ((capacity - tokens) / refillRate) * 1000;
 
-    const retryAfter = Math.max(0, Math.ceil(retryMs / 1000));
+      return {
+        state: { tokens, lastRefill },
+        output: {
+          allowed: false,
+          limit: capacity,
+          remaining: Math.floor(tokens),
+          retryAfter,
+          reset,
+        },
+      };
+    }
+
+    // ----- accept -----
+    tokens -= cost;
+
     const reset = now + ((capacity - tokens) / refillRate) * 1000;
 
     return {
       state: { tokens, lastRefill },
       output: {
-        allowed: false,
+        allowed: true,
         limit: capacity,
         remaining: Math.floor(tokens),
-        retryAfter,
         reset,
       },
     };
   }
-
-  // ----- accept -----
-  tokens -= cost;
-
-  const reset = now + ((capacity - tokens) / refillRate) * 1000;
-
-  return {
-    state: { tokens, lastRefill },
-    output: {
-      allowed: true,
-      limit: capacity,
-      remaining: Math.floor(tokens),
-      reset,
-    },
-  };
 }

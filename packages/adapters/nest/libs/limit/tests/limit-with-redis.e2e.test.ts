@@ -1,13 +1,58 @@
 import { Test } from "@nestjs/testing";
-import { INestApplication } from "@nestjs/common";
+import { Controller, Get, INestApplication } from "@nestjs/common";
 import * as request from "supertest";
 import { LimitModule } from "../src/limit.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { Algorithm } from "@limitkit/core";
-import { RedisStore } from "@limitkit/redis";
-import { TestController, NoLimitController } from "./controllers";
+import { RedisFixedWindow, RedisStore } from "@limitkit/redis";
+import { NoLimitController } from "./controllers";
 import { getUserTier } from "./utils";
 import { createClient, RedisClientType } from "redis";
+import { RateLimit, SkipRateLimit } from "../src";
+
+@RateLimit({
+  rules: [
+    {
+      name: "controller-limit",
+      key: (req: any) => req.ip,
+      policy: new RedisFixedWindow({
+        name: "fixed-window",
+        window: 60,
+        limit: 3,
+      }),
+    },
+  ],
+})
+@Controller()
+export class TestController {
+  @SkipRateLimit()
+  @Get("/open")
+  open() {
+    return { ok: true };
+  }
+
+  @Get("/controller")
+  controllerLimit() {
+    return { ok: true };
+  }
+
+  @RateLimit({
+    rules: [
+      {
+        name: "route-limit",
+        key: (req: any) => req.ip,
+        policy: new RedisFixedWindow({
+          name: "fixed-window",
+          window: 60,
+          limit: 1,
+        }),
+      },
+    ],
+  })
+  @Get("/route-limit")
+  routeLimit() {
+    return { ok: true };
+  }
+}
 
 describe("LimitModule + Redis (e2e)", () => {
   let app: INestApplication;
@@ -20,7 +65,6 @@ describe("LimitModule + Redis (e2e)", () => {
       redis = createClient({ url: "redis://localhost:6382" });
       await redis.connect();
       redisStore = new RedisStore(redis);
-      await redisStore.init();
     });
 
     afterEach(async () => {
@@ -42,11 +86,11 @@ describe("LimitModule + Redis (e2e)", () => {
               {
                 name: "global-ip-limit",
                 key: (req: any) => req.ip,
-                policy: {
-                  name: Algorithm.FixedWindow,
+                policy: new RedisFixedWindow({
+                  name: "fixed-window",
                   window: 60,
                   limit: 5,
-                },
+                }),
               },
             ],
           }),
@@ -111,7 +155,6 @@ describe("LimitModule + Redis (e2e)", () => {
             inject: [ConfigService],
             useFactory: async (configService: ConfigService) => {
               const redisStore = new RedisStore(redis);
-              await redisStore.init();
               return {
                 store: redisStore,
                 rules: [
@@ -127,22 +170,22 @@ describe("LimitModule + Redis (e2e)", () => {
                         : 1001;
                       const tier = await getUserTier(userId);
                       if (tier === "enterprise")
-                        return {
-                          name: Algorithm.FixedWindow,
+                        return new RedisFixedWindow({
+                          name: "fixed-window",
                           window: 60,
                           limit: 5,
-                        };
+                        });
                       if (tier === "pro")
-                        return {
-                          name: Algorithm.FixedWindow,
+                        return new RedisFixedWindow({
+                          name: "fixed-window",
                           window: 60,
                           limit: 3,
-                        };
-                      return {
-                        name: Algorithm.FixedWindow,
+                        });
+                      return new RedisFixedWindow({
+                        name: "fixed-window",
                         window: 60,
                         limit: 1,
-                      };
+                      });
                     },
                     name: "tier-limit",
                   },

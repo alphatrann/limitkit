@@ -1,2 +1,2 @@
 export * from "./state";
-export * from "./algorithm-result";
+export * from "./in-memory-compatible";

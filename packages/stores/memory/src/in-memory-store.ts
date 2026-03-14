@@ -1,34 +1,10 @@
 import {
   Algorithm,
   AlgorithmConfig,
-  FixedWindowConfig,
-  GCRAConfig,
-  LeakyBucketConfig,
   RateLimitResult,
-  SlidingWindowConfig,
-  SlidingWindowCounterConfig,
   Store,
-  TokenBucketConfig,
-  UnknownAlgorithmException,
 } from "@limitkit/core";
-import {
-  AlgorithmResult,
-  FixedWindowState,
-  GCRAState,
-  LeakyBucketState,
-  SlidingWindowCounterState,
-  SlidingWindowState,
-  State,
-  TokenBucketState,
-} from "./types";
-import {
-  fixedWindow,
-  gcra,
-  leakyBucket,
-  slidingWindow,
-  slidingWindowCounter,
-  tokenBucket,
-} from "./algorithms";
+import { InMemoryCompatible, State } from "./types";
 
 /**
  * In-memory implementation of the Store interface.
@@ -47,7 +23,7 @@ import {
  * @example
  * ```typescript
  * const store = new InMemoryStore();
- * const config = { name: Algorithm.FixedWindow, window: 60, limit: 100 };
+ * const config = { name: "fixed-window", window: 60, limit: 100 };
  * const result = await store.consume('user-123', config, 1);
  * ```
  *
@@ -65,84 +41,28 @@ import {
  * - Key modification for config uniqueness is handled upstream by the RateLimiter
  */
 export class InMemoryStore implements Store {
+  private queues = new Map<string, Promise<any>>();
   private map = new Map<string, State>();
 
-  async consume(
+  async consume<TState extends State, TConfig extends AlgorithmConfig>(
     key: string,
-    config: AlgorithmConfig,
+    algorithm: Algorithm<TConfig> & InMemoryCompatible<TState>,
     now: number,
     cost: number = 1,
   ): Promise<RateLimitResult> {
-    let state = this.map.get(key);
+    const prev = this.queues.get(key) ?? Promise.resolve();
+    const next = prev.then(() => {
+      const state = this.map.get(key);
+      const result = algorithm.process(state as TState | undefined, now, cost);
+      this.map.set(key, result.state);
+      return result.output;
+    });
 
-    let result: AlgorithmResult;
-    switch (config.name) {
-      case Algorithm.FixedWindow:
-        if (!state) state = { windowStart: now, count: 0 };
-        result = fixedWindow(
-          state as FixedWindowState,
-          config as FixedWindowConfig,
-          now,
-          cost,
-        );
-        break;
-      case Algorithm.SlidingWindow:
-        if (!state)
-          state = {
-            buffer: new Array(config.limit).map(() => null),
-            head: 0,
-            size: 0,
-          };
-        result = slidingWindow(
-          state as SlidingWindowState,
-          config as SlidingWindowConfig,
-          now,
-          cost,
-        );
-        break;
-      case Algorithm.SlidingWindowCounter:
-        if (!state) state = { windowStart: now, count: 0, prevCount: 0 };
-        result = slidingWindowCounter(
-          state as SlidingWindowCounterState,
-          config as SlidingWindowCounterConfig,
-          now,
-          cost,
-        );
-        break;
-      case Algorithm.TokenBucket:
-        if (!state)
-          state = {
-            lastRefill: now,
-            tokens: config.capacity,
-          };
-        result = tokenBucket(
-          state as TokenBucketState,
-          config as TokenBucketConfig,
-          now,
-          cost,
-        );
-        break;
-      case Algorithm.LeakyBucket:
-        if (!state)
-          state = {
-            lastLeak: now,
-            queueSize: 0,
-          };
-        result = leakyBucket(
-          state as LeakyBucketState,
-          config as LeakyBucketConfig,
-          now,
-          cost,
-        );
-        break;
-      case Algorithm.GCRA:
-        if (!state) state = { tat: now };
-        result = gcra(state as GCRAState, config as GCRAConfig, now, cost);
-        break;
-    }
+    this.queues.set(
+      key,
+      next.catch(() => {}),
+    );
 
-    this.map.set(key, result.state);
-
-    return result.output;
+    return next;
   }
 }
