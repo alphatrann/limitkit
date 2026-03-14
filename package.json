@@ -2,7 +2,10 @@
   "name": "limitkit",
   "version": "1.0.0",
   "description": "LimitKit is a lightweight Node.js library that enables rate-limiting in a flexible and intuitive for developers.",
-  "repository": "https://github.com/alphatrann/limitkit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alphatrann/limitkit"
+  },
   "author": "Alpha Tran",
   "license": "MIT",
   "packageManager": "yarn@4.13.0",
