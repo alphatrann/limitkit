@@ -1,17 +1,28 @@
 import { BadArgumentsException, GCRA, RateLimitResult } from "@limitkit/core";
 import { GCRAState, InMemoryCompatible } from "../types";
 
+/**
+ * In-memory implementation of the GCRA
+ *
+ * Usage:
+ * ```ts
+ * const inMemoryGCRA = new InMemoryGCRA({ name: "gcra", interval: 1, burst: 5 })
+ * ```
+ */
 export class InMemoryGCRA
   extends GCRA
   implements InMemoryCompatible<GCRAState>
 {
   /**
-   * In-memory implementation of GCRA
-   * Total time complexity: O(1)
+   * Computes the next GCRA state based on the configuration and given parameters
+   * * Total time complexity: O(1)
+   * * Total space complexity: O(1)
    *
-   * @param state internal state of GCRA
-   * @param now unix timestamp in milliseconds
-   * @param cost cost per request (must be less than or equal to burst)
+   * @param state Internal state of GCRA
+   * @param now Current Unix timestamp in millisecond
+   * @param cost Optional cost/weight of each request. Defaults to 1 if not specified. Must never exceed `this.config.capacity`
+   * @returns The next state and rate limit result
+   * @see LeakyBucketState
    */
   process(
     state: GCRAState | undefined,

@@ -2,18 +2,28 @@ import { BadArgumentsException, LeakyBucket } from "@limitkit/core";
 import { InMemoryCompatible, LeakyBucketState } from "../types";
 
 /**
- * In-memory implementation of leaky bucket
- * Total time complexity: O(1)
+ * In-memory implementation of the leaky bucket algorithm
  *
- * @param state internal state of leaky bucket algorithm
- * @param now unix timestamp in milliseconds
- * @param cost cost per request
+ * Usage:
+ * ```ts
+ * const inMemoryLeakyBucket = new InMemoryLeakyBucket({ name: "leaky-bucket", capacity: 100, leakRate: 2 })
+ * ```
  */
-
 export class InMemoryLeakyBucket
   extends LeakyBucket
   implements InMemoryCompatible<LeakyBucketState>
 {
+  /**
+   * Computes the next leaky bucket state based on the configuration and given parameters
+   * * Total time complexity: O(1)
+   * * Total space complexity: O(1)
+   *
+   * @param state Internal state of leaky bucket algorithm
+   * @param now Current Unix timestamp in millisecond
+   * @param cost Optional cost/weight of each request. Defaults to 1 if not specified. Must never exceed `this.config.capacity`
+   * @returns The next state and rate limit result
+   * @see LeakyBucketState
+   */
   process(state: LeakyBucketState | undefined, now: number, cost: number = 1) {
     if (cost > this.config.capacity)
       throw new BadArgumentsException(

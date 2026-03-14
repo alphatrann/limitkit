@@ -2,7 +2,7 @@ import { AlgorithmConfig } from "./algorithm-config";
 
 /**
  * Represents an algorithm that can be executed
- * * @template TConfig - The configuration schema for the algorithm.
+ * @template TConfig - The configuration schema for the algorithm.
  */
 export interface Algorithm<TConfig extends AlgorithmConfig> {
   /**

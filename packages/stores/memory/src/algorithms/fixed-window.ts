@@ -5,15 +5,28 @@ import {
   RateLimitResult,
 } from "@limitkit/core";
 
+/**
+ * In-memory implementation of the fixed window algorithm
+ *
+ * Usage:
+ * ```ts
+ * const inMemoryFixedWindow = new InMemoryFixedWindow({ name: "fixed-window", limit: 100, window: 60 })
+ * ```
+ */
 export class InMemoryFixedWindow
   extends FixedWindow
   implements InMemoryCompatible<FixedWindowState>
 {
   /**
-   * In-memory implementation of the fixed window algorithm
-   * @param state internal state of fixed window algorithm
-   * @param now unix timestamp in millisecond
-   * @param cost cost per request, must never exceed `this.config.limit`
+   * Computes the next fixed window state based on the configuration and given parameters
+   * * Total time complexity: O(1)
+   * * Total space complexity: O(1)
+   *
+   * @param state Internal state of sliding window algorithm
+   * @param now Current Unix timestamp in millisecond
+   * @param cost Optional cost/weight of each request. Defaults to 1 if not specified. Must never exceed `this.config.limit`
+   * @returns The next state and rate limit result
+   * @see FixedWindowState
    */
   process(
     state: FixedWindowState | undefined,

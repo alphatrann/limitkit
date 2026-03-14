@@ -5,17 +5,29 @@ import {
 } from "@limitkit/core";
 import { InMemoryCompatible, SlidingWindowState } from "../types";
 
+/**
+ * In-memory implementation of the sliding window algorithm using circular buffer
+ *
+ * Usage:
+ * ```ts
+ * const inMemorySlidingWindow = new InMemorySlidingWindow({ name: "sliding-window", limit: 100, window: 60 })
+ * ```
+ */
 export class InMemorySlidingWindow
   extends SlidingWindow
   implements InMemoryCompatible<SlidingWindowState>
 {
   /**
-   * In-memory implementation of the sliding window algorithm using circular buffer
-   * Total time complexity: O(1)
-   * @warning The timestamps in the state are modified in place to reduce memory allocation.
-   * @param state internal state of sliding window algorithm
-   * @param now unix timestamp in millisecond
-   * @param cost cost per request, must never exceed `this.config.limit`
+   * Computes the next sliding window state based on the configuration and given parameters
+   * * Total time complexity: ammortized O(1)
+   * * Total space complexity: O(requests)
+   *
+   * @warning The `buffer` in the state are modified in place to reduce memory allocation.
+   * @param state Internal state of sliding window algorithm
+   * @param now Unix timestamp in millisecond
+   * @param cost Optional cost/weight of each request. Defaults to 1 if not specified. Must never exceed `this.config.limit`
+   * @returns The next state and rate limit result
+   * @see SlidingWindowState
    */
   process(
     state: SlidingWindowState | undefined,
