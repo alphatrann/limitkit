@@ -83,6 +83,13 @@ describe("InMemoryStore Global Tests", () => {
       limiter = instance();
     });
 
+    test("should validate the config params before consuming", async () => {
+      const limiterSpy = jest.spyOn(limiter, "validate");
+      await store.consume("user", limiter, base);
+
+      expect(limiterSpy).toHaveBeenCalled();
+    });
+
     test("allows requests within limit", async () => {
       let allowed = 0;
 
