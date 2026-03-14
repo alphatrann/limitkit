@@ -59,9 +59,25 @@ import {
  * }
  * ```
  *
+ * ## Response Headers
+ *
+ * When a request is processed, the guard sets standard rate limit headers
+ * based on the evaluation result:
+ *
+ * - `RateLimit-Limit` — Maximum number of requests allowed in the current window.
+ * - `RateLimit-Remaining` — Remaining requests in the current window.
+ * - `RateLimit-Reset` — Seconds until the rate limit window resets.
+ *
+ * If the request exceeds the limit:
+ *
+ * - `Retry-After` — Seconds the client should wait before making another request.
+ *
+ * These headers follow the standardized RateLimit header conventions defined
+ * in RFC 9331.
+ *
  * ## Execution Flow
  *
- * 1. Extract request object from the current execution context.
+ * 1. Extract request and response objects from the execution context.
  * 2. Retrieve metadata for:
  *    - handler rules
  *    - controller rules
@@ -70,7 +86,8 @@ import {
  * 3. Determine the effective rule set based on precedence and skip rules.
  * 4. Create a temporary `RateLimiter` instance with the resolved rules.
  * 5. Call `consume()` to evaluate the request.
- * 6. If the request exceeds limits, throw `TooManyRequestsException`.
+ * 6. Attach rate limit headers to the response.
+ * 7. If the request exceeds limits, throw `TooManyRequestsException`.
  *
  * ## Notes
  *
@@ -116,6 +133,7 @@ export class LimitGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest();
+    const res = context.switchToHttp().getResponse();
 
     const handlerConfig = this.reflector.get(
       RATE_LIMIT_CONFIG_METADATA_KEY,
@@ -159,7 +177,12 @@ export class LimitGuard implements CanActivate {
 
     const result = await limiter.consume(req);
 
+    res.setHeader("RateLimit-Limit", result.limit);
+    res.setHeader("RateLimit-Remaining", result.remaining);
+    res.setHeader("RateLimit-Reset", result.reset);
+
     if (!result.allowed) {
+      res.setHeader("Retry-After", result.retryAfter);
       throw new TooManyRequestsException("Too many requests");
     }
 

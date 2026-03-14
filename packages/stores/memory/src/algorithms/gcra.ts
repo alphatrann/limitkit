@@ -35,7 +35,7 @@ export class InMemoryGCRA
       tat = now;
     }
 
-    const allowAt = tat - burstTolerance;
+    const allowAt = tat - burstTolerance + (cost - 1) * interval;
 
     // ----- reject -----
     if (now < allowAt) {
