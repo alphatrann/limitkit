@@ -1,3 +1,4 @@
+import { Algorithm } from "./algorithm";
 import { AlgorithmConfig } from "./algorithm-config";
 import { RateLimitResult } from "./rate-limit-result";
 
@@ -13,7 +14,7 @@ export interface Store {
    *
    * Atomically updates the counter for the given key based on the specified algorithm
    * and returns the result (whether the request is allowed and when the limit resets).
-   *
+   * @template TConfig - Algorithm-dependent config object
    * @param key - The rate limiting key that identifies what entity is being limited
    *              (e.g., "user-123", "ip-192.168.1.1"). Requests with the same key
    *              share the same rate limit quota.
@@ -23,9 +24,9 @@ export interface Store {
    *               more quota (useful for charging different amounts for different operations).
    * @returns A promise that resolves to the rate limit check result.
    */
-  consume(
+  consume<TConfig extends AlgorithmConfig>(
     key: string,
-    algorithm: AlgorithmConfig,
+    algorithm: Algorithm<TConfig>,
     now: number,
     cost?: number,
   ): Promise<RateLimitResult>;

@@ -9,19 +9,23 @@
  * - **LeakyBucket**: Smooths traffic flow, good for queue management
  * - **GCRA**: Generic Cell Rate Algorithm, precise and memory-efficient for telecom use cases
  */
-export enum Algorithm {
-  FixedWindow = "fixed-window",
-  SlidingWindow = "sliding-window",
-  SlidingWindowCounter = "sliding-window-counter",
-  TokenBucket = "token-bucket",
-  LeakyBucket = "leaky-bucket",
-  GCRA = "gcra",
+export type AlgorithmName =
+  | "fixed-window"
+  | "sliding-window"
+  | "sliding-window-counter"
+  | "token-bucket"
+  | "leaky-bucket"
+  | "gcra"
+  | (string & {});
+
+export interface BaseConfig {
+  name: AlgorithmName;
 }
 
 /**
  * Configuration shared by window-based algorithms (FixedWindow, SlidingWindow, SlidingWindowCounter).
  */
-interface WindowConfig {
+export interface WindowConfig {
   /**
    * Window duration in seconds. Resets occur at this interval.
    */
@@ -33,20 +37,20 @@ interface WindowConfig {
   limit: number;
 }
 
-export interface FixedWindowConfig extends WindowConfig {
-  name: Algorithm.FixedWindow;
+export interface FixedWindowConfig extends BaseConfig, WindowConfig {
+  name: "fixed-window";
 }
 
-export interface SlidingWindowConfig extends WindowConfig {
-  name: Algorithm.SlidingWindow;
+export interface SlidingWindowConfig extends BaseConfig, WindowConfig {
+  name: "sliding-window";
 }
 
-export interface SlidingWindowCounterConfig extends WindowConfig {
-  name: Algorithm.SlidingWindowCounter;
+export interface SlidingWindowCounterConfig extends BaseConfig, WindowConfig {
+  name: "sliding-window-counter";
 }
 
-export interface TokenBucketConfig {
-  name: Algorithm.TokenBucket;
+export interface TokenBucketConfig extends BaseConfig {
+  name: "token-bucket";
   /**
    * Number of tokens to add back to the bucket per second.
    */
@@ -57,8 +61,8 @@ export interface TokenBucketConfig {
   capacity: number;
 }
 
-export interface LeakyBucketConfig {
-  name: Algorithm.LeakyBucket;
+export interface LeakyBucketConfig extends BaseConfig {
+  name: "leaky-bucket";
   /**
    * Number of requests to process and leak from the queue per second.
    */
@@ -69,8 +73,8 @@ export interface LeakyBucketConfig {
   capacity: number;
 }
 
-export interface GCRAConfig {
-  name: Algorithm.GCRA;
+export interface GCRAConfig extends BaseConfig {
+  name: "gcra";
   /**
    * Time interval between request allowances in seconds (1/max-rate bucket).
    */
@@ -79,6 +83,10 @@ export interface GCRAConfig {
    * Number of requests that can arrive simultaneously without penalty.
    */
   burst: number;
+}
+
+export interface CustomConfig extends BaseConfig {
+  [key: string]: any;
 }
 
 /**
@@ -96,4 +104,5 @@ export type AlgorithmConfig =
   | SlidingWindowCounterConfig
   | TokenBucketConfig
   | LeakyBucketConfig
-  | GCRAConfig;
+  | GCRAConfig
+  | CustomConfig;

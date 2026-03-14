@@ -4,3 +4,4 @@ export * from "./limiter";
 export * from "./rate-limit-result";
 export * from "./store";
 export * from "./rate-limit-config";
+export * from "./algorithm";

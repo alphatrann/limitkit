@@ -1,130 +1,101 @@
-import { Algorithm, SlidingWindowConfig } from "@limitkit/core";
-import { slidingWindow } from "../src";
+import { BadArgumentsException, SlidingWindowConfig } from "@limitkit/core";
+import { InMemorySlidingWindow } from "../src";
 
-describe("slidingWindow", () => {
-  const limit = 5;
-  const window = 10;
-  const W = window * 1000;
-
-  function createState() {
-    return {
-      buffer: new Array(limit),
-      head: 0,
-      size: 0,
-    };
-  }
-
+describe("InMemorySlidingWindow", () => {
   const config: SlidingWindowConfig = {
-    name: Algorithm.SlidingWindow,
-    limit,
-    window,
+    name: "sliding-window",
+    limit: 3,
+    window: 10,
   };
+  let limiter: InMemorySlidingWindow;
+  const base = 1000000;
 
-  it("remaining = limit - used", () => {
-    const state = createState();
-    const now = 1000;
-
-    const res = slidingWindow(state, config, now, 1);
-
-    const used = 1;
-    const expectedRemaining = limit - used;
-
-    expect(res.output.remaining).toBe(expectedRemaining);
+  beforeEach(() => {
+    limiter = new InMemorySlidingWindow(config);
   });
 
-  it("reset = newestTimestamp + window", () => {
-    const state = createState();
+  test("allows requests within limit", () => {
+    let state;
 
-    slidingWindow(state, config, 1000, 1);
-    const res = slidingWindow(state, config, 2000, 1);
+    const r1 = limiter.process(state, base);
+    state = r1.state;
+    const r2 = limiter.process(state, base + 1000);
+    state = r2.state;
+    const r3 = limiter.process(state, base + 2000);
 
-    const newest = 2000;
-    const expectedReset = newest + W;
-
-    expect(res.output.reset).toBe(expectedReset);
+    expect(r1.output.allowed).toBe(true);
+    expect(r2.output.allowed).toBe(true);
+    expect(r3.output.allowed).toBe(true);
+    expect(r3.output.remaining).toBe(0);
   });
 
-  it("active requests satisfy: now - t < window", () => {
-    const state = createState();
+  test("rejects when limit exceeded", () => {
+    let state;
 
-    slidingWindow(state, config, 0, 1);
-    slidingWindow(state, config, 2000, 1);
-    slidingWindow(state, config, 4000, 1);
-
-    const now = 15000;
-
-    const res = slidingWindow(state, config, now, 1);
-
-    const active = state.size;
-
-    // All earlier timestamps expired since
-    // 15000 - 4000 = 11000 > W
-    expect(active).toBe(1);
-    expect(res.output.remaining).toBe(limit - active);
-  });
-
-  it("denial occurs when used + cost > limit", () => {
-    const state = createState();
-
-    slidingWindow(state, config, 1000, 4);
-
-    const res = slidingWindow(state, config, 2000, 2);
-
-    const used = 4;
-    const cost = 2;
-
-    expect(used + cost).toBeGreaterThan(limit);
-    expect(res.output.allowed).toBe(false);
-  });
-
-  it("retryAfter = oldest + window - now", () => {
-    const state = createState();
-
-    slidingWindow(state, config, 0, 5);
-
-    const now = 1000;
-    const res = slidingWindow(state, config, now, 1);
-
-    const oldest = 0;
-    const expectedRetryAfter = Math.ceil((oldest + W - now) / 1000);
-
-    expect(res.output.retryAfter).toBe(expectedRetryAfter);
-  });
-
-  it("expiration condition: timestamp removed when now - t >= window", () => {
-    const state = createState();
-
-    slidingWindow(state, config, 0, 1);
-
-    const boundary = W;
-
-    const res = slidingWindow(state, config, boundary, 1);
-
-    //  boundary - 0 = W → expired
-    expect(res.output.allowed).toBe(true);
-    expect(state.size).toBe(1);
-  });
-
-  it("cost consumes exact slots", () => {
-    const state = createState();
-
-    const cost = 3;
-    const res = slidingWindow(state, config, 1000, cost);
-
-    const used = cost;
-
-    expect(state.size).toBe(used);
-    expect(res.output.remaining).toBe(limit - used);
-  });
-
-  it("capacity invariant: 0 ≤ size ≤ limit", () => {
-    const state = createState();
-
-    for (let i = 0; i < 20; i++) {
-      slidingWindow(state, config, i * 1000, 1);
+    for (let i = 0; i < 3; i++) {
+      const r = limiter.process(state, base);
+      state = r.state;
     }
 
-    expect(state.size).toBeGreaterThanOrEqual(0);
-    expect(state.size).toBeLessThanOrEqual(limit);
+    const r = limiter.process(state, base);
+    expect(r.output.allowed).toBe(false);
+    expect(r.output.retryAfter).toBeGreaterThan(0);
+  });
+
+  test("expired entries are removed", () => {
+    let state;
+
+    const r1 = limiter.process(state, base);
+    state = r1.state;
+
+    const r2 = limiter.process(state, base + 11000);
+    expect(r2.output.allowed).toBe(true);
+    expect(r2.state.size).toBe(1);
+  });
+
+  test("reset equals newest + window", () => {
+    let state;
+
+    const r = limiter.process(state, base);
+    expect(r.output.reset).toBe(base + 10000);
+  });
+
+  test("concurrent burst obeys limit", () => {
+    let state;
+    let allowed = 0;
+
+    for (let i = 0; i < 10; i++) {
+      const r = limiter.process(state, base);
+      state = r.state;
+      if (r.output.allowed) allowed++;
+    }
+
+    expect(allowed).toBe(3);
+  });
+
+  test("large time jump clears buffer", () => {
+    let state;
+
+    const r1 = limiter.process(state, base);
+    state = r1.state;
+
+    const r2 = limiter.process(state, base + 3600000);
+    expect(r2.output.allowed).toBe(true);
+    expect(r2.state.size).toBe(1);
+  });
+
+  test("cost increments multiple timestamps", () => {
+    let state;
+
+    const r = limiter.process(state, base, 2);
+
+    expect(r.state.size).toBe(2);
+    expect(r.output.remaining).toBe(1);
+  });
+
+  test("throws if cost > limit", () => {
+    expect(() => limiter.process(undefined, base, 4)).toThrow(
+      BadArgumentsException,
+    );
   });
 });

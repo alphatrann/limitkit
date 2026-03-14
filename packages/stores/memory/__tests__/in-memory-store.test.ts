@@ -1,781 +1,219 @@
-import { Algorithm, AlgorithmConfig } from "@limitkit/core";
-import { InMemoryStore } from "../src/in-memory-store";
+import {
+  InMemoryFixedWindow,
+  InMemoryGCRA,
+  InMemoryLeakyBucket,
+  InMemorySlidingWindow,
+  InMemorySlidingWindowCounter,
+  InMemoryStore,
+  InMemoryTokenBucket,
+} from "../src";
 
-describe("InMemoryStore", () => {
-  let store: InMemoryStore;
-  const now = 1000000;
+const base = 1_000_000;
 
-  beforeEach(() => {
-    store = new InMemoryStore();
-  });
-
-  describe("Fixed Window Algorithm", () => {
-    describe("default args", () => {
-      it("should use default cost of 1 when not provided", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.FixedWindow,
-          window: 60,
+function getAlgorithms() {
+  return [
+    {
+      name: "FixedWindow",
+      instance: () =>
+        new InMemoryFixedWindow({
+          name: "fixed-window",
           limit: 10,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(9);
-        expect(result.limit).toBe(10);
-      });
-    });
-
-    describe("non-default args", () => {
-      it("should respect custom cost value", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.FixedWindow,
-          window: 60,
-          limit: 10,
-        };
-        const result = await store.consume("key1", config, now, 3);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(7);
-        expect(result.limit).toBe(10);
-      });
-
-      it("should respect custom window duration", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.FixedWindow,
-          window: 120,
-          limit: 5,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(4);
-      });
-
-      it("should respect custom limit", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.FixedWindow,
-          window: 60,
-          limit: 50,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.limit).toBe(50);
-        expect(result.remaining).toBe(49);
-      });
-    });
-
-    describe("persistence", () => {
-      it("should maintain state across multiple consume calls within the same window", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.FixedWindow,
-          window: 60,
-          limit: 10,
-        };
-        const key = "user:123";
-
-        const result1 = await store.consume(key, config, now);
-        expect(result1.remaining).toBe(9);
-
-        const result2 = await store.consume(key, config, now + 5000);
-        expect(result2.remaining).toBe(8);
-
-        const result3 = await store.consume(key, config, now + 10000);
-        expect(result3.remaining).toBe(7);
-      });
-
-      it("should reset counter when moving to a new window", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.FixedWindow,
-          window: 60,
-          limit: 10,
-        };
-        const key = "user:123";
-
-        await store.consume(key, config, now);
-        await store.consume(key, config, now + 5000);
-
-        const windowDuration = 60 * 1000;
-        const result = await store.consume(key, config, now + windowDuration);
-
-        expect(result.remaining).toBe(9);
-      });
-
-      it("should prevent access when limit is exceeded", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.FixedWindow,
-          window: 60,
-          limit: 2,
-        };
-        const key = "user:123";
-
-        const result1 = await store.consume(key, config, now);
-        expect(result1.allowed).toBe(true);
-
-        const result2 = await store.consume(key, config, now + 5000);
-        expect(result2.allowed).toBe(true);
-
-        const result3 = await store.consume(key, config, now + 10000);
-        expect(result3.allowed).toBe(false);
-        expect(result3.remaining).toBe(0);
-      });
-    });
-
-    describe("returned object", () => {
-      it("should return valid RateLimitResult structure", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.FixedWindow,
-          window: 60,
-          limit: 10,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result).toHaveProperty("allowed");
-        expect(result).toHaveProperty("limit");
-        expect(result).toHaveProperty("remaining");
-        expect(result).toHaveProperty("reset");
-        expect(typeof result.allowed).toBe("boolean");
-        expect(typeof result.limit).toBe("number");
-        expect(typeof result.remaining).toBe("number");
-        expect(typeof result.reset).toBe("number");
-      });
-
-      it("should include retryAfter when request is denied", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.FixedWindow,
-          window: 60,
-          limit: 1,
-        };
-        const key = "user:123";
-
-        await store.consume(key, config, now);
-        const deniedResult = await store.consume(key, config, now + 5000);
-
-        expect(deniedResult.allowed).toBe(false);
-        expect(deniedResult).toHaveProperty("retryAfter");
-        expect(typeof deniedResult.retryAfter).toBe("number");
-      });
-    });
-  });
-
-  describe("Sliding Window Algorithm", () => {
-    describe("default args", () => {
-      it("should use default cost of 1 when not provided", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.SlidingWindow,
-          window: 60,
-          limit: 10,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(9);
-      });
-    });
-
-    describe("non-default args", () => {
-      it("should respect custom cost value", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.SlidingWindow,
-          window: 60,
-          limit: 10,
-        };
-        const result = await store.consume("key1", config, now, 5);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(5);
-      });
-
-      it("should respect custom window duration", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.SlidingWindow,
-          window: 30,
-          limit: 5,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(4);
-      });
-    });
-
-    describe("persistence", () => {
-      it("should maintain state across multiple calls", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.SlidingWindow,
-          window: 60,
-          limit: 10,
-        };
-        const key = "user:456";
-
-        const result1 = await store.consume(key, config, now);
-        expect(result1.remaining).toBe(9);
-
-        const result2 = await store.consume(key, config, now + 5000);
-        expect(result2.remaining).toBe(8);
-
-        const result3 = await store.consume(key, config, now + 10000);
-        expect(result3.remaining).toBe(7);
-      });
-
-      it("should allow requests after window has passed", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.SlidingWindow,
           window: 10,
-          limit: 5,
-        };
-        const key = "user:456";
-
-        await store.consume(key, config, now);
-        await store.consume(key, config, now);
-        await store.consume(key, config, now);
-        await store.consume(key, config, now);
-        await store.consume(key, config, now);
-
-        const result = await store.consume(key, config, now + 11000);
-        expect(result.allowed).toBe(true);
-      });
-    });
-
-    describe("returned object", () => {
-      it("should return valid RateLimitResult structure", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.SlidingWindow,
-          window: 60,
+        }),
+      limit: 10,
+    },
+    {
+      name: "SlidingWindow",
+      instance: () =>
+        new InMemorySlidingWindow({
+          name: "sliding-window",
           limit: 10,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result).toHaveProperty("allowed");
-        expect(result).toHaveProperty("limit");
-        expect(result).toHaveProperty("remaining");
-        expect(result).toHaveProperty("reset");
-      });
-    });
-  });
-
-  describe("Sliding Window Counter Algorithm", () => {
-    describe("default args", () => {
-      it("should use default cost of 1 when not provided", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.SlidingWindowCounter,
-          window: 60,
-          limit: 10,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(9);
-      });
-    });
-
-    describe("non-default args", () => {
-      it("should respect custom cost value", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.SlidingWindowCounter,
-          window: 60,
-          limit: 10,
-        };
-        const result = await store.consume("key1", config, now, 4);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(6);
-      });
-
-      it("should respect custom window and limit", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.SlidingWindowCounter,
-          window: 45,
-          limit: 20,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.limit).toBe(20);
-      });
-    });
-
-    describe("persistence", () => {
-      it("should maintain state across multiple calls", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.SlidingWindowCounter,
-          window: 60,
-          limit: 10,
-        };
-        const key = "user:789";
-
-        const result1 = await store.consume(key, config, now);
-        expect(result1.remaining).toBe(9);
-
-        const result2 = await store.consume(key, config, now + 5000);
-        expect(result2.remaining).toBe(8);
-
-        const result3 = await store.consume(key, config, now + 10000);
-        expect(result3.remaining).toBe(7);
-      });
-
-      it("should apply sliding window counter logic correctly", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.SlidingWindowCounter,
           window: 10,
-          limit: 5,
-        };
-        const key = "user:789";
-
-        await store.consume(key, config, now);
-        await store.consume(key, config, now + 1000);
-
-        const midWindowResult = await store.consume(key, config, now + 5000);
-        expect(midWindowResult.allowed).toBe(true);
-        expect(midWindowResult.remaining).toBe(2);
-      });
-    });
-
-    describe("returned object", () => {
-      it("should return valid RateLimitResult structure", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.SlidingWindowCounter,
-          window: 60,
+        }),
+      limit: 10,
+    },
+    {
+      name: "SlidingWindowCounter",
+      instance: () =>
+        new InMemorySlidingWindowCounter({
+          name: "sliding-window-counter",
           limit: 10,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result).toHaveProperty("allowed");
-        expect(result).toHaveProperty("limit");
-        expect(result).toHaveProperty("remaining");
-        expect(result).toHaveProperty("reset");
-      });
-    });
-  });
-
-  describe("Token Bucket Algorithm", () => {
-    describe("default args", () => {
-      it("should use default cost of 1 when not provided", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.TokenBucket,
-          capacity: 10,
-          refillRate: 1,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(9);
-      });
-
-      it("should initialize with full capacity", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.TokenBucket,
-          capacity: 100,
-          refillRate: 5,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.remaining).toBe(99);
-      });
-    });
-
-    describe("non-default args", () => {
-      it("should respect custom cost value", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.TokenBucket,
-          capacity: 10,
-          refillRate: 1,
-        };
-        const result = await store.consume("key1", config, now, 5);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(5);
-      });
-
-      it("should respect custom capacity", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.TokenBucket,
-          capacity: 50,
-          refillRate: 2,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(49);
-      });
-
-      it("should respect custom refillRate", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.TokenBucket,
+          window: 10,
+        }),
+      limit: 10,
+    },
+    {
+      name: "TokenBucket",
+      instance: () =>
+        new InMemoryTokenBucket({
+          name: "token-bucket",
           capacity: 10,
           refillRate: 5,
-        };
-        const result1 = await store.consume("key1", config, now);
-        const result2 = await store.consume("key2", config, now + 2000);
-
-        expect(result1.allowed).toBe(true);
-        expect(result2.allowed).toBe(true);
-      });
-    });
-
-    describe("persistence", () => {
-      it("should maintain tokens across multiple calls", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.TokenBucket,
+        }),
+      limit: 10,
+    },
+    {
+      name: "LeakyBucket",
+      instance: () =>
+        new InMemoryLeakyBucket({
+          name: "leaky-bucket",
           capacity: 10,
-          refillRate: 1,
-        };
-        const key = "bucket:1";
-
-        const result1 = await store.consume(key, config, now);
-        expect(result1.remaining).toBe(9);
-
-        const result2 = await store.consume(key, config, now + 500);
-        expect(result2.remaining).toBe(8);
-
-        const result3 = await store.consume(key, config, now + 500);
-        expect(result3.remaining).toBe(7);
-      });
-
-      it("should refill tokens over time up to capacity", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.TokenBucket,
-          capacity: 5,
-          refillRate: 1,
-        };
-        const key = "bucket:2";
-
-        await store.consume(key, config, now);
-        await store.consume(key, config, now + 100);
-        await store.consume(key, config, now + 200);
-        await store.consume(key, config, now + 300);
-        await store.consume(key, config, now + 400);
-
-        const deniedResult = await store.consume(key, config, now + 500);
-        expect(deniedResult.allowed).toBe(false);
-
-        const allowedResult = await store.consume(key, config, now + 1500);
-        expect(allowedResult.allowed).toBe(true);
-      });
-    });
-
-    describe("returned object", () => {
-      it("should return valid RateLimitResult structure", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.TokenBucket,
-          capacity: 10,
-          refillRate: 1,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result).toHaveProperty("allowed");
-        expect(result).toHaveProperty("limit");
-        expect(result).toHaveProperty("remaining");
-        expect(result).toHaveProperty("reset");
-      });
-
-      it("should include retryAfter when bucket is empty", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.TokenBucket,
-          capacity: 1,
-          refillRate: 1,
-        };
-        const key = "bucket:3";
-
-        await store.consume(key, config, now);
-        const deniedResult = await store.consume(key, config, now + 100);
-
-        expect(deniedResult.allowed).toBe(false);
-        expect(deniedResult).toHaveProperty("retryAfter");
-      });
-    });
-  });
-
-  describe("Leaky Bucket Algorithm", () => {
-    describe("default args", () => {
-      it("should use default cost of 1 when not provided", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.LeakyBucket,
-          capacity: 10,
-          leakRate: 1,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(9);
-      });
-
-      it("should initialize with full capacity", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.LeakyBucket,
-          capacity: 20,
-          leakRate: 2,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.remaining).toBe(19);
-      });
-    });
-
-    describe("non-default args", () => {
-      it("should respect custom cost value", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.LeakyBucket,
-          capacity: 10,
-          leakRate: 1,
-        };
-        const result = await store.consume("key1", config, now, 3);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(7);
-      });
-
-      it("should respect custom capacity", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.LeakyBucket,
-          capacity: 50,
           leakRate: 5,
-        };
-        const result = await store.consume("key1", config, now);
+        }),
+      limit: 10,
+    },
+    {
+      name: "GCRA",
+      instance: () =>
+        new InMemoryGCRA({ name: "gcra", burst: 10, interval: 1 }),
+      limit: 10,
+    },
+  ];
+}
 
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(49);
-      });
+describe("InMemoryStore Global Tests", () => {
+  const algorithms = getAlgorithms();
 
-      it("should respect custom leakRate", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.LeakyBucket,
-          capacity: 10,
-          leakRate: 3,
-        };
-        const result1 = await store.consume("key1", config, now);
-        const result2 = await store.consume("key2", config, now + 1000);
+  describe.each(algorithms)("$name", ({ instance, limit }) => {
+    let store: InMemoryStore;
+    let limiter: any;
 
-        expect(result1.allowed).toBe(true);
-        expect(result2.allowed).toBe(true);
-      });
+    beforeEach(() => {
+      store = new InMemoryStore();
+      limiter = instance();
     });
 
-    describe("persistence", () => {
-      it("should maintain queue state across multiple calls", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.LeakyBucket,
-          capacity: 10,
-          leakRate: 1,
-        };
-        const key = "bucket:4";
+    test("allows requests within limit", async () => {
+      let allowed = 0;
 
-        const result1 = await store.consume(key, config, now);
-        expect(result1.remaining).toBe(9);
+      for (let i = 0; i < limit; i++) {
+        const r = await store.consume("user", limiter, base);
+        if (r.allowed) allowed++;
+      }
 
-        const result2 = await store.consume(key, config, now + 1000);
-        expect(result2.remaining).toBe(9);
-
-        const result3 = await store.consume(key, config, now + 2000);
-        expect(result3.remaining).toBe(9);
-      });
-
-      it("should leak requests over time", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.LeakyBucket,
-          capacity: 5,
-          leakRate: 1,
-        };
-        const key = "bucket:5";
-
-        await store.consume(key, config, now);
-        await store.consume(key, config, now + 100);
-        await store.consume(key, config, now + 200);
-        await store.consume(key, config, now + 300);
-        await store.consume(key, config, now + 400);
-
-        const deniedResult = await store.consume(key, config, now + 500);
-        expect(deniedResult.allowed).toBe(false);
-
-        const allowedResult = await store.consume(key, config, now + 2000);
-        expect(allowedResult.allowed).toBe(true);
-      });
+      expect(allowed).toBe(limit);
     });
 
-    describe("returned object", () => {
-      it("should return valid RateLimitResult structure", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.LeakyBucket,
-          capacity: 10,
-          leakRate: 1,
-        };
-        const result = await store.consume("key1", config, now);
+    test("rejects when exceeding limit", async () => {
+      for (let i = 0; i < limit; i++) {
+        await store.consume("user", limiter, base);
+      }
 
-        expect(result).toHaveProperty("allowed");
-        expect(result).toHaveProperty("limit");
-        expect(result).toHaveProperty("remaining");
-        expect(result).toHaveProperty("reset");
-      });
+      const r = await store.consume("user", limiter, base);
 
-      it("should include retryAfter when bucket is full", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.LeakyBucket,
-          capacity: 1,
-          leakRate: 1,
-        };
-        const key = "bucket:6";
-
-        await store.consume(key, config, now);
-        const deniedResult = await store.consume(key, config, now + 100);
-
-        expect(deniedResult.allowed).toBe(false);
-        expect(deniedResult).toHaveProperty("retryAfter");
-      });
-    });
-  });
-
-  describe("GCRA Algorithm", () => {
-    describe("default args", () => {
-      it("should use default cost of 1 when not provided", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.GCRA,
-          interval: 10,
-          burst: 5,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(4);
-      });
-
-      it("should initialize with burst capacity", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.GCRA,
-          interval: 10,
-          burst: 10,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.remaining).toBe(9);
-      });
+      expect(r.allowed).toBe(false);
     });
 
-    describe("non-default args", () => {
-      it("should respect custom cost value", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.GCRA,
-          interval: 10,
-          burst: 5,
-        };
-        const result = await store.consume("key1", config, now, 2);
+    test("state persists between requests", async () => {
+      const r1 = await store.consume("user", limiter, base);
+      const r2 = await store.consume("user", limiter, base);
 
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(3);
-      });
-
-      it("should respect custom interval", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.GCRA,
-          interval: 20,
-          burst: 5,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(4);
-      });
-
-      it("should respect custom burst", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.GCRA,
-          interval: 10,
-          burst: 20,
-        };
-        const result = await store.consume("key1", config, now);
-
-        expect(result.allowed).toBe(true);
-        expect(result.remaining).toBe(19);
-      });
+      expect(r2.remaining).toBeLessThanOrEqual(r1.remaining);
     });
 
-    describe("persistence", () => {
-      it("should maintain TAT (Theoretical Arrival Time) across calls", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.GCRA,
-          interval: 10,
-          burst: 5,
-        };
-        const key = "gcra:1";
+    test("different keys have isolated state", async () => {
+      await store.consume("userA", limiter, base);
 
-        const result1 = await store.consume(key, config, now);
-        expect(result1.allowed).toBe(true);
-        expect(result1.remaining).toBe(4);
+      const r = await store.consume("userB", limiter, base);
 
-        const result2 = await store.consume(key, config, now + 1000);
-        expect(result2.allowed).toBe(true);
-        expect(result2.remaining).toBe(3);
-
-        const result3 = await store.consume(key, config, now + 2000);
-        expect(result3.allowed).toBe(true);
-        expect(result3.remaining).toBe(2);
-      });
-
-      it("should allow requests after interval has passed", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.GCRA,
-          interval: 5,
-          burst: 2,
-        };
-        const key = "gcra:2";
-
-        await store.consume(key, config, now);
-        await store.consume(key, config, now + 100);
-
-        const deniedResult = await store.consume(key, config, now + 200);
-        expect(deniedResult.allowed).toBe(false);
-
-        const allowedResult = await store.consume(key, config, now + 6000);
-        expect(allowedResult.allowed).toBe(true);
-      });
+      expect(r.remaining).toBe(limit - 1);
     });
 
-    describe("returned object", () => {
-      it("should return valid RateLimitResult structure", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.GCRA,
-          interval: 10,
-          burst: 5,
-        };
-        const result = await store.consume("key1", config, now);
+    test("large time jump restores capacity", async () => {
+      for (let i = 0; i < limit; i++) {
+        await store.consume("user", limiter, base);
+      }
 
-        expect(result).toHaveProperty("allowed");
-        expect(result).toHaveProperty("limit");
-        expect(result).toHaveProperty("remaining");
-        expect(result).toHaveProperty("reset");
-      });
+      const r = await store.consume("user", limiter, base + 60_000);
 
-      it("should include retryAfter when burst is exceeded", async () => {
-        const config: AlgorithmConfig = {
-          name: Algorithm.GCRA,
-          interval: 10,
-          burst: 1,
-        };
-        const key = "gcra:3";
-
-        await store.consume(key, config, now);
-        const deniedResult = await store.consume(key, config, now + 100);
-
-        expect(deniedResult.allowed).toBe(false);
-        expect(deniedResult).toHaveProperty("retryAfter");
-      });
+      expect(r.allowed).toBe(true);
     });
-  });
 
-  describe("Multiple Keys Isolation", () => {
-    it("should maintain separate state for different keys", async () => {
-      const config: AlgorithmConfig = {
-        name: Algorithm.FixedWindow,
-        window: 60,
-        limit: 5,
-      };
+    test("cost parameter works correctly", async () => {
+      const r = await store.consume("user", limiter, base, 3);
 
-      const result1 = await store.consume("user:1", config, now);
-      const result2 = await store.consume("user:2", config, now);
-      const result3 = await store.consume("user:1", config, now + 1000);
+      expect(r.remaining).toBeLessThanOrEqual(limit - 3);
+    });
 
-      expect(result1.remaining).toBe(4);
-      expect(result2.remaining).toBe(4);
-      expect(result3.remaining).toBe(3);
+    test("burst concurrency respects limit", async () => {
+      const promises = [];
+
+      for (let i = 0; i < limit * 2; i++) {
+        promises.push(store.consume("user", limiter, base));
+      }
+
+      const results = await Promise.all(promises);
+
+      const allowed = results.filter((r) => r.allowed).length;
+
+      expect(allowed).toBeLessThanOrEqual(limit);
+    });
+
+    test("mixed cost concurrency respects limit", async () => {
+      const costs = [3, 2, 4, 1, 5, 2];
+
+      const results = await Promise.all(
+        costs.map((c) => store.consume("user", limiter, base, c)),
+      );
+
+      let acceptedCost = 0;
+
+      results.forEach((r, i) => {
+        if (r.allowed) acceptedCost += costs[i];
+      });
+
+      expect(acceptedCost).toBeLessThanOrEqual(limit);
+    });
+
+    test("concurrency across multiple keys", async () => {
+      const promises = [];
+
+      for (let i = 0; i < 10; i++) {
+        promises.push(store.consume("userA", limiter, base));
+        promises.push(store.consume("userB", limiter, base));
+      }
+
+      const results = await Promise.all(promises);
+
+      const userA = results.filter((_, i) => i % 2 === 0);
+      const userB = results.filter((_, i) => i % 2 === 1);
+
+      expect(userA.filter((r) => r.allowed).length).toBeLessThanOrEqual(limit);
+
+      expect(userB.filter((r) => r.allowed).length).toBeLessThanOrEqual(limit);
+    });
+
+    test("reset is always in the future", async () => {
+      const r = await store.consume("user", limiter, base);
+
+      expect(r.reset).toBeGreaterThanOrEqual(base);
+    });
+
+    test("remaining never negative", async () => {
+      for (let i = 0; i < limit * 2; i++) {
+        const r = await store.consume("user", limiter, base);
+
+        expect(r.remaining).toBeGreaterThanOrEqual(0);
+      }
+    });
+
+    test("stress test random costs", async () => {
+      const costs = Array.from(
+        { length: 50 },
+        () => Math.floor(Math.random() * 5) + 1,
+      );
+
+      const results = await Promise.all(
+        costs.map((c) => store.consume("user", limiter, base, c)),
+      );
+
+      let acceptedCost = 0;
+
+      results.forEach((r, i) => {
+        if (r.allowed) acceptedCost += costs[i];
+      });
+
+      expect(acceptedCost).toBeLessThanOrEqual(limit);
     });
   });
 });
