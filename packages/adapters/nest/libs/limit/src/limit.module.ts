@@ -108,9 +108,44 @@ import { RateLimit, SkipRateLimit } from "./decorators";
 @Module({})
 export class LimitModule {
   /**
-   * Registers LimitModule synchronously
-   * @param config - Rate limiting configuration
-   * @returns {DynamicModule} NestJS Dynamic module instance
+   * Register the `LimitModule` with a static configuration.
+   *
+   * This method initializes the global {@link RateLimiter} instance and
+   * automatically applies the {@link LimitGuard} as a global guard
+   * to enforce rate limiting on all routes.
+   *
+   * Controller and route-level rules can be added or overridden using
+   * the {@link RateLimit} and {@link SkipRateLimit} decorators.
+   *
+   * Use this method when the rate limit configuration is known at
+   * application startup and does not require dependency injection.
+   *
+   * @param config Global rate limiting configuration.
+   *
+   * @returns A NestJS {@link DynamicModule} that provides:
+   * - the configured {@link RateLimiter}
+   * - the global {@link LimitGuard}
+   *
+   * @example
+   *
+   * ```ts
+   * @Module({
+   *   imports: [
+   *     LimitModule.forRoot({
+   *       store: new InMemoryStore(),
+   *       debug: false,
+   *       rules: [
+   *         {
+   *           name: "global",
+   *           key: (req) => req.ip,
+   *           policy: new InMemoryFixedWindow({ name: "fixed-window", window: 60, limit: 100 })
+   *         }
+   *       ]
+   *     })
+   *   ]
+   * })
+   * export class AppModule {}
+   * ```
    */
   static forRoot(config: RateLimitConfig): DynamicModule {
     return {
@@ -135,9 +170,40 @@ export class LimitModule {
   }
 
   /**
-   * Registers LimitModule asynchronously
-   * @param options - LimitModule asynchronous registration options
-   * @returns {DynamicModule} NestJS Dynamic module instance
+   * Register the `LimitModule` using an asynchronous configuration factory.
+   *
+   * This method is useful when the rate limiter configuration depends on
+   * other providers (e.g., `ConfigService`, database services, or external APIs).
+   *
+   * The factory function receives injected dependencies and must return
+   * a {@link RateLimitConfig} object.
+   *
+   * The module will create a global {@link RateLimiter} instance and apply
+   * the {@link LimitGuard} globally to all routes.
+   *
+   * @param options Asynchronous module configuration options.
+   *
+   * @returns A NestJS {@link DynamicModule} configured with the resolved
+   * rate limit configuration.
+   *
+   * @example
+   *
+   * ```ts
+   * LimitModule.forRootAsync({
+   *   imports: [ConfigModule],
+   *   inject: [ConfigService],
+   *   useFactory: async (config: ConfigService) => {
+   *     const redis = createClient({ url: config.get("REDIS_URL") });
+   *     await redis.connect();
+   *
+   *     return {
+   *       store: new RedisStore(redis),
+   *       debug: config.get("NODE_ENV") === "development",
+   *       rules: [...]
+   *     };
+   *   }
+   * })
+   * ```
    */
   static forRootAsync(options: LimitModuleAsyncOptions): DynamicModule {
     return {
