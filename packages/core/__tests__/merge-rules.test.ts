@@ -1,10 +1,12 @@
 import { FixedWindow, mergeRules, TokenBucket } from "../src";
 
+class MockFixedWindow extends FixedWindow {}
+class MockTokenBucket extends TokenBucket {}
 describe("mergeRules", () => {
   const baseRule = {
     name: "api",
     key: "api",
-    policy: new FixedWindow({
+    policy: new MockFixedWindow({
       name: "fixed-window",
       window: 60,
       limit: 100,
@@ -21,7 +23,7 @@ describe("mergeRules", () => {
     const routeRule = {
       name: "login",
       key: "login",
-      policy: new TokenBucket({
+      policy: new MockTokenBucket({
         name: "token-bucket",
         capacity: 5,
         refillRate: 1,
@@ -37,7 +39,7 @@ describe("mergeRules", () => {
     const routeRule = {
       name: "api",
       key: "api",
-      policy: new FixedWindow({
+      policy: new MockFixedWindow({
         name: "fixed-window",
         window: 60,
         limit: 10,
@@ -54,7 +56,7 @@ describe("mergeRules", () => {
       name: "api",
       key: "api",
       cost: 1,
-      policy: new FixedWindow({
+      policy: new MockFixedWindow({
         name: "fixed-window",
         window: 60,
         limit: 100,
@@ -64,7 +66,7 @@ describe("mergeRules", () => {
     const routeRule = {
       name: "api",
       key: "api",
-      policy: new FixedWindow({
+      policy: new MockFixedWindow({
         name: "fixed-window",
         window: 60,
         limit: 10,
