@@ -1,5 +1,5 @@
 /**
- * Enumeration of supported rate limiting algorithms.
+ * Literals of supported rate limiting algorithms.
  *
  * Each algorithm offers different trade-offs in terms of accuracy, memory usage, and behavior:
  * - **FixedWindow**: Simple, resets at fixed intervals (e.g., every minute)
@@ -8,6 +8,7 @@
  * - **TokenBucket**: Allows burst traffic while maintaining average rate
  * - **LeakyBucket**: Smooths traffic flow, good for queue management
  * - **GCRA**: Generic Cell Rate Algorithm, precise and memory-efficient for telecom use cases
+ * - **Custom**: User-defined rate limiting algorithm
  */
 export type AlgorithmName =
   | "fixed-window"
@@ -85,6 +86,9 @@ export interface GCRAConfig extends BaseConfig {
   burst: number;
 }
 
+/**
+ * Configuration for custom rate limiting algorithms
+ */
 export interface CustomConfig extends BaseConfig {
   [key: string]: any;
 }
@@ -97,6 +101,7 @@ export interface CustomConfig extends BaseConfig {
  * - TokenBucket: Supports traffic bursts while maintaining average rate
  * - LeakyBucket: Smooths traffic, prevents bursts
  * - GCRA: Precise rate limiting with low memory overhead
+ * - Custom: Custom algorithm
  */
 export type AlgorithmConfig =
   | FixedWindowConfig

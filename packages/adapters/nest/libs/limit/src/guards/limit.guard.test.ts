@@ -30,9 +30,16 @@ describe("LimitGuard", () => {
   const controller = {};
   const handler = {};
 
+  const req = { ip: "127.0.0.1" };
+
+  const res = {
+    setHeader: jest.fn(),
+  };
+
   const contextMock: ExecutionContext = {
     switchToHttp: () => ({
-      getRequest: () => ({ ip: "127.0.0.1" }),
+      getRequest: () => req,
+      getResponse: () => res,
     }),
     getHandler: () => handler,
     getClass: () => controller,
@@ -158,6 +165,53 @@ describe("LimitGuard", () => {
     expect(RateLimiter).not.toHaveBeenCalled();
   });
 
+  it("sets rate limit headers when request is allowed", async () => {
+    (RateLimiter as jest.Mock).mockImplementation(() => ({
+      consume: jest.fn().mockResolvedValueOnce({
+        allowed: true,
+        limit: 100,
+        remaining: 99,
+        reset: 60,
+      }),
+    }));
+
+    mockMetadata({});
+
+    await guard.canActivate(contextMock);
+
+    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Limit", 100);
+    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Remaining", 99);
+    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Reset", 60);
+
+    expect(res.setHeader).not.toHaveBeenCalledWith(
+      "Retry-After",
+      expect.anything(),
+    );
+  });
+
+  it("sets retry-after header when rate limit exceeded", async () => {
+    (RateLimiter as jest.Mock).mockImplementation(() => ({
+      consume: jest.fn().mockResolvedValueOnce({
+        allowed: false,
+        limit: 100,
+        remaining: 0,
+        reset: 60,
+        retryAfter: 60,
+      }),
+    }));
+
+    mockMetadata({});
+
+    await expect(guard.canActivate(contextMock)).rejects.toThrow(
+      TooManyRequestsException,
+    );
+
+    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Limit", 100);
+    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Remaining", 0);
+    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Reset", 60);
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", 60);
+  });
+
   it("uses handler rules even when controller skip exists", async () => {
     mockMetadata({
       controllerSkip: true,
@@ -165,6 +219,14 @@ describe("LimitGuard", () => {
         rules: [{ name: "handler-rule" }],
       },
     });
+    (RateLimiter as jest.Mock).mockImplementation(() => ({
+      consume: jest.fn().mockResolvedValueOnce({
+        allowed: true,
+        limit: 100,
+        remaining: 50,
+        reset: 120,
+      }),
+    }));
 
     await guard.canActivate(contextMock);
 

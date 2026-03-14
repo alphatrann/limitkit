@@ -87,6 +87,7 @@ export class RedisStore implements Store {
     now: number,
     cost: number = 1,
   ): Promise<RateLimitResult> {
+    algorithm.validate();
     const sha = await this.redis.scriptLoad(algorithm.luaScript);
     const args = algorithm.getLuaArgs(now, cost);
     const [allowed, remaining, reset, retryAfter] = (await this.redis.evalSha(

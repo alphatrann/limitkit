@@ -50,6 +50,7 @@ export class InMemoryStore implements Store {
     now: number,
     cost: number = 1,
   ): Promise<RateLimitResult> {
+    algorithm.validate();
     const prev = this.queues.get(key) ?? Promise.resolve();
     const next = prev.then(() => {
       const state = this.map.get(key);
