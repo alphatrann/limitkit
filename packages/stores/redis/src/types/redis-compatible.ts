@@ -1,5 +1,5 @@
 /**
- * Redis-compatible interface for algorithms
+ * Represents a Redis-compatible interface for algorithms
  */
 export interface RedisCompatible {
   /**
@@ -14,7 +14,7 @@ export interface RedisCompatible {
 
   /**
    * Get arguments to passed into the Lua script as an array of strings
-   * @param now Unix timestamp in millisecond
+   * @param now Current Unix timestamp in millisecond
    * @param cost The cost needed to perform a request
    */
   getLuaArgs(now: number, cost: number): string[];

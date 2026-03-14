@@ -6,27 +6,54 @@ import {
 import { InMemoryCompatible, SlidingWindowCounterState } from "../types";
 
 /**
- * In-memory implementation of the sliding window counter algorithm
+ * In-memory implementation of the **Sliding Window Counter** algorithm.
  *
- * Usage:
+ * This algorithm approximates a sliding window by combining the counts
+ * from the current and previous window using linear interpolation.
+ *
+ * It provides smoother rate limiting than fixed windows while requiring
+ * constant memory.
+ *
+ * ## Characteristics
+ * - O(1) state
+ * - Smooth transitions between windows
+ * - Slight approximation error
+ *
+ * ## Usage
  * ```ts
- * const inMemorySlidingWindowCounter = new InMemoryFixedWindowCounter({ name: "sliding-window-counter", limit: 100, window: 60 })
+ * import { InMemorySlidingWindowCounter } from "@limitkit/memory";
+ *
+ * const limiter = new InMemorySlidingWindowCounter({
+ *   name: "sliding-window-counter",
+ *   limit: 100,
+ *   window: 60
+ * });
  * ```
+ *
+ * @extends SlidingWindowCounter
+ * @implements {InMemoryCompatible<SlidingWindowCounterState>}
  */
 export class InMemorySlidingWindowCounter
   extends SlidingWindowCounter
   implements InMemoryCompatible<SlidingWindowCounterState>
 {
   /**
-   * Computes the next sliding window counter state based on the configuration and given parameters
-   * * Total time complexity: O(1)
-   * * Total space complexity: O(1)
+   * Processes a request using the sliding window counter algorithm.
    *
-   * @param state Internal state of sliding window counter algorithm
-   * @param now Unix timestamp in millisecond
-   * @param cost Optional cost/weight of each request. Defaults to 1 if not specified. Must never exceed `this.config.limit`
-   * @returns The next state and rate limit result
-   * @see SlidingWindowCounterState
+   * Calculates the effective request count using a weighted combination
+   * of the current and previous window counts.
+   *
+   * ## Complexity
+   * - Time: **O(1)**
+   * - Space: **O(1)**
+   *
+   * @param state Previous algorithm state
+   * @param now Current Unix timestamp **in milliseconds**
+   * @param cost Number of tokens to consume (default: `1`)
+   *
+   * @returns Updated state and rate limit result
+   *
+   * @throws BadArgumentsException if `cost > config.limit`
    */
   process(
     state: SlidingWindowCounterState | undefined,

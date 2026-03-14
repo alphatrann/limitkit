@@ -1,6 +1,61 @@
 import { TokenBucket } from "@limitkit/core";
 import { RedisCompatible } from "../types";
 
+/**
+ * Redis implementation of the Token Bucket rate limiting algorithm.
+ *
+ * Token Bucket allows bursts of requests while enforcing a sustained rate
+ * limit over time.
+ *
+ * ## Algorithm
+ *
+ * A bucket contains tokens representing available request capacity.
+ *
+ * - Tokens refill continuously at a fixed rate
+ * - Requests consume tokens
+ * - Requests are rejected when insufficient tokens are available
+ *
+ * ## Redis State
+ *
+ * State is stored in a Redis hash:
+ *
+ * ```text
+ * key
+ * ├─ lastRefill → timestamp of last refill
+ * └─ tokens     → current token count
+ * ```
+ *
+ * The bucket refills proportionally based on the time elapsed since the
+ * last request.
+ *
+ * ## Atomic Execution
+ *
+ * All rate limiting logic executes inside Redis using Lua, ensuring
+ * atomic updates and preventing race conditions across distributed
+ * clients.
+ *
+ * ## Lua Arguments
+ *
+ * ```text
+ * KEYS[1] → rate limit key
+ *
+ * ARGV[1] → current timestamp (ms)
+ * ARGV[2] → refill rate (tokens/sec)
+ * ARGV[3] → capacity
+ * ARGV[4] → cost
+ * ```
+ *
+ * ## Script Return Value
+ *
+ * ```text
+ * {allowed, remaining, reset, retryAfter}
+ * ```
+ *
+ * - `remaining` represents remaining tokens in the bucket.
+ *
+ * @see TokenBucket
+ * @see RedisStore
+ */
 export class RedisTokenBucket extends TokenBucket implements RedisCompatible {
   luaScript: string = `
     local key = KEYS[1]

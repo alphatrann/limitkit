@@ -6,28 +6,56 @@ import {
 import { InMemoryCompatible, SlidingWindowState } from "../types";
 
 /**
- * In-memory implementation of the sliding window algorithm using circular buffer
+ * In-memory implementation of the **Sliding Window** rate limiting algorithm.
  *
- * Usage:
+ * This algorithm tracks individual request timestamps within a rolling window
+ * and ensures no more than `limit` requests occur within `window` seconds.
+ *
+ * A circular buffer is used to efficiently store timestamps.
+ *
+ * ## Characteristics
+ * - More accurate than fixed window
+ * - Prevents boundary bursts
+ * - Memory proportional to `limit`
+ *
+ * ## Usage
  * ```ts
- * const inMemorySlidingWindow = new InMemorySlidingWindow({ name: "sliding-window", limit: 100, window: 60 })
+ * import { InMemorySlidingWindow } from "@limitkit/memory";
+ *
+ * const limiter = new InMemorySlidingWindow({
+ *   name: "sliding-window",
+ *   limit: 100,
+ *   window: 60
+ * });
  * ```
+ *
+ * @warning
+ * The internal buffer is **mutated in place** to avoid unnecessary allocations.
+ *
+ * @extends SlidingWindow
+ * @implements {InMemoryCompatible<SlidingWindowState>}
  */
 export class InMemorySlidingWindow
   extends SlidingWindow
   implements InMemoryCompatible<SlidingWindowState>
 {
   /**
-   * Computes the next sliding window state based on the configuration and given parameters
-   * * Total time complexity: ammortized O(1)
-   * * Total space complexity: O(requests)
+   * Processes a request using the sliding window algorithm.
    *
-   * @warning The `buffer` in the state are modified in place to reduce memory allocation.
-   * @param state Internal state of sliding window algorithm
-   * @param now Unix timestamp in millisecond
-   * @param cost Optional cost/weight of each request. Defaults to 1 if not specified. Must never exceed `this.config.limit`
-   * @returns The next state and rate limit result
-   * @see SlidingWindowState
+   * Expired timestamps are removed from the circular buffer and new
+   * timestamps are inserted if capacity allows.
+   *
+   * ## Complexity
+   * - Time: **Amortized O(1)**
+   * - Space: **O(limit)**
+   *
+   * @param state Previous sliding window state
+   * @param now Current Unix timestamp **in milliseconds**
+   * @param cost Number of requests to consume (default: `1`)
+   *
+   * @returns Updated state and rate limit result
+   *
+   * @throws BadArgumentsException if `cost > config.limit`
    */
   process(
     state: SlidingWindowState | undefined,

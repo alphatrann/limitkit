@@ -22,9 +22,11 @@ import { InMemoryCompatible, State } from "./types";
  *
  * @example
  * ```typescript
+ * import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory";
+ *
  * const store = new InMemoryStore();
- * const config = { name: "fixed-window", window: 60, limit: 100 };
- * const result = await store.consume('user-123', config, 1);
+ * const config = new InMemoryFixedWindow({ name: "fixed-window", window: 60, limit: 100 });
+ * const result = await store.consume('user-123', config, Date.now(), 1);
  * ```
  *
  * ## Characteristics
@@ -61,7 +63,9 @@ import { InMemoryCompatible, State } from "./types";
  * - All operations are asynchronous to maintain API consistency with the Store interface
  * - State is preserved across calls, allowing accumulated rate limit tracking
  * - Key modification for config uniqueness is handled upstream by the RateLimiter
+ * - Operations for the same key are serialized using a Promise-based queue to guarantee atomic state updates and prevent race conditions.
  *
+ * @implements {Store}
  */
 export class InMemoryStore implements Store {
   private queues = new Map<string, Promise<any>>();

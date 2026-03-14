@@ -1,6 +1,78 @@
 import { SlidingWindow } from "@limitkit/core";
 import { RedisCompatible } from "../types";
 
+/**
+ * Redis implementation of the Sliding Window rate limiting algorithm.
+ *
+ * This class adapts the core {@link SlidingWindow} algorithm for use with
+ * {@link RedisStore} by providing a Lua script that executes the algorithm
+ * atomically inside Redis.
+ *
+ * ## Algorithm
+ *
+ * Sliding Window tracks each request within a moving time window. Unlike
+ * Fixed Window, requests are evaluated continuously rather than in discrete
+ * buckets.
+ *
+ * The algorithm allows a request only if the number of requests within the
+ * last `window` duration does not exceed the configured limit.
+ *
+ * ## Redis State
+ *
+ * Requests are stored in a Redis **sorted set** where:
+ *
+ * - member → unique request identifier
+ * - score → request timestamp (ms)
+ *
+ * ```text
+ * key (sorted set)
+ * ├─ score: timestamp
+ * └─ member: unique request id
+ * ```
+ *
+ * Expired entries are removed using `ZREMRANGEBYSCORE`.
+ *
+ * ## Atomic Execution
+ *
+ * The rate limiting logic runs entirely inside a Redis Lua script executed
+ * via `EVALSHA`, ensuring atomic behavior even under heavy concurrency.
+ *
+ * ## Lua Arguments
+ *
+ * ```text
+ * KEYS[1] → rate limit key
+ *
+ * ARGV[1] → current timestamp (ms)
+ * ARGV[2] → window size (ms)
+ * ARGV[3] → limit
+ * ARGV[4] → cost
+ * ```
+ *
+ * ## Script Return Value
+ *
+ * ```text
+ * {allowed, remaining, reset, retryAfter}
+ * ```
+ *
+ * - `allowed` – 1 if request is permitted
+ * - `remaining` – remaining requests within the window
+ * - `reset` – timestamp (ms) when capacity will refresh
+ * - `retryAfter` – seconds until next request may succeed
+ *
+ * @example
+ * ```ts
+ * const limiter = new RedisSlidingWindow({
+ *   name: "sliding-window",
+ *   limit: 100,
+ *   window: 60
+ * })
+ *
+ * const result = await store.consume("user-123", limiter, Date.now())
+ * ```
+ *
+ * @see SlidingWindow
+ * @see RedisStore
+ */
 export class RedisSlidingWindow
   extends SlidingWindow
   implements RedisCompatible
