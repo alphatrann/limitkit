@@ -96,6 +96,13 @@ describe("RedisStore Integration Tests", () => {
       limiter = instance();
     });
 
+    test("should validate the config params before consuming", async () => {
+      const limiterSpy = jest.spyOn(limiter, "validate");
+      await store.consume("user", limiter, base);
+
+      expect(limiterSpy).toHaveBeenCalled();
+    });
+
     test("lua script is cached after first load", async () => {
       const spy = jest.spyOn(redis, "scriptLoad").mockClear();
 
