@@ -1,8 +1,20 @@
 {
   "name": "@limitkit/memory",
   "version": "0.1.0",
+  "description": "In-memory store for LimitKit",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alphatrann/limitkit"
+  },
   "dependencies": {
     "@limitkit/core": "workspace:*"
   },
