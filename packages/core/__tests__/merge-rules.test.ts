@@ -1,19 +1,14 @@
-import {
-  Algorithm,
-  FixedWindowConfig,
-  mergeRules,
-  TokenBucketConfig,
-} from "../src";
+import { FixedWindow, mergeRules, TokenBucket } from "../src";
 
 describe("mergeRules", () => {
   const baseRule = {
     name: "api",
     key: "api",
-    policy: {
-      name: Algorithm.FixedWindow,
+    policy: new FixedWindow({
+      name: "fixed-window",
       window: 60,
       limit: 100,
-    } as FixedWindowConfig,
+    }),
   };
 
   it("returns global rules when route rules empty", () => {
@@ -26,11 +21,11 @@ describe("mergeRules", () => {
     const routeRule = {
       name: "login",
       key: "login",
-      policy: {
-        name: Algorithm.TokenBucket,
+      policy: new TokenBucket({
+        name: "token-bucket",
         capacity: 5,
         refillRate: 1,
-      } as TokenBucketConfig,
+      }),
     };
 
     const result = mergeRules([baseRule], [routeRule]);
@@ -42,11 +37,11 @@ describe("mergeRules", () => {
     const routeRule = {
       name: "api",
       key: "api",
-      policy: {
-        name: Algorithm.FixedWindow,
+      policy: new FixedWindow({
+        name: "fixed-window",
         window: 60,
         limit: 10,
-      } as FixedWindowConfig,
+      }),
     };
 
     const result = mergeRules([baseRule], [routeRule]);
@@ -59,26 +54,26 @@ describe("mergeRules", () => {
       name: "api",
       key: "api",
       cost: 1,
-      policy: {
-        name: Algorithm.FixedWindow,
+      policy: new FixedWindow({
+        name: "fixed-window",
         window: 60,
         limit: 100,
-      } as FixedWindowConfig,
+      }),
     };
 
     const routeRule = {
       name: "api",
       key: "api",
-      policy: {
-        name: Algorithm.FixedWindow,
+      policy: new FixedWindow({
+        name: "fixed-window",
         window: 60,
         limit: 10,
-      } as FixedWindowConfig,
+      }),
     };
 
     const result = mergeRules([globalRule], [routeRule]);
 
     expect(result[0].cost).toBe(1);
-    expect((result[0].policy as FixedWindowConfig).limit).toBe(10);
+    expect((result[0].policy as FixedWindow).config.limit).toBe(10);
   });
 });

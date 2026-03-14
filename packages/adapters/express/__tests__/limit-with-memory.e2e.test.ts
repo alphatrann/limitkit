@@ -1,8 +1,8 @@
 import * as express from "express";
 import * as request from "supertest";
 import { limit } from "../src";
-import { Algorithm, RateLimiter } from "@limitkit/core";
-import { InMemoryStore } from "@limitkit/memory";
+import { RateLimiter } from "@limitkit/core";
+import { InMemoryFixedWindow, InMemoryStore } from "@limitkit/memory";
 
 function createApp() {
   const app = express();
@@ -13,11 +13,11 @@ function createApp() {
       {
         name: "global-limit",
         key: "global",
-        policy: {
-          name: Algorithm.FixedWindow,
+        policy: new InMemoryFixedWindow({
+          name: "fixed-window",
           window: 60,
           limit: 5,
-        },
+        }),
       },
     ],
   });

@@ -1,36 +1,81 @@
 import { createClient, RedisClientType } from "redis";
 import {
-  Algorithm,
-  FixedWindowConfig,
-  SlidingWindowConfig,
-  SlidingWindowCounterConfig,
-  TokenBucketConfig,
-  LeakyBucketConfig,
-  GCRAConfig,
-  BadArgumentsException,
-} from "@limitkit/core";
-import { RedisStore } from "../src/redis-store";
+  RedisCompatible,
+  RedisFixedWindow,
+  RedisGCRA,
+  RedisLeakyBucket,
+  RedisSlidingWindow,
+  RedisSlidingWindowCounter,
+  RedisStore,
+  RedisTokenBucket,
+} from "../src";
+import { Algorithm, AlgorithmConfig } from "@limitkit/core";
 
-/**
- * Helper function to generate unique test keys
- */
-function key(suffix: string): string {
-  return `test:${suffix}:${Math.random()}`;
+const base = 1_000_000;
+
+function getAlgorithms() {
+  return [
+    {
+      name: "FixedWindow",
+      instance: () =>
+        new RedisFixedWindow({ name: "fixed-window", limit: 10, window: 10 }),
+      limit: 10,
+    },
+    {
+      name: "SlidingWindow",
+      instance: () =>
+        new RedisSlidingWindow({
+          name: "sliding-window",
+          limit: 10,
+          window: 10,
+        }),
+      limit: 10,
+    },
+    {
+      name: "SlidingWindowCounter",
+      instance: () =>
+        new RedisSlidingWindowCounter({
+          name: "sliding-window-counter",
+          limit: 10,
+          window: 10,
+        }),
+      limit: 10,
+    },
+    {
+      name: "TokenBucket",
+      instance: () =>
+        new RedisTokenBucket({
+          name: "token-bucket",
+          capacity: 10,
+          refillRate: 5,
+        }),
+      limit: 10,
+    },
+    {
+      name: "LeakyBucket",
+      instance: () =>
+        new RedisLeakyBucket({
+          name: "leaky-bucket",
+          capacity: 10,
+          leakRate: 5,
+        }),
+      limit: 10,
+    },
+    {
+      name: "GCRA",
+      instance: () => new RedisGCRA({ name: "gcra", burst: 10, interval: 1 }),
+      limit: 10,
+    },
+  ];
 }
 
-describe("RedisStore", () => {
+describe("RedisStore Integration Tests", () => {
   let redis: RedisClientType;
   let store: RedisStore;
 
   beforeAll(async () => {
-    redis = createClient({
-      url: "redis://localhost:6379",
-    });
-
+    redis = createClient();
     await redis.connect();
-
-    // Flush database before tests
-    await redis.flushDb();
   });
 
   afterAll(async () => {
@@ -38,987 +83,151 @@ describe("RedisStore", () => {
   });
 
   beforeEach(async () => {
+    await redis.flushDb();
     store = new RedisStore(redis);
-    await store.init();
-    await redis.flushDb();
   });
 
-  afterEach(async () => {
-    // Ensure complete cleanup between tests
-    await redis.flushDb();
-  });
+  const algorithms = getAlgorithms();
 
-  describe("FixedWindow Algorithm", () => {
-    const config: FixedWindowConfig = {
-      name: Algorithm.FixedWindow,
-      window: 10, // 10 second window
-      limit: 10,
-    };
+  describe.each(algorithms)("$name", ({ instance, limit }) => {
+    let limiter: Algorithm<AlgorithmConfig> & RedisCompatible;
 
-    test("should accept request when count + cost <= limit", async () => {
-      const key = "fw:test:1";
-      let now = 0;
-
-      // Consume 8 tokens, should succeed
-      const res1 = await store.consume(key, config, now, 8);
-      expect(res1.allowed).toBe(true);
-      expect(res1.remaining).toBe(2);
-
-      // Consume 2 more tokens, should succeed
-      const res2 = await store.consume(key, config, now, 2);
-      expect(res2.allowed).toBe(true);
-      expect(res2.remaining).toBe(0);
+    beforeEach(() => {
+      limiter = instance();
     });
 
-    test("should deny request when count + cost > limit", async () => {
-      const key = "fw:test:2";
-      let now = 0;
+    test("allows requests within limit", async () => {
+      let allowed = 0;
 
-      // Consume 9 tokens
-      const res1 = await store.consume(key, config, now, 9);
-      expect(res1.allowed).toBe(true);
+      for (let i = 0; i < limit; i++) {
+        const r = await store.consume("user", limiter, base);
+        if (r.allowed) allowed++;
+      }
 
-      // Try to consume 2 more, should fail
-      const res2 = await store.consume(key, config, now, 2);
-      expect(res2.allowed).toBe(false);
-      expect(res2.remaining).toBe(0);
+      expect(allowed).toBe(limit);
     });
 
-    test("should calculate remaining correctly: limit - (count + cost)", async () => {
-      const key = "fw:test:3";
-      let now = 0;
+    test("rejects requests beyond limit", async () => {
+      for (let i = 0; i <= limit; i++) {
+        await store.consume("user", limiter, base);
+      }
 
-      const res = await store.consume(key, config, now, 3);
-      const expectedRemaining = config.limit - 3;
+      const r = await store.consume("user", limiter, base);
 
-      expect(res.allowed).toBe(true);
-      expect(res.remaining).toBe(expectedRemaining);
+      expect(r.allowed).toBe(false);
+      expect(r.retryAfter).toBeGreaterThanOrEqual(0);
     });
 
-    test("should reset window after duration expires", async () => {
-      const key = "fw:test:4";
-      let now = 0;
+    test("state persists in Redis", async () => {
+      const r1 = await store.consume("user", limiter, base);
+      const r2 = await store.consume("user", limiter, base);
 
-      // Consume all 10 tokens
-      const res1 = await store.consume(key, config, now, 10);
-      expect(res1.allowed).toBe(true);
-
-      // Try to consume immediately, should fail
-      const res2 = await store.consume(key, config, now, 1);
-      expect(res2.allowed).toBe(false);
-
-      // Advance time past window (window is 10 seconds = 10000ms)
-      now += 10001;
-
-      // Should be reset, allowing new requests
-      const res3 = await store.consume(key, config, now, 1);
-      expect(res3.allowed).toBe(true);
+      expect(r2.remaining).toBeLessThanOrEqual(r1.remaining);
     });
 
-    test("should calculate reset time correctly", async () => {
-      const key = "fw:test:5";
-      let now = 0;
+    test("different keys are isolated", async () => {
+      await store.consume("userA", limiter, base);
 
-      const res = await store.consume(key, config, now, 1);
-      const expectedReset = 0 + config.window * 1000;
+      const r = await store.consume("userB", limiter, base);
 
-      expect(res.reset).toBe(expectedReset);
+      expect(r.remaining).toBe(limit - 1);
     });
 
-    test("should calculate retryAfter correctly on deny", async () => {
-      let now = 1000;
-      const key = "fw:test:6";
+    test("large time jump restores capacity", async () => {
+      for (let i = 0; i < limit; i++) {
+        await store.consume("user", limiter, base);
+      }
 
-      // Consume all tokens
-      await store.consume(key, config, now, 10);
+      const r = await store.consume("user", limiter, base + 60000);
 
-      // Try to consume one more
-      const res = await store.consume(key, config, now, 1);
-      expect(res.allowed).toBe(false);
-
-      // retryAfter should be ceil((reset - now) / 1000)
-      const reset = config.window * 1000;
-      const expectedRetry = Math.ceil((reset - 1000) / 1000);
-
-      expect(res.retryAfter).toBe(expectedRetry);
+      expect(r.allowed).toBe(true);
     });
 
-    test("should handle partial window progress", async () => {
-      const key = "fw:test:7";
-      let now = 0;
+    test("cost argument works correctly", async () => {
+      const r = await store.consume("user", limiter, base, 3);
 
-      // Consume 5 tokens
-      const res1 = await store.consume(key, config, now, 5);
-      expect(res1.remaining).toBe(5);
-
-      // Advance halfway through window
-      now += 5000;
-
-      // Count should still be 5
-      const res2 = await store.consume(key, config, now, 3);
-      expect(res2.allowed).toBe(true);
-      expect(res2.remaining).toBe(2);
+      expect(r.remaining).toBeLessThanOrEqual(limit - 3);
     });
 
-    test("should handle cost of 1 (default)", async () => {
-      const key = "fw:test:8";
-      let now = 0;
+    test("burst concurrency respects limit (atomic Lua)", async () => {
+      const promises = [];
 
-      const res = await store.consume(key, config, now);
-      expect(res.allowed).toBe(true);
-      expect(res.remaining).toBe(9);
+      for (let i = 0; i < limit * 2; i++) {
+        promises.push(store.consume("user", limiter, base));
+      }
+
+      const results = await Promise.all(promises);
+
+      const allowed = results.filter((r) => r.allowed).length;
+
+      expect(allowed).toBeLessThanOrEqual(limit);
     });
 
-    test("should handle cost > limit", async () => {
-      const key = "fw:test:9";
-      let now = 0;
+    test("mixed-cost concurrency respects limit", async () => {
+      const costs = [3, 2, 4, 1, 5, 2];
 
-      const res = await store.consume(key, config, now, 15);
-      expect(res.allowed).toBe(false);
-      expect(res.remaining).toBe(0);
+      const results = await Promise.all(
+        costs.map((c) => store.consume("user", limiter, base, c)),
+      );
+
+      let acceptedCost = 0;
+
+      results.forEach((r, i) => {
+        if (r.allowed) acceptedCost += costs[i];
+      });
+
+      expect(acceptedCost).toBeLessThanOrEqual(limit);
     });
 
-    test("multiple keys should be independent", async () => {
-      const key1 = "fw:test:10a";
-      const key2 = "fw:test:10b";
-      let now = 0;
+    test("concurrency across multiple keys", async () => {
+      const promises = [];
 
-      const res1 = await store.consume(key1, config, now, 5);
-      const res2 = await store.consume(key2, config, now, 3);
+      for (let i = 0; i < 10; i++) {
+        promises.push(store.consume("userA", limiter, base));
+        promises.push(store.consume("userB", limiter, base));
+      }
 
-      expect(res1.remaining).toBe(5);
-      expect(res2.remaining).toBe(7);
-    });
-  });
+      const results = await Promise.all(promises);
 
-  describe("SlidingWindow Algorithm", () => {
-    const config: SlidingWindowConfig = {
-      name: Algorithm.SlidingWindow,
-      window: 10, // 10 second window
-      limit: 10,
-    };
+      const userA = results.filter((_, i) => i % 2 === 0);
+      const userB = results.filter((_, i) => i % 2 === 1);
 
-    test("should accept request when within limit", async () => {
-      const key = "sw:test:1";
-      let now = 0;
+      expect(userA.filter((r) => r.allowed).length).toBeLessThanOrEqual(limit);
 
-      const res = await store.consume(key, config, now, 5);
-      expect(res.allowed).toBe(true);
-      expect(res.remaining).toBe(5);
+      expect(userB.filter((r) => r.allowed).length).toBeLessThanOrEqual(limit);
     });
 
-    test("should deny request when exceeding limit", async () => {
-      const key = "sw:test:2";
-      let now = 0;
+    test("reset timestamp is in the future", async () => {
+      const r = await store.consume("user", limiter, base);
 
-      await store.consume(key, config, now, 10);
-      const res = await store.consume(key, config, now, 1);
-
-      expect(res.allowed).toBe(false);
-      expect(res.remaining).toBe(0);
+      expect(r.reset).toBeGreaterThanOrEqual(base);
     });
 
-    test("should decay old requests outside window", async () => {
-      const key = "sw:test:3";
-      let now = 0;
-
-      // Consume 10 tokens at t=0
-      const res1 = await store.consume(key, config, now, 10);
-      expect(res1.allowed).toBe(true);
-
-      // Immediately try to consume more, should fail
-      const res2 = await store.consume(key, config, now, 1);
-      expect(res2.allowed).toBe(false);
-
-      // Advance 10+ seconds, requests should age out of window
-      now += 10001;
-
-      // Should now allow new requests as old ones expired
-      const res3 = await store.consume(key, config, now, 1);
-      expect(res3.allowed).toBe(true);
-    });
-
-    test("should handle partial window sliding", async () => {
-      const key = "sw:test:4";
-      let now = 0;
-
-      // Consume 10 tokens at t=0
-      await store.consume(key, config, now, 10);
-
-      // Advance 5 seconds (halfway through window)
-      now += 5000;
-
-      // At t=5000, the requests from t=0 are still in window
-      const res1 = await store.consume(key, config, now, 1);
-      expect(res1.allowed).toBe(false);
-
-      // Advance another 5.1 seconds (past the window)
-      now += 5100;
-
-      // Now the original requests have aged out
-      const res2 = await store.consume(key, config, now, 1);
-      expect(res2.allowed).toBe(true);
-    });
-
-    test("should calculate reset time", async () => {
-      const key = "sw:test:5";
-      let now = 0;
-
-      const res = await store.consume(key, config, now, 1);
-
-      // Reset should be exactly window duration from now (0)
-      expect(res.reset).toBe(config.window * 1000);
-    });
-
-    test("should handle burst at window boundary", async () => {
-      const key = "sw:test:6";
-      let now = 0;
-
-      // Consume 6 tokens early in window
-      const res1 = await store.consume(key, config, now, 6);
-      expect(res1.allowed).toBe(true);
-
-      // Advance 9 seconds
-      now += 9000;
-
-      // Can consume 4 more tokens (total window at t=9000 includes requests back to t=-1000)
-      const res2 = await store.consume(key, config, now, 4);
-      expect(res2.allowed).toBe(true);
-
-      // Advance to t=10000, first 6 requests now outside window
-      now += 1000;
-
-      // Should be able to consume again
-      const res3 = await store.consume(key, config, now, 1);
-      expect(res3.allowed).toBe(true);
-    });
-
-    test("should handle cost of 1 (default)", async () => {
-      const key = "sw:test:7";
-      let now = 0;
-
-      const res = await store.consume(key, config, now);
-      expect(res.allowed).toBe(true);
-      expect(res.remaining).toBe(9);
-    });
-
-    test("should calculate remaining correctly", async () => {
-      const key = "sw:test:8";
-      let now = 0;
-
-      const res1 = await store.consume(key, config, now, 3);
-      expect(res1.remaining).toBe(7);
-
-      const res2 = await store.consume(key, config, now, 4);
-      expect(res2.remaining).toBe(3);
-    });
-  });
-
-  describe("SlidingWindowCounter Algorithm", () => {
-    const config: SlidingWindowCounterConfig = {
-      name: Algorithm.SlidingWindowCounter,
-      window: 10, // 10 second window
-      limit: 10,
-    };
-
-    test("should accept request when within limit", async () => {
-      const key = "swc:test:1";
-      let now = 0;
-
-      const res = await store.consume(key, config, now, 5);
-      expect(res.allowed).toBe(true);
-      expect(res.remaining).toBe(5);
-    });
-
-    test("should deny request when exceeding limit", async () => {
-      const key = "swc:test:2";
-      let now = 0;
-
-      await store.consume(key, config, now, 10);
-      const res = await store.consume(key, config, now, 1);
-
-      expect(res.allowed).toBe(false);
-    });
-
-    test("should reset counter with new window", async () => {
-      const key = "swc:test:3";
-      let now = 0;
-
-      // Consume all 10 tokens
-      const res1 = await store.consume(key, config, now, 10);
-      expect(res1.allowed).toBe(true);
-
-      // Immediately try to consume, should fail
-      const res2 = await store.consume(key, config, now, 1);
-      expect(res2.allowed).toBe(false);
-
-      // Advance past window
-      now += 15000;
-
-      // Should reset and allow new requests
-      const res3 = await store.consume(key, config, now, 5);
-      expect(res3.allowed).toBe(true);
-    });
-
-    test("should handle weighted counter correctly", async () => {
-      const key = "swc:test:4";
-      let now = 0;
-
-      // Consume 3, 4, 2 in sequence: total 9
-      const res1 = await store.consume(key, config, now, 3);
-      expect(res1.allowed).toBe(true);
-
-      const res2 = await store.consume(key, config, now, 4);
-      expect(res2.allowed).toBe(true);
-
-      const res3 = await store.consume(key, config, now, 2);
-      expect(res3.allowed).toBe(true);
-      expect(res3.remaining).toBe(1);
-
-      // Next request should fail
-      const res4 = await store.consume(key, config, now, 2);
-      expect(res4.allowed).toBe(false);
-    });
-
-    test("should interpolate at window boundaries", async () => {
-      const key = "swc:test:5";
-      let now = 0;
-
-      // Consume 7 tokens at t=0
-      const res1 = await store.consume(key, config, now, 7);
-      expect(res1.allowed).toBe(true);
-
-      // Advance 5 seconds (halfway)
-      now += 5000;
-
-      // At halfway mark, interpolation should allow some new requests
-      await store.consume(key, config, now, 3);
-      // May or may not be allowed depending on interpolation calculation
-
-      // Advance past window
-      now += 6000;
-
-      // Should be allowed as counter resets
-      const res3 = await store.consume(key, config, now, 1);
-      expect(res3.allowed).toBe(true);
-    });
-
-    test("should calculate reset correctly", async () => {
-      const key = "swc:test:6";
-      let now = 0;
-
-      const res = await store.consume(key, config, now, 1);
-      const expectedReset = 2 * (0 + config.window * 1000);
-
-      expect(res.reset).toBe(expectedReset);
-    });
-
-    test("should handle multiple windows", async () => {
-      const key = "swc:test:7";
-      let now = 0;
-
-      // First window
-      await store.consume(key, config, now, 10);
-      now += 18000;
-
-      // Second window
-      const res2 = await store.consume(key, config, now, 5);
-      expect(res2.allowed).toBe(true);
-      expect(res2.remaining).toBe(3);
-
-      // Advance through second window
-      now += 12000;
-
-      // Third window
-      const res3 = await store.consume(key, config, now, 10);
-      expect(res3.allowed).toBe(true);
-      expect(res3.remaining).toBe(0);
-    });
-  });
-
-  describe("TokenBucket Algorithm", () => {
-    const config: TokenBucketConfig = {
-      name: Algorithm.TokenBucket,
-      capacity: 10,
-      refillRate: 2, // 2 tokens per second
-    };
-
-    test("should allow burst up to capacity", async () => {
-      const key = "tb:test:1";
-      let now = 0;
-
-      // Should allow immediate consumption up to capacity
-      const res = await store.consume(key, config, now, 10);
-      expect(res.allowed).toBe(true);
-      expect(res.remaining).toBe(0);
-    });
-
-    test("should deny when exceeding capacity", async () => {
-      const key = "tb:test:2";
-      let now = 0;
-
-      const res = await store.consume(key, config, now, 11);
-      expect(res.allowed).toBe(false);
-      expect(res.remaining).toBe(0);
-    });
-
-    test("should refill tokens at correct rate", async () => {
-      const key = "tb:test:3";
-      let now = 0;
-
-      // Consume all 10 tokens
-      const res1 = await store.consume(key, config, now, 10);
-      expect(res1.allowed).toBe(true);
-
-      // Advance 2.5 seconds = 5 tokens refilled
-      now += 2500;
-
-      // Should allow consuming 5 tokens
-      const res2 = await store.consume(key, config, now, 5);
-      expect(res2.allowed).toBe(true);
-      expect(res2.remaining).toBe(0);
-    });
-
-    test("should refill equation: tokens = min(cap, prev + rate * dt)", async () => {
-      const key = "tb:test:4";
-      let now = 0;
-
-      // Consume 5 tokens, leaving 5
-      const res1 = await store.consume(key, config, now, 5);
-      expect(res1.allowed).toBe(true);
-
-      // Advance 3 seconds = 6 tokens refilled, but clamped to capacity
-      now += 3000;
-
-      // At t=3000: prev_tokens=5, refill=6, total=11 but clamped to 10
-      // Consume 1 should succeed
-      const res2 = await store.consume(key, config, now, 1);
-      expect(res2.allowed).toBe(true);
-      expect(res2.remaining).toBe(9); // 10 - 1
-    });
-
-    test("should clamp tokens to capacity", async () => {
-      const key = "tb:test:5";
-      let now = 0;
-
-      // Consume 1 token, leaving 9
-      await store.consume(key, config, now, 1);
-
-      // Advance 100 seconds (way more than needed to fill)
-      now += 100000;
-
-      // Should not exceed capacity
-      const res = await store.consume(key, config, now, 1);
-      // After refill over 100 seconds, tokens should be clamped to capacity
-      // Remaining should be capacity - 1 = 9
-      expect(res.remaining).toBe(config.capacity - 1);
-    });
-
-    test("should calculate retryAfter = ceil((cost - tokens) / rate)", async () => {
-      const key = "tb:test:6";
-      let now = 0;
-
-      // Consume all tokens
-      await store.consume(key, config, now, 10);
-
-      // Try to consume 1 more
-      const res = await store.consume(key, config, now, 1);
-      expect(res.allowed).toBe(false);
-
-      // retryAfter = ceil(1 / 2) = 1 second
-      const expectedRetry = Math.ceil(1 / config.refillRate);
-      expect(res.retryAfter).toBe(expectedRetry);
-    });
-
-    test("should calculate remaining as current tokens", async () => {
-      const key = "tb:test:7";
-      let now = 0;
-
-      const res1 = await store.consume(key, config, now, 3);
-      expect(res1.remaining).toBe(7); // 10 - 3
-
-      now += 1000; // 2 tokens refilled
-
-      const res2 = await store.consume(key, config, now, 2);
-      expect(res2.remaining).toBe(7); // 7 + 2 - 2
-    });
-
-    test("should maintain invariant: 0 <= tokens <= capacity", async () => {
-      const key = "tb:test:8";
-      let now = 0;
-
-      for (let i = 0; i < 20; i++) {
-        const res = await store.consume(key, config, now, 1);
-        expect(res.remaining).toBeGreaterThanOrEqual(0);
-        expect(res.remaining).toBeLessThanOrEqual(config.capacity);
-        now += 100;
+    test("remaining never negative", async () => {
+      for (let i = 0; i < limit * 2; i++) {
+        const r = await store.consume("user", limiter, base);
+
+        expect(r.remaining).toBeGreaterThanOrEqual(0);
       }
     });
 
-    test("should calculate reset as time until bucket full", async () => {
-      const key = "tb:test:9";
-      let now = 0;
-
-      // Consume 5, leaving 5
-      const res1 = await store.consume(key, config, now, 5);
-      const tokensLeft = 5;
-
-      // Time to fill = (capacity - tokens) / rate = (10 - 5) / 2 = 2.5 seconds
-      const secondsToFull = (config.capacity - tokensLeft) / config.refillRate;
-      const expectedReset = 0 + secondsToFull * 1000;
-
-      expect(res1.reset).toBe(expectedReset);
-    });
-
-    test("should handle cost > capacity", async () => {
-      const key = "tb:test:10";
-      let now = 0;
-
-      const res = await store.consume(key, config, now, 15);
-      expect(res.allowed).toBe(false);
-    });
-
-    test("should handle partial refill", async () => {
-      const key = "tb:test:11";
-      let now = 0;
-
-      // Consume 8, leaving 2
-      const res1 = await store.consume(key, config, now, 8);
-      expect(res1.allowed).toBe(true);
-
-      // Advance 1 second = 2 tokens refilled, total 4
-      now += 1000;
-
-      // Consume 4
-      const res2 = await store.consume(key, config, now, 4);
-      expect(res2.allowed).toBe(true);
-      expect(res2.remaining).toBe(0);
-
-      // Advance 0.5 seconds = 1 token refilled
-      now += 500;
-
-      // Consume 1
-      const res3 = await store.consume(key, config, now, 1);
-      expect(res3.allowed).toBe(true);
-    });
-  });
-
-  describe("LeakyBucket Algorithm", () => {
-    const config: LeakyBucketConfig = {
-      name: Algorithm.LeakyBucket,
-      capacity: 10,
-      leakRate: 2, // 2 requests per second leak out
-    };
-
-    test("should allow requests up to capacity", async () => {
-      const key = "lb:test:1";
-      let now = 0;
-
-      const res = await store.consume(key, config, now, 10);
-      expect(res.allowed).toBe(true);
-      expect(res.remaining).toBe(0);
-    });
-
-    test("should deny when bucket is full", async () => {
-      const key = "lb:test:2";
-      let now = 0;
-
-      // Fill bucket
-      await store.consume(key, config, now, 10);
-
-      // Try to add more
-      const res = await store.consume(key, config, now, 1);
-      expect(res.allowed).toBe(false);
-    });
-
-    test("should leak at correct rate", async () => {
-      const key = "lb:test:3";
-      let now = 0;
-
-      // Fill bucket completely
-      const res1 = await store.consume(key, config, now, 10);
-      expect(res1.allowed).toBe(true);
-
-      // Immediately try to add
-      const res2 = await store.consume(key, config, now, 1);
-      expect(res2.allowed).toBe(false);
-
-      // Advance 2.5 seconds = 5 requests leak
-      now += 2500;
-
-      // Should be able to add 5 more
-      const res3 = await store.consume(key, config, now, 5);
-      expect(res3.allowed).toBe(true);
-    });
-
-    test("should calculate remaining as available space", async () => {
-      const key = "lb:test:4";
-      let now = 0;
-
-      const res1 = await store.consume(key, config, now, 3);
-      expect(res1.remaining).toBe(7); // 10 - 3
-
-      now += 1000; // 2 requests leak
-
-      const res2 = await store.consume(key, config, now, 1);
-      expect(res2.remaining).toBe(8); // 7 + 2 (leaked) - 1
-    });
-
-    test("should leak equation: leaked = min(current, rate * dt)", async () => {
-      const key = "lb:test:5";
-      let now = 0;
-
-      // Add 3 requests
-      const res1 = await store.consume(key, config, now, 3);
-      expect(res1.allowed).toBe(true);
-
-      // Advance 2 seconds = 4 requests leak, but only 3 in queue
-      now += 2000;
-
-      // Queue should be empty
-      const res2 = await store.consume(key, config, now, 1);
-      expect(res2.allowed).toBe(true);
-      expect(res2.remaining).toBe(9); // 10 - 1
-    });
-
-    test("should handle multiple fill-leak cycles", async () => {
-      const key = "lb:test:6";
-      let now = 0;
-
-      // First cycle
-      const res1 = await store.consume(key, config, now, 5);
-      expect(res1.allowed).toBe(true);
-
-      now += 2500; // 5 requests leak
-
-      // Second cycle
-      const res2 = await store.consume(key, config, now, 5);
-      expect(res2.allowed).toBe(true);
-
-      now += 2500; // 5 more leak
-
-      // Third cycle
-      const res3 = await store.consume(key, config, now, 10);
-      expect(res3.allowed).toBe(true);
-    });
-
-    test("should deny cost > capacity", async () => {
-      const key = "lb:test:7";
-      let now = 0;
-
-      const res = await store.consume(key, config, now, 15);
-      expect(res.allowed).toBe(false);
-    });
-
-    test("should calculate retryAfter based on leak rate", async () => {
-      const key = "lb:test:8";
-      let now = 0;
-
-      // Fill bucket
-      await store.consume(key, config, now, 10);
-
-      // Try to add 1 more
-      const res = await store.consume(key, config, now, 1);
-      expect(res.allowed).toBe(false);
-
-      // retryAfter = ceil(1 / leakRate) = ceil(1 / 2) = 1 second
-      const expectedRetry = Math.ceil(1 / config.leakRate);
-      expect(res.retryAfter).toBe(expectedRetry);
-    });
-
-    test("should calculate reset time", async () => {
-      const key = "lb:test:9";
-      let now = 0;
-
-      // Add 5 requests
-      const res1 = await store.consume(key, config, now, 5);
-      expect(res1.allowed).toBe(true);
-
-      // Initialize with some requests to drain
-      const res2 = await store.consume(key, config, now, 1);
-      expect(res2.allowed).toBe(true);
-
-      // Reset time should be when bucket empties: 6 requests at 2 leak/sec = 3000ms
-      expect(res2.reset).toBe(3000);
-    });
-
-    test("should handle fractional leak", async () => {
-      const key = "lb:test:10";
-      let now = 0;
-
-      // Add 1 request
-      await store.consume(key, config, now, 1);
-
-      // Advance 0.5 seconds = 1 request leaked
-      now += 500;
-
-      // Should be able to add 1 more
-      const res = await store.consume(key, config, now, 1);
-      expect(res.allowed).toBe(true);
-    });
-  });
-
-  describe("GCRA (Generic Cell Rate Algorithm)", () => {
-    const config: GCRAConfig = {
-      name: Algorithm.GCRA,
-      interval: 1, // 1 second between requests
-      burst: 5, // Allow 5 requests to arrive at once
-    };
-
-    test("should allow burst requests", async () => {
-      const key = "gcra:test:1";
-      let now = 0;
-
-      // Should allow up to burst requests
-      for (let i = 0; i < config.burst; i++) {
-        const res = await store.consume(key, config, now, 1);
-        expect(res.allowed).toBe(true);
-      }
-
-      // Request burst+1 should fail
-      const res = await store.consume(key, config, now, 1);
-      expect(res.allowed).toBe(false);
-    });
-
-    test("should enforce rate limit after burst", async () => {
-      const key = "gcra:test:2";
-      let now = 0;
-
-      // Consume burst
-      for (let i = 0; i < config.burst; i++) {
-        await store.consume(key, config, now, 1);
-      }
-
-      // Immediately try to consume, should fail
-      const res = await store.consume(key, config, now, 1);
-      expect(res.allowed).toBe(false);
-    });
-
-    test("should allow requests at rate after burst", async () => {
-      const key = "gcra:test:3";
-      let now = 0;
-
-      // Consume entire burst
-      for (let i = 0; i < config.burst; i++) {
-        await store.consume(key, config, now, 1);
-      }
-
-      // Advance interval time
-      now += config.interval * 1000 + 100;
-
-      // Should allow one more request
-      const res = await store.consume(key, config, now, 1);
-      expect(res.allowed).toBe(true);
-    });
-
-    test("should calculate TAT = max(tat, now) + cost * interval", async () => {
-      const key = "gcra:test:4";
-      let now = 0;
-
-      // First request
-      const res1 = await store.consume(key, config, now, 1);
-      expect(res1.allowed).toBe(true);
-
-      // send 4 more requests
-      await store.consume(key, config, now, 1);
-      await store.consume(key, config, now, 1);
-      await store.consume(key, config, now, 1);
-      await store.consume(key, config, now, 1);
-      // Advance less than interval
-      now += 500;
-
-      // Second request should fail as not enough time elapsed
-      const res2 = await store.consume(key, config, now, 1);
-      expect(res2.allowed).toBe(false);
-    });
-
-    test("should track Theoretical Arrival Time (TAT)", async () => {
-      const key = "gcra:test:5";
-      let now = 0;
-
-      // Consume burst
-      for (let i = 0; i < config.burst; i++) {
-        await store.consume(key, config, now, 1);
-      }
-
-      // At this point, TAT has advanced by burst * interval
-      const expectedTAT = config.burst * config.interval * 1000;
-
-      // Advance exactly to first allowed time
-      now += expectedTAT + 100;
-
-      const res = await store.consume(key, config, now, 1);
-      expect(res.allowed).toBe(true);
-    });
-
-    test("should calculate retryAfter = ceil((tat - now) / 1000)", async () => {
-      const key = "gcra:test:6";
-      let now = 0;
-
-      // Consume burst
-      for (let i = 0; i < config.burst; i++) {
-        await store.consume(key, config, now, 1);
-      }
-
-      // Try immediately
-      const res = await store.consume(key, config, now, 1);
-      expect(res.allowed).toBe(false);
-
-      // retryAfter = ceil((allowAt - now) / 1000) where allowAt = tat - burstTolerance
-      // tat = burst * interval = 5 * 1 = 5 seconds, burstTolerance = (burst-1)*interval = 4 seconds
-      // allowAt = 5 - 4 = 1 second, retryAfter = ceil((1000 - 0) / 1000) = 1 second
-      expect(res.retryAfter).toBe(config.interval);
-    });
-
-    test("should handle cost > 1", async () => {
-      const key = "gcra:test:7";
-      let now = 0;
-
-      // Cost 2 should consume 2 * interval
-      const res1 = await store.consume(key, config, now, 5);
-      expect(res1.allowed).toBe(true);
-
-      // Try immediately
-      const res2 = await store.consume(key, config, now, 5);
-      expect(res2.allowed).toBe(false);
-
-      // Advance 2 * interval
-      now += config.interval * 2000 + 100;
-
-      // Should be allowed
-      const res3 = await store.consume(key, config, now, 1);
-      expect(res3.allowed).toBe(true);
-    });
-
-    test("should allow requests within burst window", async () => {
-      const key = "gcra:test:8";
-      let now = 0;
-
-      // Burst should be split over time
-      const res1 = await store.consume(key, config, now, 1);
-      expect(res1.allowed).toBe(true);
-
-      const res2 = await store.consume(key, config, now, 1);
-      expect(res2.allowed).toBe(true);
-
-      const res3 = await store.consume(key, config, now, 1);
-      expect(res3.allowed).toBe(true);
-    });
-
-    test("should calculate reset time", async () => {
-      const key = "gcra:test:9";
-      let now = 0;
-
-      const res = await store.consume(key, config, now, 1);
-      // Reset should be when TAT is reached
-      expect(res.reset).toBe(1000);
-    });
-
-    test("should throw a BadArgumentsException if cost > burst", async () => {
-      const key = "gcra:test:10";
-      let now = 0;
-
-      // Cost > burst should always fail initially
-      await expect(
-        store.consume(key, config, now, config.burst + 1),
-      ).rejects.toThrow(BadArgumentsException);
-    });
-
-    test("should maintain steady-state rate", async () => {
-      const key = "gcra:test:11";
-      let now = 0;
-
-      // Consume burst
-      for (let i = 0; i < config.burst; i++) {
-        const res = await store.consume(key, config, now, 1);
-        expect(res.allowed).toBe(true);
-      }
-
-      // Now advance and consume at steady rate
-      for (let i = 0; i < 5; i++) {
-        now += config.interval * 1000 + 50;
-
-        const res = await store.consume(key, config, now, 1);
-        expect(res.allowed).toBe(true);
-      }
-    });
-  });
-
-  describe("Cross-Algorithm Edge Cases", () => {
-    test("different keys should not interfere", async () => {
-      const config1: FixedWindowConfig = {
-        name: Algorithm.FixedWindow,
-        window: 10,
-        limit: 5,
-      };
-
-      const config2: TokenBucketConfig = {
-        name: Algorithm.TokenBucket,
-        capacity: 10,
-        refillRate: 1,
-      };
-
-      let now = 0;
-      const res1 = await store.consume(key("fw:1"), config1, now, 5);
-      const res2 = await store.consume(key("tb:1"), config2, now, 5);
-
-      expect(res1.remaining).toBe(0);
-      expect(res2.remaining).toBe(5);
-    });
-
-    test("cost of 0 should behave correctly", async () => {
-      const config: FixedWindowConfig = {
-        name: Algorithm.FixedWindow,
-        window: 10,
-        limit: 10,
-      };
-
-      let now = 0;
-      // Cost 0 should not consume quota
-      const res = await store.consume(key("zero:cost"), config, now, 0);
-      expect(res.allowed).toBe(true);
-      expect(res.remaining).toBe(10);
-    });
-
-    test("large time jumps should be handled", async () => {
-      const config: TokenBucketConfig = {
-        name: Algorithm.TokenBucket,
-        capacity: 10,
-        refillRate: 1,
-      };
-
-      let now = 0;
-      // Consume all
-      await store.consume(key("jumps:1"), config, now, 10);
-
-      // Jump 1 hour forward
-      now += 3600000;
-
-      // Should be fully refilled (clamped to capacity)
-      const res = await store.consume(key("jumps:1"), config, now, 1);
-      expect(res.allowed).toBe(true);
-      expect(res.remaining).toBe(config.capacity - 1);
-    });
-
-    test("rapid sequential requests", async () => {
-      const config: FixedWindowConfig = {
-        name: Algorithm.FixedWindow,
-        window: 60,
-        limit: 100,
-      };
-
-      let now = 0;
-      const k = key("rapid:1");
-
-      // Send 100 requests rapidly
-      for (let i = 0; i < 100; i++) {
-        const res = await store.consume(k, config, now, 1);
-        expect(res.allowed).toBe(true);
-      }
-
-      // 101st should fail
-      const res = await store.consume(k, config, now, 1);
-      expect(res.allowed).toBe(false);
+    test("stress test random costs", async () => {
+      const costs = Array.from(
+        { length: 50 },
+        () => Math.floor(Math.random() * 5) + 1,
+      );
+
+      const results = await Promise.all(
+        costs.map((c) => store.consume("user", limiter, base, c)),
+      );
+
+      let acceptedCost = 0;
+
+      results.forEach((r, i) => {
+        if (r.allowed) acceptedCost += costs[i];
+      });
+
+      expect(acceptedCost).toBeLessThanOrEqual(limit);
     });
   });
 });

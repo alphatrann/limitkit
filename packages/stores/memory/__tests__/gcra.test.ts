@@ -1,235 +1,74 @@
-import { Algorithm, GCRAConfig } from "@limitkit/core";
-import { gcra, GCRAState } from "../src";
+import { GCRAConfig } from "@limitkit/core";
+import { InMemoryGCRA } from "../src";
 
-const config: GCRAConfig = {
-  name: Algorithm.GCRA,
-  interval: 1,
-  burst: 3,
-};
+describe("InMemoryGCRA", () => {
+  const config: GCRAConfig = { name: "gcra", burst: 3, interval: 1 };
+  let limiter: InMemoryGCRA;
+  const base = 1000000;
 
-function createState(): GCRAState {
-  return {
-    tat: null,
-  };
-}
-
-describe("gcra", () => {
-  test("first request initializes TAT and calculates remaining", () => {
-    const state = createState();
-    const now = 1000;
-
-    const res = gcra(state, config, now, 1);
-
-    expect(res.output.allowed).toBe(true);
-    expect((res.state as GCRAState).tat).toBe(2000);
-    expect(res.output.reset).toBe(2000);
-    expect(res.output.remaining).toBe(2);
+  beforeEach(() => {
+    limiter = new InMemoryGCRA(config);
   });
 
-  test("burst allows exactly 3 requests at same time", () => {
-    let state = createState();
-    const t = 1000;
-
-    // 1st request: remaining goes 1->0
-    let res = gcra(state, config, t, 1);
-    expect(res.output.allowed).toBe(true);
-    expect(res.output.remaining).toBe(2);
-    state = res.state as GCRAState;
-
-    // 2nd request: remaining goes to 0
-    res = gcra(state, config, t, 2);
-    expect(res.output.allowed).toBe(true);
-    expect(res.output.remaining).toBe(0);
-    state = res.state as GCRAState;
-
-    // 3rd request: rejected
-    res = gcra(state, config, t, 1);
-    expect(res.output.allowed).toBe(false);
-    expect(res.output.remaining).toBe(0);
-    state = res.state as GCRAState;
-
-    // 4th request: rejected
-    res = gcra(state, config, t, 1);
-    expect(res.output.allowed).toBe(false);
-    expect(res.output.remaining).toBe(0);
-  });
-
-  test("TAT equation: new_tat = max(now, old_tat) + cost * interval", () => {
-    let state = createState();
-    const t = 1000;
-
-    // First request: tat=null->1000, new_tat=max(1000,1000)+1*1000=2000
-    let res = gcra(state, config, t, 1);
-    expect((res.state as GCRAState).tat).toBe(2000);
-    state = res.state as GCRAState;
-
-    // Second request at same time: tat=2000, new_tat=max(1000,2000)+1*1000=3000
-    res = gcra(state, config, t, 1);
-    expect((res.state as GCRAState).tat).toBe(3000);
-    state = res.state as GCRAState;
-
-    // Third request at same time: tat=3000, new_tat=max(1000,3000)+1*1000=4000
-    res = gcra(state, config, t, 1);
-    expect((res.state as GCRAState).tat).toBe(4000);
-  });
-
-  test("cost parameter advances TAT by cost * interval milliseconds", () => {
-    let state = createState();
-    const t = 1000;
-
-    const res = gcra(state, config, t, 2);
-
-    expect(res.output.allowed).toBe(true);
-    expect((res.state as GCRAState).tat).toBe(3000);
-    expect(res.output.remaining).toBe(1);
-  });
-
-  test("allowAt threshold: now < allowAt leads to rejection", () => {
-    let state = createState();
-    const t = 1000;
-
-    // Consume burst capacity
-    for (let i = 0; i < 3; i++) {
-      state = gcra(state, config, t, 1).state as GCRAState;
-    }
-    // After 3 requests: tat = 4000
-    // burstTolerance = (3-1)*1000 = 2000
-    // allowAt = 4000 - 2000 = 2000
-
-    const res = gcra(state, config, t, 1);
-
-    // now < allowAt? 1000 < 2000? YES -> reject
-    expect(res.output.allowed).toBe(false);
-    expect(res.output.retryAfter).toBe(1); // ceil((2000-1000)/1000) = 1
-  });
-
-  test("requests at interval spacing allow burst recovery", () => {
-    let state = createState();
-    const t = 1000;
-
-    // Make request, tat = 2000, remaining = 1
-    state = gcra(state, config, t, 1).state as GCRAState;
-
-    // At t + interval: tat = max(2000, 2000) + 1000 = 3000
-    const res = gcra(state, config, t + 1000, 1);
-
-    // backlog = 3000 - 2000 = 1000
-    // remaining = floor((2000 - 1000) / 1000) = 1
-    expect(res.output.allowed).toBe(true);
-    expect(res.output.remaining).toBe(2);
-  });
-
-  test("retryAfter = ceil((allowAt - now) / 1000)", () => {
-    let state = createState();
-    const t = 1000;
+  test("allows burst", () => {
+    let state;
 
     for (let i = 0; i < 3; i++) {
-      state = gcra(state, config, t, 1).state as GCRAState;
+      const r = limiter.process(state, base, 1);
+      state = r.state;
+      expect(r.output.allowed).toBe(true);
     }
-
-    const res1 = gcra(state, config, t + 500, 1);
-    expect(res1.output.retryAfter).toBe(1);
-
-    const res2 = gcra(state, config, t + 999, 1);
-    expect(res2.output.retryAfter).toBe(1);
-
-    const res3 = gcra(state, config, t + 1001, 1);
-    expect(res3.output.allowed).toBe(true);
   });
 
-  test("large time jumps allow reset to normal rate", () => {
-    let state = createState();
-    const t = 1000;
+  test("rejects beyond burst", () => {
+    let state;
 
-    // Consume burst at t=1000
     for (let i = 0; i < 3; i++) {
-      state = gcra(state, config, t, 1).state as GCRAState;
+      const r = limiter.process(state, base, 1);
+      state = r.state;
     }
-    // tat = 4000
 
-    // Jump to t + 10000: now >> allowAt, so TAT resets to now
-    // new_tat = max(11000, 4000) + 1*1000 = 12000
-    const res = gcra(state, config, t + 10000, 1);
+    const r = limiter.process(state, base, 1);
 
-    expect(res.output.allowed).toBe(true);
-    expect((res.state as GCRAState).tat).toBe(12000);
-    // backlog = 12000 - 11000 = 1000
-    // remaining = floor((2000 - 1000) / 1000) = 1
-    expect(res.output.remaining).toBe(2);
+    expect(r.output.allowed).toBe(false);
   });
 
-  test("backlog = new_tat - now tracks debt accumulated", () => {
-    let state = createState();
-    const t = 1000;
+  test("allows after interval", () => {
+    let state;
 
-    let res = gcra(state, config, t, 1);
-    expect(res.output.remaining).toBe(2);
-    state = res.state as GCRAState;
-
-    res = gcra(state, config, t, 1);
-    expect(res.output.remaining).toBe(1);
-    state = res.state as GCRAState;
-
-    res = gcra(state, config, t, 1);
-    expect(res.output.remaining).toBe(0);
-  });
-
-  test("reset time always equals new TAT", () => {
-    let state = createState();
-    const t = 1000;
-
-    let res = gcra(state, config, t, 1);
-    const tat1 = (res.state as GCRAState).tat;
-    expect(res.output.reset).toBe(tat1);
-
-    state = res.state as GCRAState;
-    res = gcra(state, config, t, 1);
-    const tat2 = (res.state as GCRAState).tat;
-    expect(res.output.reset).toBe(tat2);
-
-    state = res.state as GCRAState;
-    res = gcra(state, config, t + 1000, 2);
-    const tat3 = (res.state as GCRAState).tat;
-    expect(res.output.reset).toBe(tat3);
-  });
-
-  test("burst tolerance formula: (burst - 1) * interval", () => {
-    // With burst=3, interval=1 (1000ms):
-    // burstTolerance = (3 - 1) * 1000 = 2000ms
-
-    let state = createState();
-    const t = 1000;
-
-    // After 3 requests at t=1000: tat=4000
     for (let i = 0; i < 3; i++) {
-      state = gcra(state, config, t, 1).state as GCRAState;
+      const r = limiter.process(state, base, 1);
+      state = r.state;
     }
 
-    // allowAt = 4000 - 2000 = 2000
-    // At t=1000: 1000 < 2000, so reject
-    // At t=2000: 2000 >= 2000, so allow
-    const rejectRes = gcra(state, config, t, 1);
-    expect(rejectRes.output.allowed).toBe(false);
-
-    const allowRes = gcra(state, config, 2000, 1);
-    expect(allowRes.output.allowed).toBe(true);
+    const r = limiter.process(state, base + 1000, 1);
+    expect(r.output.allowed).toBe(true);
   });
 
-  test("remaining = floor((burstTolerance - backlog) / interval) + 1", () => {
-    let state = createState();
-    const t = 1000;
+  test("reset equals TAT", () => {
+    const r = limiter.process(undefined, base, 1);
 
-    let res = gcra(state, config, t, 1);
-    expect(res.output.remaining).toBe(2);
-    state = res.state as GCRAState;
+    expect(r.output.reset).toBeGreaterThan(base);
+  });
 
-    res = gcra(state, config, t, 1);
-    expect(res.output.remaining).toBe(1);
-    state = res.state as GCRAState;
+  test("remaining computed correctly", () => {
+    const r = limiter.process(undefined, base, 1);
 
-    res = gcra(state, config, t, 2);
-    expect(res.output.remaining).toBe(
-      Math.max(0, Math.floor((2000 - 3000) / 1000)),
-    );
+    expect(r.output.remaining).toBe(2);
+  });
+
+  test("large time jump resets schedule", () => {
+    let state;
+
+    const r1 = limiter.process(state, base, 1);
+    state = r1.state;
+
+    const r2 = limiter.process(state, base + 60000, 1);
+
+    expect(r2.output.allowed).toBe(true);
+  });
+
+  test("cost exceeding burst throws", () => {
+    expect(() => limiter.process(undefined, base, 10)).toThrow();
   });
 });

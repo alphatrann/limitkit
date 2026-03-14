@@ -1,150 +1,189 @@
-import {
-  Algorithm,
-  BadArgumentsException,
-  FixedWindowConfig,
-} from "@limitkit/core";
-import { fixedWindow, FixedWindowState } from "../src";
+import { BadArgumentsException, FixedWindowConfig } from "@limitkit/core";
+import { FixedWindowState, InMemoryFixedWindow } from "../src";
 
-describe("fixedWindow", () => {
+describe("InMemoryFixedWindow", () => {
   const config: FixedWindowConfig = {
-    name: Algorithm.FixedWindow,
-    window: 10,
-    limit: 10,
+    name: "fixed-window",
+    window: 10, // seconds
+    limit: 5,
   };
 
-  const LIMIT = config.limit;
-  const W = config.window * 1000;
-
-  let state: FixedWindowState;
-  let now: number;
+  let limiter: InMemoryFixedWindow;
 
   beforeEach(() => {
-    now = 1000;
-    state = {
-      count: 0,
-      windowStart: 0,
-    };
+    limiter = new InMemoryFixedWindow(config);
   });
 
-  test("accept condition: count + cost ≤ limit", () => {
-    state.count = 8;
+  const baseTime = 1000 * 1000; // arbitrary timestamp
 
-    const cost = 2;
+  test("allows requests within limit", () => {
+    let state;
 
-    const res = fixedWindow(state, config, now, cost);
-    const s = res.state as FixedWindowState;
+    const r1 = limiter.process(state, baseTime);
+    state = r1.state;
 
-    expect(state.count + cost).toBeLessThanOrEqual(LIMIT);
-    expect(res.output.allowed).toBe(true);
-    expect(s.count).toBe(10);
+    expect(r1.output.allowed).toBe(true);
+    expect(r1.output.limit).toBe(5);
+    expect(r1.output.remaining).toBe(4);
+
+    const r2 = limiter.process(state, baseTime + 1);
+    state = r2.state;
+
+    expect(r2.output.allowed).toBe(true);
+    expect(r2.output.remaining).toBe(3);
   });
 
-  test("deny condition: count + cost > limit", () => {
-    state.count = 9;
+  test("rejects request when limit exceeded", () => {
+    let state;
 
-    const cost = 2;
+    for (let i = 0; i < 5; i++) {
+      const r = limiter.process(state, baseTime);
+      state = r.state;
+      expect(r.output.allowed).toBe(true);
+    }
 
-    const res = fixedWindow(state, config, now, cost);
+    const r = limiter.process(state, baseTime);
 
-    expect(state.count + cost).toBeGreaterThan(LIMIT);
-    expect(res.output.allowed).toBe(false);
-    expect(res.output.remaining).toBe(0);
+    expect(r.output.allowed).toBe(false);
+    expect(r.output.remaining).toBe(0);
+    expect(r.output.retryAfter).toBeGreaterThan(0);
   });
 
-  test("remaining = limit - (count + cost)", () => {
-    state.count = 3;
+  test("reset timestamp is computed correctly", () => {
+    const windowMs = config.window * 1000;
+    const expectedWindowStart = baseTime - (baseTime % windowMs);
+    const expectedReset = expectedWindowStart + windowMs;
 
-    const cost = 2;
+    const r = limiter.process(undefined, baseTime);
 
-    const res = fixedWindow(state, config, now, cost);
-
-    const expectedRemaining = LIMIT - (3 + cost);
-
-    expect(res.output.remaining).toBe(expectedRemaining);
+    expect(r.output.reset).toBe(expectedReset);
   });
 
-  test("window expiration: elapsed ≥ window resets counter", () => {
-    state.count = 10;
-    state.windowStart = now - W - 1;
+  test("retryAfter is computed correctly", () => {
+    let state;
 
-    const res = fixedWindow(state, config, now, 1);
-    const s = res.state as FixedWindowState;
+    for (let i = 0; i < 5; i++) {
+      const r = limiter.process(state, baseTime);
+      state = r.state;
+    }
 
-    expect(now - state.windowStart).toBeGreaterThanOrEqual(W);
-    expect(res.output.allowed).toBe(true);
-    expect(s.count).toBe(1);
+    const r = limiter.process(state, baseTime + 1000);
+
+    const expectedRetryAfter = Math.ceil(
+      (r.output.reset - (baseTime + 1000)) / 1000,
+    );
+
+    expect(r.output.retryAfter).toBe(expectedRetryAfter);
   });
 
-  test("window active: elapsed < window preserves count", () => {
-    state.count = 4;
-    state.windowStart = now - 2000;
+  test("state count increments correctly", () => {
+    let state;
 
-    const res = fixedWindow(state, config, now, 1);
-    const s = res.state as FixedWindowState;
+    const r1 = limiter.process(state, baseTime);
+    state = r1.state;
 
-    expect(now - state.windowStart).toBeLessThan(W);
-    expect(s.count).toBe(5);
+    expect(state.count).toBe(1);
+
+    const r2 = limiter.process(state, baseTime + 5);
+    state = r2.state;
+
+    expect(state.count).toBe(2);
   });
 
-  test("retryAfter = ceil((windowStart + W - now)/1000)", () => {
-    state.count = LIMIT;
-    state.windowStart = now - 1000;
+  test("window resets when time moves to next window", () => {
+    let state;
 
-    const res = fixedWindow(state, config, now, 1);
+    const r1 = limiter.process(state, baseTime);
+    state = r1.state;
 
-    const reset = state.windowStart + W;
-    const expectedRetry = Math.ceil((reset - now) / 1000);
+    const nextWindow = baseTime + config.window * 1000 + 1;
 
-    expect(res.output.retryAfter).toBe(expectedRetry);
+    const r2 = limiter.process(state, nextWindow);
+    state = r2.state;
+
+    expect(r2.output.allowed).toBe(true);
+    expect(state.count).toBe(1);
   });
 
-  test("reset = windowStart + window", () => {
-    state.count = 3;
+  test("handles large time jumps", () => {
+    let state;
 
-    const res = fixedWindow(state, config, now, 1);
+    const r1 = limiter.process(state, baseTime);
+    state = r1.state;
 
-    const expectedReset = state.windowStart + W;
+    const farFuture = baseTime + 60 * 60 * 1000; // +1 hour
 
-    expect(res.output.reset).toBe(expectedReset);
+    const r2 = limiter.process(state, farFuture);
+
+    expect(r2.output.allowed).toBe(true);
+    expect(r2.state.count).toBe(1);
   });
 
-  test("multi-cost request updates count exactly", () => {
-    const cost = 5;
+  test("cost increments correctly", () => {
+    let state;
 
-    const res = fixedWindow(state, config, now, cost);
-    const s = res.state as FixedWindowState;
+    const r = limiter.process(state, baseTime, 3);
+    state = r.state;
 
-    const expectedCount = cost;
-
-    expect(s.count).toBe(expectedCount);
-    expect(res.output.remaining).toBe(LIMIT - expectedCount);
+    expect(state.count).toBe(3);
+    expect(r.output.remaining).toBe(2);
   });
 
-  test("capacity invariant: 0 ≤ count ≤ limit", () => {
-    state.count = 7;
+  test("rejects when cost exceeds remaining limit", () => {
+    let state;
 
-    const res = fixedWindow(state, config, now, 2);
-    const s = res.state as FixedWindowState;
+    const r1 = limiter.process(state, baseTime, 4);
+    state = r1.state;
 
-    expect(s.count).toBeGreaterThanOrEqual(0);
-    expect(s.count).toBeLessThanOrEqual(LIMIT);
+    const r2 = limiter.process(state, baseTime, 2);
+
+    expect(r2.output.allowed).toBe(false);
   });
 
-  test("exact boundary: request at window expiration resets", () => {
-    state.count = LIMIT;
-    state.windowStart = now - W;
-
-    const res = fixedWindow(state, config, now, 1);
-    const s = res.state as FixedWindowState;
-
-    expect(now - state.windowStart).toBe(W);
-    expect(res.output.allowed).toBe(true);
-    expect(s.count).toBe(1);
-  });
-
-  test("reject if cost > limit (invalid request)", () => {
-    expect(() => fixedWindow(state, config, now, LIMIT + 1)).toThrow(
+  test("throws when cost > limit", () => {
+    expect(() => limiter.process(undefined, baseTime, 6)).toThrow(
       BadArgumentsException,
     );
+  });
+
+  test("reset remains stable within the same window", () => {
+    let state;
+
+    const r1 = limiter.process(state, baseTime);
+    state = r1.state;
+
+    const r2 = limiter.process(state, baseTime + 1000);
+
+    expect(r2.output.reset).toBe(r1.output.reset);
+  });
+
+  test("request exactly at window reset starts new window", () => {
+    let state;
+
+    const r1 = limiter.process(state, baseTime);
+    state = r1.state;
+
+    const reset = r1.output.reset;
+
+    const r2 = limiter.process(state, reset);
+
+    expect(r2.output.allowed).toBe(true);
+    expect(r2.state.count).toBe(1);
+    expect(r2.state.windowStart).toBe(reset - (reset % (config.window * 1000)));
+  });
+
+  test("last millisecond of window still belongs to current window", () => {
+    let state: FixedWindowState | undefined;
+
+    for (let i = 0; i < config.limit; i++) {
+      const r = limiter.process(state, baseTime);
+      state = r.state;
+    }
+
+    const lastMs = state!.windowStart + config.window * 1000 - 1;
+
+    const r = limiter.process(state, lastMs);
+
+    expect(r.output.allowed).toBe(false);
   });
 });

@@ -1,5 +1,7 @@
 import { BadArgumentsException, EmptyRulesException } from "./exceptions";
 import {
+  Algorithm,
+  AlgorithmConfig,
   DebugLimitResult,
   Limiter,
   LimitRule,
@@ -118,7 +120,7 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
 
     const debugRules = [];
     for (const rule of this.rules) {
-      const config =
+      const algorithm: Algorithm<AlgorithmConfig> =
         typeof rule.policy === "function"
           ? await rule.policy(ctx)
           : rule.policy;
@@ -133,11 +135,11 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
           `Cost must be a positive integer, got cost=${cost}`,
         );
 
-      const keyWithConfig = addConfigToKey(config, key);
+      const keyWithConfig = addConfigToKey(algorithm.config, key);
 
       result = await this.store.consume(
         keyWithConfig,
-        config,
+        algorithm,
         Date.now(),
         cost ?? 1,
       );

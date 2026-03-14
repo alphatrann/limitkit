@@ -1,9 +1,9 @@
 import * as express from "express";
 import * as request from "supertest";
 import { limit } from "../src";
-import { Algorithm, RateLimiter } from "@limitkit/core";
+import { RateLimiter } from "@limitkit/core";
 import { createClient, RedisClientType } from "redis";
-import { RedisStore } from "@limitkit/redis";
+import { RedisFixedWindow, RedisStore } from "@limitkit/redis";
 
 describe("RedisStore", () => {
   let redis: RedisClientType;
@@ -18,7 +18,6 @@ describe("RedisStore", () => {
     await redis.connect();
     await redis.flushDb();
     store = new RedisStore(redis);
-    await store.init();
 
     const limiter = new RateLimiter({
       store,
@@ -26,11 +25,11 @@ describe("RedisStore", () => {
         {
           name: "global-limit",
           key: "global",
-          policy: {
-            name: Algorithm.FixedWindow,
+          policy: new RedisFixedWindow({
+            name: "fixed-window",
             window: 60,
             limit: 2,
-          },
+          }),
         },
       ],
     });
@@ -48,8 +47,8 @@ describe("RedisStore", () => {
   beforeAll(async () => {
     app = await createApp();
   });
+
   afterEach(async () => {
-    // Ensure complete cleanup between tests
     await redis.flushDb();
   });
 

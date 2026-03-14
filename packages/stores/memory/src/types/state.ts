@@ -46,6 +46,10 @@ export type GCRAState = {
   tat: number | null;
 };
 
+export type CustomAlgorithmState = {
+  [key: string]: any;
+};
+
 /**
  * Represents the state of various rate-limiting algorithms.
  *
@@ -73,7 +77,7 @@ export type GCRAState = {
  * @property {GCRAState} - Generic Cell Rate Algorithm (GCRA) state. Implements a rate limiting
  *           algorithm based on theoretical cell rate calculations.
  *
- * @property {Record<string, any>} - Fallback type for custom or unknown state structures
+ * @property {CustomAlgorithmState} - Fallback type for custom or unknown state structures
  *           to allow extensibility for custom rate limiting algorithms.
  */
 export type State =
@@ -83,4 +87,4 @@ export type State =
   | SlidingWindowCounterState
   | LeakyBucketState
   | GCRAState
-  | Record<string, any>;
+  | CustomAlgorithmState;

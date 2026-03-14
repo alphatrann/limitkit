@@ -1,11 +1,56 @@
 import { Test } from "@nestjs/testing";
-import { INestApplication } from "@nestjs/common";
+import { Controller, Get, INestApplication } from "@nestjs/common";
 import * as request from "supertest";
 import { LimitModule } from "../src/limit.module";
-import { InMemoryStore } from "@limitkit/memory";
-import { Algorithm } from "@limitkit/core";
-import { TestController, NoLimitController } from "./controllers";
+import { InMemoryFixedWindow, InMemoryStore } from "@limitkit/memory";
 import { getUserTier } from "./utils";
+import { RateLimit, SkipRateLimit } from "../src";
+import { NoLimitController } from "./controllers";
+
+@RateLimit({
+  rules: [
+    {
+      name: "controller-limit",
+      key: (req: any) => req.ip,
+      policy: new InMemoryFixedWindow({
+        name: "fixed-window",
+        window: 60,
+        limit: 3,
+      }),
+    },
+  ],
+})
+@Controller()
+export class TestController {
+  @SkipRateLimit()
+  @Get("/open")
+  open() {
+    return { ok: true };
+  }
+
+  @Get("/controller")
+  controllerLimit() {
+    return { ok: true };
+  }
+
+  @RateLimit({
+    rules: [
+      {
+        name: "route-limit",
+        key: (req: any) => req.ip,
+        policy: new InMemoryFixedWindow({
+          name: "fixed-window",
+          window: 60,
+          limit: 1,
+        }),
+      },
+    ],
+  })
+  @Get("/route-limit")
+  routeLimit() {
+    return { ok: true };
+  }
+}
 
 describe("LimitModule + in-memory tests", () => {
   let app: INestApplication;
@@ -21,11 +66,11 @@ describe("LimitModule + in-memory tests", () => {
               {
                 name: "global-ip-limit",
                 key: (req: any) => req.ip,
-                policy: {
-                  name: Algorithm.FixedWindow,
+                policy: new InMemoryFixedWindow({
+                  name: "fixed-window",
                   window: 60,
                   limit: 5,
-                },
+                }),
               },
             ],
           }),
@@ -94,22 +139,22 @@ describe("LimitModule + in-memory tests", () => {
                         : 1001;
                       const tier = await getUserTier(userId);
                       if (tier === "enterprise")
-                        return {
-                          name: Algorithm.FixedWindow,
+                        return new InMemoryFixedWindow({
+                          name: "fixed-window",
                           window: 60,
                           limit: 5,
-                        };
+                        });
                       if (tier === "pro")
-                        return {
-                          name: Algorithm.FixedWindow,
+                        return new InMemoryFixedWindow({
+                          name: "fixed-window",
                           window: 60,
                           limit: 3,
-                        };
-                      return {
-                        name: Algorithm.FixedWindow,
+                        });
+                      return new InMemoryFixedWindow({
+                        name: "fixed-window",
                         window: 60,
                         limit: 1,
-                      };
+                      });
                     },
                     name: "tier-limit",
                   },
