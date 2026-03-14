@@ -169,7 +169,7 @@ describe("limit middleware", () => {
     );
   });
 
-  it("still calls mergeRules when route rules undefined", () => {
+  it("should not call mergeRules when route rules undefined", () => {
     const store = { name: "store" } as any;
 
     const globalRule = { name: "global", key: "g", policy: {} as any };
