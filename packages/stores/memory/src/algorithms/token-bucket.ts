@@ -6,27 +6,52 @@ import {
 import { InMemoryCompatible, TokenBucketState } from "../types";
 
 /**
- * In-memory implementation of the token bucket algorithm
+ * In-memory implementation of the **Token Bucket** rate limiting algorithm.
  *
- * Usage:
+ * The bucket refills tokens continuously over time at a configured rate.
+ * Each request consumes tokens from the bucket.
+ *
+ * Requests are allowed if sufficient tokens are available.
+ *
+ * ## Characteristics
+ * - Allows burst traffic
+ * - Smooth rate limiting
+ * - Continuous token refill
+ *
+ * ## Usage
  * ```ts
- * const inMemoryTokenBucket = new InMemoryTokenBucket({ name: "token-bucket", capacity: 100, refillRate: 2 })
+ * import { InMemoryTokenBucket } from "@limitkit/memory";
+ *
+ * const limiter = new InMemoryTokenBucket({
+ *   name: "token-bucket",
+ *   capacity: 100,
+ *   refillRate: 2
+ * });
  * ```
+ *
+ * @extends TokenBucket
+ * @implements {InMemoryCompatible<TokenBucketState>}
  */
 export class InMemoryTokenBucket
   extends TokenBucket
   implements InMemoryCompatible<TokenBucketState>
 {
   /**
-   * Computes the next token bucket state based on the configuration and given parameters
-   * * Total time complexity: O(1)
-   * * Total space complexity: O(1)
+   * Processes a request using the token bucket algorithm.
    *
-   * @param state Internal state of token bucket algorithm
-   * @param now Current Unix timestamp in millisecond
-   * @param cost Optional cost/weight of each request. Defaults to 1 if not specified. Must never exceed `this.config.capacity`
-   * @returns The next state and rate limit result
-   * @see TokenBucketState
+   * Tokens are refilled based on elapsed time before evaluating the request.
+   *
+   * ## Complexity
+   * - Time: **O(1)**
+   * - Space: **O(1)**
+   *
+   * @param state Previous token bucket state
+   * @param now Current Unix timestamp **in milliseconds**
+   * @param cost Number of tokens to consume (default: `1`)
+   *
+   * @returns Updated state and rate limit result
+   *
+   * @throws BadArgumentsException if `cost > config.capacity`
    */
   process(
     state: TokenBucketState | undefined,

@@ -61,12 +61,16 @@ const defaultRateLimitResponse = {
  * Basic usage
  *
  * ```ts
+ * import { limit } from "@limitkit/express";
+ * import { RateLimiter } from "@limitkit/core";
+ * import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory";
+ *
  * const limiter = new RateLimiter({
- *   rules: [{ limit: 100, window: "1m" }],
- *   store: new MemoryStore(),
+ *   rules: [new InMemoryFixedWindow({ name: "fixed-window", limit: 100, window: 60 })],
+ *   store: new InMemoryStore(),
  * });
  *
- * app.get("/api", limit(limiter, {}), handler);
+ * app.get("/api", limit(limiter), handler);
  * ```
  *
  * @example
@@ -106,16 +110,15 @@ export function limit(
   {
     rateLimitResponse = defaultRateLimitResponse,
     ...routeConfig
-  }: RouteRateLimitConfig,
+  }: RouteRateLimitConfig = {},
 ) {
   const limiterConfig = limiter.config;
-  const routeLimiter = new RateLimiter<Request>(limiterConfig);
-  if (routeConfig)
-    routeLimiter.config = {
-      debug: routeConfig.debug ?? limiterConfig.debug,
-      rules: mergeRules(limiterConfig.rules, routeConfig.rules),
-      store: routeConfig.store ?? limiterConfig.store,
-    };
+  const newConfig = {
+    debug: routeConfig.debug ?? limiterConfig.debug,
+    rules: mergeRules(limiterConfig.rules, routeConfig.rules),
+    store: routeConfig.store ?? limiterConfig.store,
+  };
+  const routeLimiter = new RateLimiter<Request>(newConfig);
 
   return async (req: Request, res: Response, next: NextFunction) => {
     try {

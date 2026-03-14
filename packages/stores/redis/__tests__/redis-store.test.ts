@@ -96,6 +96,25 @@ describe("RedisStore Integration Tests", () => {
       limiter = instance();
     });
 
+    test("lua script is cached after first load", async () => {
+      const spy = jest.spyOn(redis, "scriptLoad").mockClear();
+
+      await store.consume("user", limiter, base);
+      await store.consume("user", limiter, base);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    test("recovers automatically from NOSCRIPT", async () => {
+      await store.consume("user", limiter, base);
+
+      await redis.scriptFlush();
+
+      const r = await store.consume("user", limiter, base);
+
+      expect(r).toBeDefined();
+    });
+
     test("allows requests within limit", async () => {
       let allowed = 0;
 
