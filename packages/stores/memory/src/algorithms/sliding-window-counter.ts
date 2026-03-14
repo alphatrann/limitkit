@@ -5,16 +5,28 @@ import {
 } from "@limitkit/core";
 import { InMemoryCompatible, SlidingWindowCounterState } from "../types";
 
+/**
+ * In-memory implementation of the sliding window counter algorithm
+ *
+ * Usage:
+ * ```ts
+ * const inMemorySlidingWindowCounter = new InMemoryFixedWindowCounter({ name: "sliding-window-counter", limit: 100, window: 60 })
+ * ```
+ */
 export class InMemorySlidingWindowCounter
   extends SlidingWindowCounter
   implements InMemoryCompatible<SlidingWindowCounterState>
 {
   /**
-   * In-memory implementation of the sliding window counter
-   * Total time complexity: O(1)
-   * @param state internal state of sliding window counter algorithm
-   * @param now unix timestamp in millisecond
-   * @param cost cost per request, must never exceed `this.config.limit`
+   * Computes the next sliding window counter state based on the configuration and given parameters
+   * * Total time complexity: O(1)
+   * * Total space complexity: O(1)
+   *
+   * @param state Internal state of sliding window counter algorithm
+   * @param now Unix timestamp in millisecond
+   * @param cost Optional cost/weight of each request. Defaults to 1 if not specified. Must never exceed `this.config.limit`
+   * @returns The next state and rate limit result
+   * @see SlidingWindowCounterState
    */
   process(
     state: SlidingWindowCounterState | undefined,

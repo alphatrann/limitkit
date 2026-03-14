@@ -5,17 +5,28 @@ import {
 } from "@limitkit/core";
 import { InMemoryCompatible, TokenBucketState } from "../types";
 
+/**
+ * In-memory implementation of the token bucket algorithm
+ *
+ * Usage:
+ * ```ts
+ * const inMemoryTokenBucket = new InMemoryTokenBucket({ name: "token-bucket", capacity: 100, refillRate: 2 })
+ * ```
+ */
 export class InMemoryTokenBucket
   extends TokenBucket
   implements InMemoryCompatible<TokenBucketState>
 {
   /**
-   * In-memory implementation of token bucket
-   * Total time complexity: O(1)
+   * Computes the next token bucket state based on the configuration and given parameters
+   * * Total time complexity: O(1)
+   * * Total space complexity: O(1)
    *
-   * @param state internal state of token bucket algorithm
-   * @param now unix timestamp in milliseconds
-   * @param cost cost per request
+   * @param state Internal state of token bucket algorithm
+   * @param now Current Unix timestamp in millisecond
+   * @param cost Optional cost/weight of each request. Defaults to 1 if not specified. Must never exceed `this.config.capacity`
+   * @returns The next state and rate limit result
+   * @see TokenBucketState
    */
   process(
     state: TokenBucketState | undefined,

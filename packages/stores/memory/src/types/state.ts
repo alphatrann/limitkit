@@ -57,8 +57,6 @@ export type CustomAlgorithmState = {
  * rate limiting strategies. Each algorithm maintains its own state structure to track
  * request rates and enforce limits.
  *
- * @typedef {TokenBucketState | FixedWindowState | SlidingWindowState | SlidingWindowCounterState | LeakyBucketState | GCRAState | Record<string, any>} State
- *
  * @property {TokenBucketState} - Token Bucket algorithm state. Maintains available tokens
  *           and the last refill timestamp for continuous token replenishment.
  *
