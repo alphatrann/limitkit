@@ -107,20 +107,18 @@ export class RedisSlidingWindow
 
     -- allow
     for i = 1, cost do
-      local member = now .. "-" .. i .. "-" .. math.random()
+      local member = now .. "-" .. redis.call("INCR", key .. ":counter")
       redis.call("ZADD", key, now, member)
     end
 
     redis.call("PEXPIRE", key, window)
+    redis.call("PEXPIRE", key .. ":counter", window)
 
-    local remaining = limit - (size + cost)
+    -- recompute size AFTER insert
+    local newSize = redis.call("ZCARD", key)
 
-    local newest = redis.call("ZRANGE", key, -1, -1, "WITHSCORES")
+    local remaining = limit - newSize
     local reset = now + window
-
-    if #newest > 0 then
-      reset = tonumber(newest[2]) + window
-    end
 
     return {1, remaining, reset, 0}
   `;

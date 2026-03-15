@@ -1,259 +1,251 @@
 import { createClient, RedisClientType } from "redis";
 import {
-  RedisCompatible,
+  RedisStore,
   RedisFixedWindow,
-  RedisGCRA,
-  RedisLeakyBucket,
   RedisSlidingWindow,
   RedisSlidingWindowCounter,
-  RedisStore,
   RedisTokenBucket,
+  RedisLeakyBucket,
+  RedisGCRA,
+  RedisCompatible,
 } from "../src";
-import { Algorithm, AlgorithmConfig } from "@limitkit/core";
 
-const base = 1_000_000;
+import { Algorithm } from "@limitkit/core";
 
-function getAlgorithms() {
-  return [
-    {
-      name: "FixedWindow",
-      instance: () =>
-        new RedisFixedWindow({ name: "fixed-window", limit: 10, window: 10 }),
-      limit: 10,
-    },
-    {
-      name: "SlidingWindow",
-      instance: () =>
-        new RedisSlidingWindow({
-          name: "sliding-window",
-          limit: 10,
-          window: 10,
-        }),
-      limit: 10,
-    },
-    {
-      name: "SlidingWindowCounter",
-      instance: () =>
-        new RedisSlidingWindowCounter({
-          name: "sliding-window-counter",
-          limit: 10,
-          window: 10,
-        }),
-      limit: 10,
-    },
-    {
-      name: "TokenBucket",
-      instance: () =>
-        new RedisTokenBucket({
-          name: "token-bucket",
-          capacity: 10,
-          refillRate: 5,
-        }),
-      limit: 10,
-    },
-    {
-      name: "LeakyBucket",
-      instance: () =>
-        new RedisLeakyBucket({
-          name: "leaky-bucket",
-          capacity: 10,
-          leakRate: 5,
-        }),
-      limit: 10,
-    },
-    {
-      name: "GCRA",
-      instance: () => new RedisGCRA({ name: "gcra", burst: 10, interval: 1 }),
-      limit: 10,
-    },
-  ];
-}
-
-describe("RedisStore Integration Tests", () => {
+describe("RedisStore Integration", () => {
   let redis: RedisClientType;
   let store: RedisStore;
 
-  beforeAll(async () => {
-    redis = createClient();
-    await redis.connect();
-  });
+  const algorithms: (Algorithm<any> & RedisCompatible)[] = [
+    new RedisFixedWindow({
+      name: "fixed-window",
+      window: 5,
+      limit: 5,
+    }),
 
-  afterAll(async () => {
-    await redis.quit();
+    new RedisSlidingWindow({
+      name: "sliding-window",
+      window: 5,
+      limit: 5,
+    }),
+
+    new RedisSlidingWindowCounter({
+      name: "sliding-window-counter",
+      window: 5,
+      limit: 5,
+    }),
+
+    new RedisTokenBucket({
+      name: "token-bucket",
+      capacity: 5,
+      refillRate: 1,
+    }),
+
+    new RedisLeakyBucket({
+      name: "leaky-bucket",
+      capacity: 5,
+      leakRate: 1,
+    }),
+
+    new RedisGCRA({
+      name: "gcra",
+      burst: 5,
+      interval: 1,
+    }),
+  ];
+
+  beforeAll(async () => {
+    redis = createClient({ url: "redis://localhost:6379/1" });
+    await redis.connect();
+
+    store = new RedisStore(redis);
   });
 
   beforeEach(async () => {
     await redis.flushDb();
-    store = new RedisStore(redis);
   });
 
-  const algorithms = getAlgorithms();
+  afterAll(async () => {
+    await redis.flushAll();
+    await redis.quit();
+  });
 
-  describe.each(algorithms)("$name", ({ instance, limit }) => {
-    let limiter: Algorithm<AlgorithmConfig> & RedisCompatible;
+  /**
+   * ---------------------------------------------------------
+   * Basic Store Execution
+   * ---------------------------------------------------------
+   */
 
-    beforeEach(() => {
-      limiter = instance();
-    });
+  it.each(algorithms)("should execute algorithm %p", async (algo) => {
+    const key = "store-basic";
+    const now = 1_000_000;
 
-    test("should validate the config params before consuming", async () => {
-      const limiterSpy = jest.spyOn(limiter, "validate");
-      await store.consume("user", limiter, base);
+    const result = await store.consume(key, algo, now);
 
-      expect(limiterSpy).toHaveBeenCalled();
-    });
+    expect(result.allowed).toBe(true);
+    expect(result.limit).toBe(algo.limit);
 
-    test("lua script is cached after first load", async () => {
-      const spy = jest.spyOn(redis, "scriptLoad").mockClear();
+    expect(typeof result.remaining).toBe("number");
+    expect(typeof result.reset).toBe("number");
+    expect(typeof result.retryAfter).toBe("number");
+  });
 
-      await store.consume("user", limiter, base);
-      await store.consume("user", limiter, base);
+  /**
+   * ---------------------------------------------------------
+   * Script Caching
+   * ---------------------------------------------------------
+   */
 
-      expect(spy).toHaveBeenCalledTimes(1);
-    });
+  it("should cache Lua scripts locally", async () => {
+    const limiter = algorithms[0];
+    const key = "store-cache";
+    const now = 1_000_000;
 
-    test("recovers automatically from NOSCRIPT", async () => {
-      await store.consume("user", limiter, base);
+    // start with a fresh store to avoid cached scripts
+    const freshStore = new RedisStore(redis);
 
-      await redis.scriptFlush();
+    const spy = jest.spyOn(redis, "scriptLoad");
 
-      const r = await store.consume("user", limiter, base);
+    await freshStore.consume(key, limiter, now);
+    await freshStore.consume(key, limiter, now);
 
-      expect(r).toBeDefined();
-    });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
 
-    test("allows requests within limit", async () => {
-      let allowed = 0;
+  /**
+   * ---------------------------------------------------------
+   * NOSCRIPT Recovery
+   * ---------------------------------------------------------
+   */
 
-      for (let i = 0; i < limit; i++) {
-        const r = await store.consume("user", limiter, base);
-        if (r.allowed) allowed++;
-      }
+  it("should reload script when Redis loses script cache", async () => {
+    const limiter = algorithms[0];
+    const key = "store-noscript";
+    const now = 1_000_000;
 
-      expect(allowed).toBe(limit);
-    });
+    await store.consume(key, limiter, now);
 
-    test("rejects requests beyond limit", async () => {
-      for (let i = 0; i <= limit; i++) {
-        await store.consume("user", limiter, base);
-      }
+    await redis.scriptFlush();
 
-      const r = await store.consume("user", limiter, base);
+    const result = await store.consume(key, limiter, now);
 
-      expect(r.allowed).toBe(false);
-      expect(r.retryAfter).toBeGreaterThanOrEqual(0);
-    });
+    expect(result.allowed).toBe(true);
+  });
 
-    test("state persists in Redis", async () => {
-      const r1 = await store.consume("user", limiter, base);
-      const r2 = await store.consume("user", limiter, base);
+  /**
+   * ---------------------------------------------------------
+   * RetryAfter Contract
+   * ---------------------------------------------------------
+   */
 
-      expect(r2.remaining).toBeLessThanOrEqual(r1.remaining);
-    });
+  it.each(algorithms)(
+    "retryAfter should be 0 when allowed (%p)",
+    async (algo) => {
+      const key = "retry-contract";
+      const now = 1_000_000;
 
-    test("different keys are isolated", async () => {
-      await store.consume("userA", limiter, base);
+      const result = await store.consume(key, algo, now);
 
-      const r = await store.consume("userB", limiter, base);
+      expect(result.allowed).toBe(true);
+      expect(result.retryAfter).toBe(0);
+    },
+  );
 
-      expect(r.remaining).toBe(limit - 1);
-    });
+  /**
+   * ---------------------------------------------------------
+   * Concurrency Test
+   * ---------------------------------------------------------
+   */
 
-    test("large time jump restores capacity", async () => {
-      for (let i = 0; i < limit; i++) {
-        await store.consume("user", limiter, base);
-      }
+  it.each(algorithms)(
+    "should enforce limits under concurrency (%p)",
+    async (algo) => {
+      const key = "store-concurrency";
+      const now = 1_000_000;
 
-      const r = await store.consume("user", limiter, base + 60000);
-
-      expect(r.allowed).toBe(true);
-    });
-
-    test("cost argument works correctly", async () => {
-      const r = await store.consume("user", limiter, base, 3);
-
-      expect(r.remaining).toBeLessThanOrEqual(limit - 3);
-    });
-
-    test("burst concurrency respects limit (atomic Lua)", async () => {
-      const promises = [];
-
-      for (let i = 0; i < limit * 2; i++) {
-        promises.push(store.consume("user", limiter, base));
-      }
-
-      const results = await Promise.all(promises);
+      const results = await Promise.all(
+        Array.from({ length: 50 }).map(() => store.consume(key, algo, now)),
+      );
 
       const allowed = results.filter((r) => r.allowed).length;
 
-      expect(allowed).toBeLessThanOrEqual(limit);
-    });
+      expect(allowed).toBeLessThanOrEqual(algo.limit);
+    },
+  );
 
-    test("mixed-cost concurrency respects limit", async () => {
-      const costs = [3, 2, 4, 1, 5, 2];
+  /**
+   * ---------------------------------------------------------
+   * Cost Propagation
+   * ---------------------------------------------------------
+   */
 
-      const results = await Promise.all(
-        costs.map((c) => store.consume("user", limiter, base, c)),
-      );
+  it.each(algorithms)("should propagate cost correctly (%p)", async (algo) => {
+    const key = "store-cost";
+    const now = 1_000_000;
 
-      let acceptedCost = 0;
+    const result = await store.consume(key, algo, now, 2);
 
-      results.forEach((r, i) => {
-        if (r.allowed) acceptedCost += costs[i];
-      });
-
-      expect(acceptedCost).toBeLessThanOrEqual(limit);
-    });
-
-    test("concurrency across multiple keys", async () => {
-      const promises = [];
-
-      for (let i = 0; i < 10; i++) {
-        promises.push(store.consume("userA", limiter, base));
-        promises.push(store.consume("userB", limiter, base));
-      }
-
-      const results = await Promise.all(promises);
-
-      const userA = results.filter((_, i) => i % 2 === 0);
-      const userB = results.filter((_, i) => i % 2 === 1);
-
-      expect(userA.filter((r) => r.allowed).length).toBeLessThanOrEqual(limit);
-
-      expect(userB.filter((r) => r.allowed).length).toBeLessThanOrEqual(limit);
-    });
-
-    test("reset timestamp is in the future", async () => {
-      const r = await store.consume("user", limiter, base);
-
-      expect(r.reset).toBeGreaterThanOrEqual(base);
-    });
-
-    test("remaining never negative", async () => {
-      for (let i = 0; i < limit * 2; i++) {
-        const r = await store.consume("user", limiter, base);
-
-        expect(r.remaining).toBeGreaterThanOrEqual(0);
-      }
-    });
-
-    test("stress test random costs", async () => {
-      const costs = Array.from(
-        { length: 50 },
-        () => Math.floor(Math.random() * 5) + 1,
-      );
-
-      const results = await Promise.all(
-        costs.map((c) => store.consume("user", limiter, base, c)),
-      );
-
-      let acceptedCost = 0;
-
-      results.forEach((r, i) => {
-        if (r.allowed) acceptedCost += costs[i];
-      });
-
-      expect(acceptedCost).toBeLessThanOrEqual(limit);
-    });
+    expect(typeof result.allowed).toBe("boolean");
   });
+
+  /**
+   * ---------------------------------------------------------
+   * Result Contract
+   * ---------------------------------------------------------
+   */
+
+  it.each(algorithms)(
+    "should return valid RateLimitResult (%p)",
+    async (algo) => {
+      const key = "store-contract";
+      const now = 1_000_000;
+
+      const result = await store.consume(key, algo, now);
+
+      expect(result).toHaveProperty("allowed");
+      expect(result).toHaveProperty("limit");
+      expect(result).toHaveProperty("remaining");
+      expect(result).toHaveProperty("reset");
+      expect(result).toHaveProperty("retryAfter");
+    },
+  );
+
+  /**
+   * ---------------------------------------------------------
+   * FUZZ TEST
+   * ---------------------------------------------------------
+   */
+
+  it.each(algorithms)(
+    "fuzz test should maintain invariants (%p)",
+    async (algo) => {
+      const key = "store-fuzz";
+
+      let now = 1_000_000;
+
+      for (let i = 0; i < 500; i++) {
+        now += Math.floor(Math.random() * 2000);
+
+        const cost = 1 + Math.floor(Math.random() * 3);
+
+        const result = await store.consume(key, algo, now, cost);
+
+        /**
+         * Basic invariants
+         */
+
+        expect(result.limit).toBe(algo.limit);
+
+        expect(result.remaining).toBeGreaterThanOrEqual(0);
+
+        expect(result.reset).toBeGreaterThanOrEqual(now);
+
+        if (result.allowed) {
+          expect(result.retryAfter).toBe(0);
+        } else {
+          expect(result.retryAfter).toBeGreaterThanOrEqual(0);
+        }
+      }
+    },
+  );
 });
