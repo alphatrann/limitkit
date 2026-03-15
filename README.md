@@ -2,42 +2,41 @@
 
 # LimitKit
 
-## Table of Contents
-
-- [Why LimitKit](#why-limitkit)
-- [Key Features](#key-features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-
-- [What You Can Build With LimitKit](#what-you-can-build-with-limitkit)
-  - [Weighted Requests](#weighted-requests)
-  - [SaaS Plan Quotas](#saas-plan-quotas)
-  - [Layered Rate Limits](#layered-rate-limits)
-  - [GraphQL and Other Contexts](#graphql-and-other-contexts)
-  - [Rate Limiting Background Jobs](#rate-limiting-background-jobs)
-
-- [Express Example](#express-example)
-- [NestJS Example](#nestjs-example)
-- [Other Node.js Frameworks Integration](#other-nodejs-frameworks-integration)
-
-- [Algorithms](#algorithms)
-- [Stores](#stores)
-- [Store Compatibility](#store-compatibility)
-
-- [Architecture](#architecture)
-- [Comparison](#comparison)
-- [Advanced Usage](#advanced-usage)
-  - [Custom Algorithms](#custom-algorithms)
-  - [Custom Stores](#custom-stores)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [License](#license)
+[![npm version](https://img.shields.io/npm/v/@limitkit/core)](https://www.npmjs.com/package/@limitkit/core)
+[![downloads](https://img.shields.io/npm/dw/@limitkit/core)](https://www.npmjs.com/package/@limitkit/core)
+[![license](https://img.shields.io/npm/l/@limitkit/core)](https://github.com/alphatrann/limitkit/blob/main/LICENSE)
 
 **Flexible, policy-driven rate limiting for Node.js applications.**
 
 LimitKit is a modular rate limiting engine designed not just for APIs. It can support **APIs, GraphQL services, WebSockets, and background workloads**.
 
 Unlike traditional middleware-based limiters, LimitKit separates **algorithms**, **storage**, and **application policies**, allowing developers to build scalable and customizable rate limiting systems.
+
+## Table of Contents
+
+
+* [Why LimitKit](#why-limitkit)
+* [Key Features](#key-features)
+* [Installation](#installation)
+* [Quick Start](#quick-start)
+* [What You Can Build With LimitKit](#what-you-can-build-with-limitkit)
+  * [Weighted Requests](#weighted-requests)
+  * [SaaS Plan Quotas](#saas-plan-quotas)
+  * [Layered Rate Limits](#layered-rate-limits)
+  * [GraphQL and Other Contexts](#graphql-and-other-contexts)
+  * [Rate Limiting Background Jobs](#rate-limiting-background-jobs)
+* [Express Example](#express-example)
+* [NestJS Example](#nestjs-example)
+* [Other Node.js Frameworks Integration](#other-nodejs-frameworks-integration)
+* [Supported Algorithms](#supported-algorithms)
+* [Supported Stores](#supported-stores)
+* [Architecture](#architecture)
+* [Comparison](#comparison)
+* [Advanced Usage](#advanced-usage)
+* [Roadmap](#roadmap)
+* [Contributing](#contributing)
+* [License](#license)
+
 
 ---
 
@@ -235,11 +234,11 @@ const limiter = new RateLimiter({
         return 1
       },
 
-      policy: {
+      policy: new RedisTokenBucket({
         name: "token-bucket",
         capacity: 100,
         refillRate: 10
-      }
+      })
     }
   ]
 })
@@ -262,10 +261,10 @@ const limiter = new RateLimiter({
 
       policy: (ctx) => {
         if (ctx.user.plan === "free")
-          return { name: "token-bucket", capacity: 50, refillRate: 1 }
+          return new RedisTokenBucket({ name: "token-bucket", capacity: 50, refillRate: 1 })
 
         if (ctx.user.plan === "pro")
-          return { name: "token-bucket", capacity: 500, refillRate: 10 }
+          return new RedisTokenBucket({ name: "token-bucket", capacity: 500, refillRate: 10 })
       }
     }
   ]
@@ -286,17 +285,17 @@ const limiter = new RateLimiter({
     {
       name: "global",
       key: () => "global",
-      policy: { name: "token-bucket", capacity: 10000, refillRate: 500 }
+      policy: new RedisTokenBucket({ name: "token-bucket", capacity: 10000, refillRate: 500 })
     },
     {
       name: "ip",
       key: (ctx) => ctx.ip,
-      policy: { name: "token-bucket", capacity: 100, refillRate: 5 }
+      policy: new RedisTokenBucket({ name: "token-bucket", capacity: 100, refillRate: 5 })
     },
     {
       name: "user",
       key: (ctx) => ctx.user.id,
-      policy: { name: "token-bucket", capacity: 1000, refillRate: 50 }
+      policy: new RedisTokenBucket({ name: "token-bucket", capacity: 1000, refillRate: 50 })
     }
   ]
 })
@@ -325,11 +324,11 @@ const limiter = new RateLimiter({
     {
       name: "graphql-user",
       key: (ctx) => ctx.user.id,
-      policy: {
+      policy: new RedisTokenBucket({
         name: "token-bucket",
         capacity: 100,
         refillRate: 5
-      }
+      })
     }
   ]
 })
@@ -383,9 +382,22 @@ import { limit } from "@limitkit/express"
 
 const app = express()
 
-app.get("/api", limit(limiter), (req, res) => {
-  res.json({ message: "Hello world" })
-})
+app.get("/api",
+  limit(limiter, {
+    // override with route rules
+    rules: [
+        {
+          name: "api",
+          key: (req) => req.user.id,
+          policy: new InMemoryTokenBucket({ name: "token-bucket", refillRate: 3, capacity: 10 })
+        }
+      ]
+    }
+  ),
+  (req, res) => {
+    res.json({ message: "Hello world" })
+  }
+)
 ```
 
 ---
@@ -464,19 +476,20 @@ const limiter = new RateLimiter({
       key: (ctx) => ctx.user.id,
       policy: (ctx) => {
         if (ctx.user.plan === "free")
-          return { name: "token-bucket", capacity: 50, refillRate: 1 }
+          return new InMemoryTokenBucket({ name: "token-bucket", capacity: 50, refillRate: 1 })
 
         if (ctx.user.plan === "pro")
-          return { name: "token-bucket", capacity: 500, refillRate: 10 }
+          return new InMemoryTokenBucket({ name: "token-bucket", capacity: 500, refillRate: 10 })
       }
     },
     {
       name: "endpoint-cost",
       key: (ctx) => ctx.user.id,
       cost: (ctx) => ctx.route === "/generate-report" ? 10 : 1,
-      policy: { name: "token-bucket", capacity: 100, refillRate: 5 }
+      policy: new InMemoryTokenBucket({ name: "token-bucket", capacity: 100, refillRate: 5 })
     }
-  ]
+  ],
+  store: new InMemoryStore()
 })
 ```
 
@@ -488,7 +501,7 @@ This enables:
 
 ---
 
-# Algorithms
+# Supported Algorithms
 
 | Algorithm              | Description                                     |
 | ---------------------- | ----------------------------------------------- |
@@ -499,11 +512,9 @@ This enables:
 | Leaky Bucket           | Smooths traffic into a constant flow            |
 | GCRA                   | Precise rate scheduling used in telecom systems |
 
-Custom algorithms can be implemented by following [the guides](#custom-algorithms).
-
 ---
 
-# Stores
+# Supported Stores
 
 Stores control **where rate limit state is stored**.
 
@@ -524,29 +535,26 @@ await redis.connect()
 const store = new RedisStore(redis)
 ```
 
----
+The algorithms in the policies must match the store. For example, if `RedisStore` is used, all the policies must enforce `RedisTokenBucket`, not `InMemoryTokenBucket`.
 
-# Store Compatibility
+```ts
+const limiter = new RateLimiter({
+  rules: [
+    {
+      name: "user-plan",
+      key: (ctx) => ctx.user.id,
+      policy: (ctx) => {
+        if (ctx.user.plan === "free")
+          return new RedisTokenBucket({ name: "token-bucket", capacity: 50, refillRate: 1 })
 
-Rate limiting algorithms require **atomic state updates** to prevent race conditions.
-
-Different storage systems provide different atomic primitives:
-
-| Store  | Atomic mechanism     |
-| ------ | -------------------- |
-| Memory | synchronous mutation |
-| Redis  | Lua scripts          |
-| SQL    | transactions         |
-| NoSQL  | conditional writes   |
-
-Because of this, some algorithms may require **store-specific implementations**.
-
-LimitKit provides reference implementations for:
-
-* in-memory execution
-* Redis execution
-
-Custom stores can implement algorithms using their storage system's native atomic capabilities.
+        if (ctx.user.plan === "pro")
+          return new RedisTokenBucket({ name: "token-bucket", capacity: 500, refillRate: 10 })
+      }
+    }
+  ],
+  store: new RedisStore(redis)
+})
+```
 
 ---
 
