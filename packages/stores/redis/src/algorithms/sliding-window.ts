@@ -95,12 +95,12 @@ export class RedisSlidingWindow
       local oldest = redis.call("ZRANGE", key, 0, 0, "WITHSCORES")
 
       if #oldest == 0 then
-        return {0, limit, now, 0}
+        return {0, limit, now + window, 0}
       end
 
       local oldestTime = tonumber(oldest[2])
-      local reset = oldestTime + window
-      local retryAfter = math.max(0, math.ceil((reset - now) / 1000))
+      local reset = now + window
+      local retryAfter = math.max(0, math.ceil((oldestTime + window - now) / 1000))
 
       return {0, 0, reset, retryAfter}
     end
@@ -114,10 +114,7 @@ export class RedisSlidingWindow
     redis.call("PEXPIRE", key, window)
     redis.call("PEXPIRE", key .. ":counter", window)
 
-    -- recompute size AFTER insert
-    local newSize = redis.call("ZCARD", key)
-
-    local remaining = limit - newSize
+    local remaining = limit - (size + cost)
     local reset = now + window
 
     return {1, remaining, reset, 0}

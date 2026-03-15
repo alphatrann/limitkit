@@ -12,8 +12,9 @@ describe("RedisSlidingWindowCounter", () => {
   let limiter: Algorithm<SlidingWindowCounterConfig> & RedisCompatible;
 
   beforeAll(async () => {
-    redis = createClient({ url: "redis://localhost:6379/1" });
+    redis = createClient();
     await redis.connect();
+    await redis.scriptFlush();
 
     store = new RedisStore(redis);
 

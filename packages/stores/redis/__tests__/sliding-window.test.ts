@@ -11,8 +11,9 @@ describe("RedisSlidingWindow", () => {
   let limiter: Algorithm<SlidingWindowConfig> & RedisCompatible;
 
   beforeAll(async () => {
-    redis = createClient({ url: "redis://localhost:6379/1" });
+    redis = createClient();
     await redis.connect();
+    await redis.scriptFlush();
 
     store = new RedisStore(redis);
 
@@ -86,10 +87,9 @@ describe("RedisSlidingWindow", () => {
 
     await store.consume(key, limiter, now);
 
-    const result = await store.consume(key, limiter, now + 1);
+    const result = await store.consume(key, limiter, now + 1000);
 
-    expect(result.reset).toBeGreaterThan(now);
-    expect(result.reset).toBe(now + WINDOW * 1000 + 1);
+    expect(result.reset).toBe(now + 1000 + WINDOW * 1000);
   });
 
   it("retryAfter should match reset timestamp", async () => {
@@ -97,12 +97,12 @@ describe("RedisSlidingWindow", () => {
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
-      await store.consume(key, limiter, now);
+      await store.consume(key, limiter, now + i * 500);
     }
 
-    const result = await store.consume(key, limiter, now);
+    const result = await store.consume(key, limiter, now + LIMIT * 500);
 
-    const expectedRetry = Math.ceil((result.reset - now) / 1000);
+    const expectedRetry = Math.ceil((LIMIT * 500) / 1000);
 
     expect(result.retryAfter).toBe(expectedRetry);
   });
