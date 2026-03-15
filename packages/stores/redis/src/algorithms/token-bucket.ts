@@ -76,6 +76,8 @@ export class RedisTokenBucket extends TokenBucket implements RedisCompatible {
 
     local elapsedSeconds = (now - lastRefill) / 1000
     tokens = math.min(capacity, tokens + elapsedSeconds * refillRate)
+    tokens = math.max(0, tokens)
+
     lastRefill = now
     if tokens < cost then
       local tokensNeeded = cost - tokens

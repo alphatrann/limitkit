@@ -7,9 +7,6 @@
   "exports": {
     ".": "./dist/index.js"
   },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "description": "Core rate limiting engine for LimitKit",
   "files": [
     "dist"
