@@ -11,8 +11,9 @@ describe("RedisLeakyBucket", () => {
   let limiter: Algorithm<LeakyBucketConfig> & RedisCompatible;
 
   beforeAll(async () => {
-    redis = createClient({ url: "redis://localhost:6379/1" });
+    redis = createClient();
     await redis.connect();
+    await redis.scriptFlush();
 
     store = new RedisStore(redis);
 
