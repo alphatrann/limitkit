@@ -251,7 +251,8 @@ Testing guidelines:
 * Test public APIs
 * Test edge cases
 * Mock external dependencies when possible
-* Do not mock Redis when testing. Instead, run 4 containers in [compose.test.yml](./compose.test.yml) and connect to one of them.
+
+A Redis container for testing is available at [compose.test.yml](./compose.test.yml). Feel free to add other databases if needed:
 
 ```bash
 docker compose -f compose.test.yml up -d
