@@ -72,8 +72,8 @@ export class RedisGCRA extends GCRA implements RedisCompatible {
       tat = now
     end
 
-    local burstTolerance = (burst - 1) * interval
-    local allowAt = tat - burstTolerance + (cost - 1) * interval
+    local burstTolerance = (burst - cost) * interval
+    local allowAt = tat - burstTolerance
 
     if now < allowAt then
       local retryAfter = math.max(0, math.ceil((allowAt - now) / 1000))

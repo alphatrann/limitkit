@@ -7,9 +7,6 @@
     "@limitkit/core": "workspace:*",
     "redis": "^5.11.0"
   },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "description": "Redis store for LimitKit",
   "files": [
     "dist"
@@ -21,7 +18,7 @@
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
-    "test": "jest"
+    "test": "jest --runInBand"
   },
   "devDependencies": {
     "@types/node": "^25.4.0"
