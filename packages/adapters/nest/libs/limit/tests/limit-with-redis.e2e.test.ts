@@ -62,7 +62,7 @@ describe("LimitModule + Redis (e2e)", () => {
     let redisStore: RedisStore;
 
     beforeAll(async () => {
-      redis = createClient({ url: "redis://localhost:6382" });
+      redis = createClient({ url: "redis://localhost:6379/14" });
       await redis.connect();
       redisStore = new RedisStore(redis);
     });
