@@ -55,7 +55,7 @@ describe("RedisStore Integration", () => {
   ];
 
   beforeAll(async () => {
-    redis = createClient({ url: "redis://localhost:6379/1" });
+    redis = createClient();
     await redis.connect();
 
     store = new RedisStore(redis);
