@@ -1,10 +1,10 @@
 {
   "name": "@limitkit/redis",
-  "version": "0.1.1",
+  "version": "0.1.4",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "dependencies": {
-    "@limitkit/core": "workspace:*",
+    "@limitkit/core": "^0.1.5",
     "redis": "^5.11.0"
   },
   "description": "Redis store for LimitKit",
