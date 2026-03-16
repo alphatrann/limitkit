@@ -1,6 +1,7 @@
 {
   "name": "limitkit",
-  "version": "1.0.1",
+  "version": "0.1.5",
+  "private": true,
   "description": "LimitKit is a lightweight Node.js library that enables rate-limiting in a flexible and intuitive for developers.",
   "repository": {
     "type": "git",
@@ -16,13 +17,9 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck",
-    "changeset": "changeset",
-    "version-packages": "changeset version",
-    "release": "changeset publish"
+    "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.30.0",
     "@types/jest": "^30.0.0",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.6",
