@@ -120,7 +120,7 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
       const cost =
         typeof rule.cost === "function" ? await rule.cost(ctx) : rule.cost;
 
-      if (cost && cost <= 0)
+      if (cost !== undefined && cost <= 0)
         throw new BadArgumentsException(
           `Cost must be a positive integer, got cost=${cost}`,
         );
@@ -143,7 +143,7 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
         if (result.allowed) console.log(debugRules);
         else console.error(debugRules);
       }
-      if (result.remaining === 0) {
+      if (!result.allowed) {
         if (this.debug) {
           const debugResults = {
             failedRule: rule.name,
@@ -152,12 +152,7 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
           };
           return debugResults;
         }
-        return {
-          ...result,
-          reset: maxReset,
-          limit: minLimit,
-          remaining: minRemaining,
-        };
+        return result;
       }
     }
     if (this.debug) {

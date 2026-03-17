@@ -161,12 +161,14 @@ describe("LimitGuard", () => {
   });
 
   it("sets rate limit headers when allowed", async () => {
+    const reset = 1700000000000;
+    jest.spyOn(Date, "now").mockReturnValueOnce(reset - 10000);
     (RateLimiter as jest.Mock).mockImplementation(() => ({
       consume: jest.fn().mockResolvedValueOnce({
         allowed: true,
         limit: 100,
         remaining: 99,
-        reset: 60,
+        reset,
       }),
     }));
 
@@ -176,7 +178,7 @@ describe("LimitGuard", () => {
 
     expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Limit", 100);
     expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Remaining", 99);
-    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Reset", 60);
+    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Reset", 10);
   });
 
   it("throws when limit exceeded", async () => {

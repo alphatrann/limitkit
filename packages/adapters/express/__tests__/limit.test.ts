@@ -106,27 +106,6 @@ describe("limit middleware", () => {
     expect(res.status).toHaveBeenCalledWith(429);
   });
 
-  it("appends new route rules when name does not exist", () => {
-    const store = { name: "store" } as any;
-    const globalRule = { name: "global", key: "g", policy: {} as any };
-    const routeRule = { name: "route", key: "r", policy: {} as any };
-
-    const limiter = new core.RateLimiter<Request>({
-      debug: false,
-      store,
-      rules: [globalRule],
-    });
-    MockedRateLimiter.mockClear();
-
-    limit(limiter, { rules: [routeRule] });
-
-    expect(MockedRateLimiter).toHaveBeenCalledWith(
-      expect.objectContaining({
-        rules: [globalRule, routeRule],
-      }),
-    );
-  });
-
   it("calls mergeRules with global and route rules", () => {
     const store = { name: "store" } as any;
 
@@ -146,7 +125,7 @@ describe("limit middleware", () => {
     expect(mergeSpy).toHaveBeenCalledWith([globalRule], [routeRule]);
   });
 
-  it("creates new limiter with merged rules", () => {
+  it("creates new limiter with merged rules", async () => {
     const store = { name: "store" } as any;
 
     const globalRule = { name: "global", key: "g", policy: {} as any };
@@ -158,9 +137,20 @@ describe("limit middleware", () => {
       rules: [globalRule],
     });
 
+    const middleware = limit(limiter, { rules: [routeRule] });
+
+    const req = {} as Request;
+    const res = {
+      setHeader: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as any;
+
+    const next = jest.fn();
+
     MockedRateLimiter.mockClear();
 
-    limit(limiter, { rules: [routeRule] });
+    await middleware(req, res, next);
 
     expect(MockedRateLimiter).toHaveBeenCalledWith(
       expect.objectContaining({
