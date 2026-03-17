@@ -4,7 +4,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "dependencies": {
-    "@limitkit/core": "^0.1.5",
+    "@limitkit/core": "^0.1.6",
     "redis": "^5.11.0"
   },
   "description": "Redis store for LimitKit",

@@ -16,7 +16,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@limitkit/core": "^0.1.5"
+    "@limitkit/core": "^0.1.6"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",

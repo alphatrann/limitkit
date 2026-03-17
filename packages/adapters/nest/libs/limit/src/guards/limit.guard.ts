@@ -173,16 +173,17 @@ export class LimitGuard implements CanActivate {
 
     if (!rules.length) return true;
 
-    const limiter = new RateLimiter({
+    const result = await new RateLimiter({
       ...this.limiter.config,
       rules,
-    });
-
-    const result = await limiter.consume(req);
+    }).consume(req);
 
     res.setHeader("RateLimit-Limit", result.limit);
     res.setHeader("RateLimit-Remaining", result.remaining);
-    res.setHeader("RateLimit-Reset", result.reset);
+    res.setHeader(
+      "RateLimit-Reset",
+      Math.ceil((result.reset - Date.now()) / 1000),
+    );
 
     if (!result.allowed) {
       res.setHeader("Retry-After", result.retryAfter);
