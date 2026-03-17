@@ -11,6 +11,6 @@
     }
   },
   "compilerOptions": {
-    "webpack": true
+    "webpack": false
   }
 }
