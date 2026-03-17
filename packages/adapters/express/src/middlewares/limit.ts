@@ -113,17 +113,19 @@ export function limit(
     ? mergeRules(limiterConfig.rules, routeConfig.rules)
     : limiterConfig.rules;
 
-  const newConfig = { ...limiterConfig, rules: mergedRules };
-
-  const routeLimiter = new RateLimiter<Request>(newConfig);
-
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await routeLimiter.consume(req);
+      const result = await new RateLimiter({
+        ...limiter.config,
+        rules: mergedRules,
+      }).consume(req);
 
       res.setHeader("RateLimit-Limit", result.limit);
       res.setHeader("RateLimit-Remaining", result.remaining);
-      res.setHeader("RateLimit-Reset", result.reset);
+      res.setHeader(
+        "RateLimit-Reset",
+        Math.ceil((result.reset - Date.now()) / 1000),
+      );
 
       if (!result.allowed) {
         res.setHeader("Retry-After", result.retryAfter ?? 0);

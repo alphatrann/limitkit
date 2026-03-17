@@ -4,9 +4,10 @@
     "baseUrl": "./",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "declaration": true,
     "paths": {
-      "limitkit/limit": ["libs/limit/src"],
-      "limitkit/limit/*": ["libs/limit/src/*"]
+      "@limitkit/nest": ["libs/limit/src/index.ts"],
+      "@limitkit/nest/*": ["libs/limit/src/*"]
     }
   }
 }

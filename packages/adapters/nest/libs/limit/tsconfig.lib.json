@@ -2,8 +2,10 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "declaration": true,
-    "outDir": "../../dist/libs/limit"
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "../../dist"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+  "exclude": ["node_modules", "dist", "tests", "**/*spec.ts"]
 }
