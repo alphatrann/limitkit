@@ -1,9 +1,23 @@
 {
   "name": "@limitkit/core",
-  "version": "0.1.6",
+  "version": "1.0.0",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "keywords": [
+    "rate-limiter",
+    "rate-limit",
+    "rate-limiting",
+    "throttling",
+    "token-bucket",
+    "leaky-bucket",
+    "sliding-window",
+    "sliding-window-counter",
+    "gcra",
+    "rules-engine",
+    "policy-based",
+    "nodejs"
+  ],
   "exports": {
     ".": "./dist/index.js"
   },

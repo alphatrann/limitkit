@@ -1,6 +1,6 @@
 {
   "name": "@limitkit/nest",
-  "version": "0.1.7",
+  "version": "1.0.0",
   "description": "NestJS integration for LimitKit",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,8 +15,19 @@
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "nestjs",
+    "nest",
+    "rate-limiter",
+    "rate-limiting",
+    "throttling",
+    "guard",
+    "decorator",
+    "api",
+    "nodejs"
+  ],
   "dependencies": {
-    "@limitkit/core": "^0.1.6",
+    "@limitkit/core": "^1.0.0",
     "@nestjs/common": "^11.1.16",
     "@nestjs/core": "^11.1.16",
     "reflect-metadata": "^0.2.2",

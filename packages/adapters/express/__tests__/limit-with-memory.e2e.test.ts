@@ -22,7 +22,7 @@ function createApp() {
     ],
   });
 
-  app.get("/test", limit(limiter, {}), (req, res) => {
+  app.get("/test", limit(limiter), (req, res) => {
     res.json({ ok: true });
   });
 

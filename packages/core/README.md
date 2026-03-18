@@ -1,117 +1,157 @@
-# @limitkit/core
+# 📦 `@limitkit/core`
 
-Core rate limiting engine for **LimitKit**.
+[![npm version](https://img.shields.io/npm/v/@limitkit/core)](https://www.npmjs.com/package/@limitkit/core)
+[![downloads](https://img.shields.io/npm/dw/@limitkit/core)](https://www.npmjs.com/package/@limitkit/core)
+[![license](https://img.shields.io/npm/l/@limitkit/core)](https://github.com/alphatrann/limitkit/blob/main/LICENSE)
 
-Provides the `RateLimiter`, rule system, and algorithm abstractions used by all LimitKit integrations.
-
-👉 Main project: https://github.com/alphatrann/limitkit
+**A policy-driven rate limiting engine built on composable rules.**
 
 ---
 
-## Installation
+# 🔌 Works With
+
+The core engine is designed to integrate with:
+
+* `@limitkit/memory` → in-memory store
+* `@limitkit/redis` → distributed rate limiting
+* `@limitkit/express` → middleware
+* `@limitkit/nest` → guard + decorators
+
+
+---
+
+# ⚡ Quick Start
 
 ```bash
 npm install @limitkit/core
-````
-
----
-
-## Basic Usage
+```
 
 ```ts
-import { RateLimiter } from "@limitkit/core"
-import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory"
+import { RateLimiter } from "@limitkit/core";
 
 const limiter = new RateLimiter({
-  store: new InMemoryStore(),
+  store,
   rules: [
     {
       name: "global",
-      key: (req) => req.ip,
-      policy: new InMemoryFixedWindow({
-        name: "fixed-window",
-        window: 60,
-        limit: 100
-      })
-    }
-  ]
-})
+      key: "global",
+      policy: ...,
+    },
+  ],
+});
+
+const result = await limiter.consume(ctx);
+
+if (!result.allowed) {
+  console.log("Rate limited");
+}
 ```
 
 ---
 
-## Supported Algorithms
+# 🧠 Core Idea
 
-LimitKit supports multiple rate limiting algorithms:
+Most rate limiters answer:
 
-* Fixed Window
-* Sliding Window
-* Sliding Window Counter
-* Token Bucket
-* Leaky Bucket
-* GCRA
+> “How many requests per IP?”
 
-Algorithms are provided by store-specific packages such as `@limitkit/memory` or `@limitkit/redis`.
+LimitKit answers:
+
+> **“What rules should control this request?”**
+
+```ts
+global → ip → user → endpoint
+```
+
+Rules run top → bottom and stop on first failure.
 
 ---
 
-## Rules
+# 🧩 Concepts
 
-Each rule defines how a request is evaluated.
-
-Example rule:
+A **rule** defines *who*, *how*, and *how much*:
 
 ```ts
 {
-  name: "per-ip",
-  key: (req) => req.ip,
-  policy: new InMemoryFixedWindow({
-    name: "fixed-window",
-    window: 60,
-    limit: 100
-  })
+  name: "user",
+  key: (ctx) => ctx.user.id,
+  policy: new TokenBucket(...),
+  cost: 1
 }
 ```
 
-Rules can define:
+* **key** → groups requests (string, function, or async)
+* **policy** → rate limiting algorithm (fixed, sliding, token bucket)
+* **cost** → weight per request (default: 1)
 
-* `name` — unique rule identifier
-* `key` — request key (e.g. IP or user ID)
-* `policy` — rate limit algorithm
-
----
-
-## Custom Algorithms
-
-You can create custom algorithms by implementing the `Algorithm` interface.
+Policies can also be dynamic:
 
 ```ts
-import { Algorithm } from "@limitkit/core"
-
-class MyAlgorithm implements Algorithm<MyConfig> {
-
-  constructor(public readonly config: MyConfig) {}
-
-  validate(): void {
-    if (this.config.limit <= 0) {
-      throw new Error("Invalid configuration")
-    }
-  }
-
+policy: (ctx) => {
+  return ctx.user.plan === "pro" ? proPolicy : freePolicy;
 }
 ```
 
 ---
 
-## Custom Stores
+# 🎯 Examples
 
-Stores control where rate limiting state is stored.
+## Layered Limits
 
-Custom stores can implement the `Store` interface.
+```ts
+rules: [
+  { name: "global", key: "global", policy: ... },
+  { name: "ip", key: (ctx) => ctx.ip, policy: ... },
+  { name: "user", key: (ctx) => ctx.user.id, policy: ... },
+]
+```
 
-Example use cases:
+## SaaS Plans
 
-* DynamoDB
-* PostgreSQL
-* MongoDB
-* Cloudflare KV
+```ts
+{
+  key: (ctx) => ctx.user.id,
+  policy: (ctx) => {
+    return ctx.user.plan === "pro" ? proPolicy : freePolicy;
+  },
+}
+```
+
+## Expensive Operations
+
+```ts
+{
+  key: (ctx) => ctx.user.id,
+  cost: (ctx) => ctx.endpoint === "/report" ? 10 : 1,
+  policy: tokenBucket,
+}
+```
+
+---
+
+# 📊 Result
+
+```ts
+{
+  allowed: boolean,
+  limit: number,
+  remaining: number,
+  reset: number,
+  retryAfter?: number
+}
+```
+
+* **allowed** → request permitted or blocked
+* **limit** → max allowed requests
+* **remaining** → remaining quota
+* **reset** → timestamp (ms) when fully reset
+* **retryAfter** → seconds to wait (if blocked)
+
+---
+
+# 🏁 Summary
+
+* Rule-based rate limiting
+* Dynamic, context-aware policies
+* Weighted requests
+* Early exit for performance

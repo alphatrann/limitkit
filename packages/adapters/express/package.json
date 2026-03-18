@@ -1,11 +1,21 @@
 {
   "name": "@limitkit/express",
-  "version": "0.1.4",
+  "version": "1.0.0",
   "description": "Express middleware for LimitKit",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist"
+  ],
+  "keywords": [
+    "express",
+    "express-middleware",
+    "rate-limiter",
+    "rate-limiting",
+    "throttling",
+    "api",
+    "nodejs",
+    "backend"
   ],
   "license": "MIT",
   "repository": {
@@ -16,7 +26,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@limitkit/core": "^0.1.6",
+    "@limitkit/core": "^1.0.0",
     "express": "^5.2.1"
   },
   "scripts": {
