@@ -1,52 +1,118 @@
+# 📦 `@limitkit/memory`
 
-# @limitkit/memory
+[![npm version](https://img.shields.io/npm/v/@limitkit/memory)](https://www.npmjs.com/package/@limitkit/memory)
+[![downloads](https://img.shields.io/npm/dw/@limitkit/memory)](https://www.npmjs.com/package/@limitkit/memory)
+[![license](https://img.shields.io/npm/l/@limitkit/memory)](https://github.com/alphatrann/limitkit/blob/main/LICENSE)
 
-In-memory store for **LimitKit**.
+**In-memory store and built-in algorithms for LimitKit.**
 
-Suitable for single-instance deployments, development environments, or testing.
+Best for development, testing, and single-instance apps.
 
-👉 Main project: https://github.com/alphatrann/limitkit
+Works seamlessly with `@limitkit/core`.
 
 ---
 
-## Installation
+# ⚡ Quick Start
 
 ```bash
 npm install @limitkit/memory
-````
-
----
-
-## Usage
+```
 
 ```ts
-import { RateLimiter } from "@limitkit/core"
-import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory"
+import { RateLimiter } from "@limitkit/core";
+import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory";
 
 const limiter = new RateLimiter({
   store: new InMemoryStore(),
   rules: [
     {
       name: "global",
-      key: (req) => req.ip,
+      key: "global",
       policy: new InMemoryFixedWindow({
-        name: "fixed-window",
         window: 60,
-        limit: 100
-      })
-    }
-  ]
-})
+        limit: 100,
+      }),
+    },
+  ],
+});
 ```
 
 ---
 
-## When to Use
+# 🧩 What’s Included
 
-The in-memory store is best suited for:
+## Store
 
-* development
-* local testing
-* single-instance deployments
+```ts
+new InMemoryStore()
+```
 
-For distributed environments, consider using `@limitkit/redis`.
+Zero setup, runs entirely in-process.
+
+---
+
+## Algorithms
+
+All core rate limiting strategies are included:
+
+### Fixed Window
+
+```ts
+new InMemoryFixedWindow({ window: 60, limit: 100 })
+```
+
+### Sliding Window
+
+```ts
+new InMemorySlidingWindow({ window: 60, limit: 100 })
+```
+
+### Sliding Window Counter
+
+```ts
+new InMemorySlidingWindowCounter({ window: 60, limit: 100 })
+```
+
+### Token Bucket
+
+```ts
+new InMemoryTokenBucket({ capacity: 100, refillRate: 5 })
+```
+
+### Leaky Bucket
+
+```ts
+new InMemoryLeakyBucket({ capacity: 100, leakRate: 5 })
+```
+
+### GCRA
+
+```ts
+new InMemoryGCRA({ burst: 5, interval: 1 })
+```
+---
+
+# 🎯 When to Use
+
+* Local development
+* Testing
+* Prototyping rate limits
+* Single-instance deployments
+
+---
+
+# ⚠️ Limitations
+
+* Not shared across processes
+* Resets on restart
+* Not suitable for horizontal scaling
+
+---
+
+# 🏁 Summary
+
+* Zero-config store
+* Built-in algorithms
+* Fast, in-process execution
+
+Use this for development and simple deployments. For distributed systems, use a shared store like Redis.

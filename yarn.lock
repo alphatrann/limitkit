@@ -1555,9 +1555,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@limitkit/core@npm:^0.1.5":
-  version: 0.1.5
-  resolution: "@limitkit/core@npm:0.1.5"
+"@limitkit/core@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "@limitkit/core@npm:1.0.0"
   checksum: 10c0/c01571287d7d74acffed036f9e5c3b86d294654dfb16fad0773731d97a6f444877d59e21dff0c645c35cb21d4aec2078f2a6041074914272ce72924c6a3312c0
   languageName: node
   linkType: hard
@@ -1574,7 +1574,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@limitkit/express@workspace:packages/adapters/express"
   dependencies:
-    "@limitkit/core": "npm:^0.1.5"
+    "@limitkit/core": "npm:^1.0.0"
     "@limitkit/memory": "workspace:^"
     "@limitkit/redis": "workspace:^"
     "@types/express": "npm:^5.0.6"
@@ -1590,7 +1590,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@limitkit/memory@workspace:packages/stores/memory"
   dependencies:
-    "@limitkit/core": "npm:^0.1.5"
+    "@limitkit/core": "npm:^1.0.0"
   languageName: unknown
   linkType: soft
 
@@ -1598,7 +1598,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@limitkit/nest@workspace:packages/adapters/nest"
   dependencies:
-    "@limitkit/core": "npm:^0.1.5"
+    "@limitkit/core": "npm:^1.0.0"
     "@limitkit/memory": "workspace:^"
     "@limitkit/redis": "workspace:^"
     "@nestjs/cli": "npm:^11.0.16"
@@ -1624,7 +1624,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@limitkit/redis@workspace:packages/stores/redis"
   dependencies:
-    "@limitkit/core": "npm:^0.1.5"
+    "@limitkit/core": "npm:^1.0.0"
     "@types/node": "npm:^25.4.0"
     redis: "npm:^5.11.0"
   languageName: unknown

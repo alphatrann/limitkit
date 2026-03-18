@@ -1,6 +1,6 @@
 {
   "name": "limitkit",
-  "version": "0.1.5",
+  "version": "1.0.0",
   "private": true,
   "description": "LimitKit is a lightweight Node.js library that enables rate-limiting in a flexible and intuitive for developers.",
   "repository": {

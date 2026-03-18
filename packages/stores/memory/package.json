@@ -1,9 +1,19 @@
 {
   "name": "@limitkit/memory",
-  "version": "0.1.3",
+  "version": "1.0.0",
   "description": "In-memory store for LimitKit",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "keywords": [
+    "rate-limiter",
+    "rate-limiting",
+    "in-memory",
+    "token-bucket",
+    "leaky-bucket",
+    "sliding-window",
+    "gcra",
+    "nodejs"
+  ],
   "files": [
     "dist"
   ],
@@ -16,7 +26,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@limitkit/core": "^0.1.6"
+    "@limitkit/core": "^1.0.0"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",

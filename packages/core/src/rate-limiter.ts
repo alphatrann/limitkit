@@ -1,4 +1,8 @@
-import { BadArgumentsException, EmptyRulesException } from "./exceptions";
+import {
+  BadArgumentsException,
+  EmptyRulesException,
+  UndefinedKeyException,
+} from "./exceptions";
 import {
   Algorithm,
   AlgorithmConfig,
@@ -77,8 +81,8 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
   /**
    * Check if a request should be allowed under the configured rate limits.
    *
-   * Evaluates each rule in order from left to right. Returns as soon as a rule is exceeded (request denied).
-   * If all rules allow the request, returns the result of the last rule evaluated.
+   * Evaluates each rule in order from left to right. Returns the result of the failed rule as soon as a rule is exceeded (request denied).
+   * If all rules allow the request, returns the result aggregated from all the rules.
    *
    * Each rule resolution (key, cost, policy) can be static or dynamic:
    * - Static: evaluated once and reused
@@ -116,6 +120,8 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
           : rule.policy;
       const key =
         typeof rule.key === "function" ? await rule.key(ctx) : rule.key;
+
+      if (!key) throw new UndefinedKeyException(rule.name);
 
       const cost =
         typeof rule.cost === "function" ? await rule.cost(ctx) : rule.cost;
