@@ -6,12 +6,12 @@ import {
 import {
   Algorithm,
   AlgorithmConfig,
-  DebugLimitResult,
+  RateLimitResult,
   Limiter,
   LimitRule,
   RateLimitConfig,
-  RateLimitResult,
   Store,
+  IdentifiedRateLimitRuleResult,
 } from "./types";
 import { addConfigToKey } from "./utils";
 
@@ -38,14 +38,14 @@ import { addConfigToKey } from "./utils";
  *     {
  *       name: 'per-user-limit',
  *       key: (ctx) => ctx.userId,
- *       policy: new RedisFixedWindow({ name: 'fixed-window', window: 60, limit: 100 })
+ *       policy: fixedWindow({ window: 60, limit: 100 })
  *     }
  *   ]
  * });
  *
  * const result = await limiter.consume({ userId: 'user-123' });
  * if (!result.allowed) {
- *   return 429 with headers: Retry-After: result.retryAfter
+ *   return 429 with headers: Retry-After: result.retryAt
  * }
  * ```
  * @see Limiter
@@ -54,7 +54,6 @@ import { addConfigToKey } from "./utils";
  */
 export class RateLimiter<C = unknown> implements Limiter<C> {
   private rules: LimitRule<C>[] = [];
-  private debug: boolean = false;
   private store: Store;
 
   /**
@@ -63,10 +62,9 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * @param config - Configuration for the rate limiter
    * @see RateLimitConfig
    */
-  constructor({ rules, debug, store }: RateLimitConfig<C>) {
+  constructor({ rules, store }: RateLimitConfig<C>) {
     if (rules.length === 0) throw new EmptyRulesException();
     this.rules = rules ?? this.rules;
-    this.debug = debug ?? this.debug;
     this.store = store;
   }
 
@@ -75,7 +73,7 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * @returns {RateLimitConfig<C>}
    */
   get config(): RateLimitConfig<C> {
-    return { rules: this.rules, debug: this.debug, store: this.store };
+    return { rules: this.rules, store: this.store };
   }
 
   /**
@@ -88,6 +86,7 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * - Static: evaluated once and reused
    * - Dynamic: evaluated per request based on context
    * - Async: evaluated asynchronously (e.g., database lookups)
+   *
    *
    * @param ctx - Request context passed to rule resolvers to determine dynamic values.
    * @returns Promise resolving to the rate limit result. If debug mode is enabled,
@@ -102,17 +101,14 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * });
    *
    * if (!result.allowed) {
-   *   console.log(`Rate limited. Retry in ${result.retryAfter} seconds`);
+   *   console.log(`Rate limited. Retry at ${new Date(result.retryAt)}`);
    * }
    * ```
+   *
+   * @throws UndefinedKeyException if the key is empty or undefined
    */
   async consume(ctx: C): Promise<RateLimitResult> {
-    let result;
-    let minRemaining = Infinity;
-    let maxReset = 0;
-    let minLimit = Infinity;
-
-    const debugRules = [];
+    const evaluatedRules: IdentifiedRateLimitRuleResult[] = [];
     for (const rule of this.rules) {
       const algorithm: Algorithm<AlgorithmConfig> =
         typeof rule.policy === "function"
@@ -133,48 +129,27 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
 
       const keyWithConfig = addConfigToKey(algorithm.config, key);
 
-      result = await this.store.consume(
+      const result = await this.store.consume(
         keyWithConfig,
         algorithm,
         Date.now(),
         cost ?? 1,
       );
 
-      minRemaining = Math.min(result.remaining, minRemaining);
-      minLimit = Math.min(result.limit, minLimit);
-      maxReset = Math.max(result.reset, maxReset);
-
-      if (this.debug) {
-        debugRules.push({ ...result, name: rule.name });
-        if (result.allowed) console.log(debugRules);
-        else console.error(debugRules);
-      }
+      evaluatedRules.push({ ...result, name: rule.name });
       if (!result.allowed) {
-        if (this.debug) {
-          const debugResults = {
-            failedRule: rule.name,
-            ...result,
-            details: debugRules,
-          };
-          return debugResults;
-        }
-        return result;
+        return {
+          allowed: result.allowed,
+          failedRule: rule.name,
+          rules: evaluatedRules,
+        };
       }
-    }
-    if (this.debug) {
-      const final = {
-        ...result,
-        details: this.debug ? debugRules : undefined,
-      };
-      console.log(final);
-      return final as DebugLimitResult;
     }
 
     return {
-      ...result!,
-      reset: maxReset,
-      limit: minLimit,
-      remaining: minRemaining,
+      allowed: true,
+      failedRule: null,
+      rules: evaluatedRules,
     };
   }
 }

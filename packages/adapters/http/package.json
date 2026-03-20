@@ -1,19 +1,10 @@
 {
-  "name": "@limitkit/memory",
+  "name": "@limitkit/http",
   "version": "1.0.0",
-  "description": "In-memory store for LimitKit",
+  "description": "Cmmon HTTP logic for Node.js framework adapters",
+  "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "keywords": [
-    "rate-limiter",
-    "rate-limiting",
-    "in-memory",
-    "token-bucket",
-    "leaky-bucket",
-    "sliding-window",
-    "gcra",
-    "nodejs"
-  ],
   "files": [
     "dist"
   ],
@@ -22,14 +13,20 @@
     "type": "git",
     "url": "https://github.com/alphatrann/limitkit"
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "dependencies": {
     "@limitkit/core": "workspace:^"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
     "test": "jest"
+  },
+  "devDependencies": {
+    "@limitkit/memory": "workspace:^",
+    "@limitkit/redis": "workspace:^",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.4.0",
+    "@types/supertest": "^7",
+    "redis": "^5.11.0",
+    "supertest": "^7.2.2"
   }
 }

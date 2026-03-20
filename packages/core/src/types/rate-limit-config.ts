@@ -15,10 +15,4 @@ export interface RateLimitConfig<C = unknown> {
    * The storage backend for tracking rate limit state.
    */
   store: Store;
-
-  /**
-   * Optional. When true, returns detailed information about
-   * each evaluated rule. Useful for troubleshooting. Defaults to false.
-   */
-  debug?: boolean;
 }

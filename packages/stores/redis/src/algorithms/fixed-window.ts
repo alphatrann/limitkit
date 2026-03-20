@@ -53,7 +53,7 @@ import { RedisCompatible } from "../types";
  * The script returns a tuple:
  *
  * ```text
- * {allowed, remaining, reset, retryAfter}
+ * {allowed, remaining, reset, retryAt}
  * ```
  *
  * Where:
@@ -61,7 +61,7 @@ import { RedisCompatible } from "../types";
  * - `allowed` – 1 if the request is permitted, 0 otherwise
  * - `remaining` – remaining tokens in the window
  * - `reset` – timestamp (ms) when the window resets
- * - `retryAfter` – seconds until the next request may succeed
+ * - `retryAt` – seconds until the next request may succeed
  *
  * @example
  * ```ts
@@ -104,8 +104,7 @@ export class RedisFixedWindow extends FixedWindow implements RedisCompatible {
     -- Reject request if limit would be exceeded
     if isStillInCurrentWindow and hasExceededLimit then
       local reset = windowStart + window
-      local retryAfter = math.max(0, math.ceil((reset - now) / 1000))
-      return {0, 0, reset, retryAfter}
+      return {0, 0, reset, reset}
     end
 
     -- Reset window if expired

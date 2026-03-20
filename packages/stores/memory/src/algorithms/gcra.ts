@@ -1,4 +1,8 @@
-import { BadArgumentsException, GCRA, RateLimitResult } from "@limitkit/core";
+import {
+  BadArgumentsException,
+  GCRA,
+  RateLimitRuleResult,
+} from "@limitkit/core";
 import { GCRAState, InMemoryCompatible } from "../types";
 
 /**
@@ -55,8 +59,8 @@ export class InMemoryGCRA
   process(
     state: GCRAState | undefined,
     now: number,
-    cost: number,
-  ): { state: GCRAState; output: RateLimitResult } {
+    cost: number = 1,
+  ): { state: GCRAState; output: RateLimitRuleResult } {
     if (cost > this.config.burst)
       throw new BadArgumentsException(
         `Cost must never exceed config.burst, (cost=${cost}, config.burst=${this.config.burst})`,
@@ -66,7 +70,7 @@ export class InMemoryGCRA
     const burst = this.config.burst;
     const interval = this.config.interval * 1000;
 
-    const burstTolerance = (burst - 1) * interval;
+    const burstTolerance = (burst - cost) * interval;
 
     let { tat } = state;
 
@@ -74,20 +78,18 @@ export class InMemoryGCRA
       tat = now;
     }
 
-    const allowAt = tat - burstTolerance + (cost - 1) * interval;
+    const allowAt = tat - burstTolerance;
 
     // ----- reject -----
     if (now < allowAt) {
-      const retryAfter = Math.max(0, Math.ceil((allowAt - now) / 1000));
-
       return {
         state,
         output: {
           allowed: false,
           remaining: 0,
-          retryAfter,
+          retryAt: allowAt,
           limit: burst,
-          reset: tat,
+          resetAt: tat,
         },
       };
     }
@@ -107,7 +109,7 @@ export class InMemoryGCRA
         allowed: true,
         remaining,
         limit: burst,
-        reset: tat,
+        resetAt: tat,
       },
     };
   }

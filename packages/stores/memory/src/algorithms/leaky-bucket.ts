@@ -1,4 +1,8 @@
-import { BadArgumentsException, LeakyBucket } from "@limitkit/core";
+import {
+  BadArgumentsException,
+  LeakyBucket,
+  RateLimitRuleResult,
+} from "@limitkit/core";
 import { InMemoryCompatible, LeakyBucketState } from "../types";
 
 /**
@@ -49,7 +53,11 @@ export class InMemoryLeakyBucket
    *
    * @throws BadArgumentsException if `cost > config.capacity`
    */
-  process(state: LeakyBucketState | undefined, now: number, cost: number = 1) {
+  process(
+    state: LeakyBucketState | undefined,
+    now: number,
+    cost: number = 1,
+  ): { state: LeakyBucketState; output: RateLimitRuleResult } {
     if (cost > this.config.capacity)
       throw new BadArgumentsException(
         `Cost must never exceed config.capacity, (cost=${cost}, config.capacity=${this.config.capacity})`,
@@ -69,18 +77,16 @@ export class InMemoryLeakyBucket
     // ----- reject -----
     if (queueSize + cost > capacity) {
       const overflow = queueSize + cost - capacity;
-      const retryMs = (overflow / leakRate) * 1000;
-
-      const retryAfter = Math.max(0, Math.ceil(retryMs / 1000));
-      const reset = now + (queueSize / leakRate) * 1000;
+      const retryAt = now + (overflow / leakRate) * 1000;
+      const resetAt = now + (queueSize / leakRate) * 1000;
       return {
         state: { lastLeak, queueSize },
         output: {
           allowed: false,
           limit: capacity,
           remaining: 0,
-          reset,
-          retryAfter,
+          resetAt,
+          retryAt,
         },
       };
     }
@@ -88,7 +94,7 @@ export class InMemoryLeakyBucket
     // ----- accept -----
     queueSize += cost;
 
-    const reset = now + (queueSize / leakRate) * 1000;
+    const resetAt = now + (queueSize / leakRate) * 1000;
     const remaining = Math.max(0, Math.floor(capacity - queueSize));
 
     return {
@@ -97,7 +103,7 @@ export class InMemoryLeakyBucket
         allowed: true,
         limit: capacity,
         remaining,
-        reset,
+        resetAt,
       },
     };
   }

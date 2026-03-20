@@ -1,5 +1,5 @@
 import { createClient, RedisClientType } from "redis";
-import { RedisStore, RedisSlidingWindowCounter, RedisCompatible } from "../src";
+import { RedisStore, RedisCompatible, slidingWindowCounter } from "../src";
 
 import { Algorithm, SlidingWindowCounterConfig } from "@limitkit/core";
 
@@ -18,8 +18,7 @@ describe("RedisSlidingWindowCounter", () => {
 
     store = new RedisStore(redis);
 
-    limiter = new RedisSlidingWindowCounter({
-      name: "sliding-window-counter",
+    limiter = slidingWindowCounter({
       window: WINDOW,
       limit: LIMIT,
     });
@@ -44,7 +43,7 @@ describe("RedisSlidingWindowCounter", () => {
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(LIMIT - i);
       expect(result.limit).toBe(LIMIT);
-      expect(result.retryAfter).toBe(0);
+      expect(result.retryAt).toBeUndefined();
     }
   });
 
@@ -53,17 +52,17 @@ describe("RedisSlidingWindowCounter", () => {
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
-      await store.consume(key, limiter, now);
+      await store.consume(key, limiter, now + i * 200);
     }
 
-    const result = await store.consume(key, limiter, now);
+    const result = await store.consume(key, limiter, now + LIMIT * 200);
 
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
     expect(result.limit).toBe(LIMIT);
 
-    expect(result.retryAfter).toBeGreaterThanOrEqual(0);
-    expect(result.reset).toBeGreaterThan(now);
+    expect(result.retryAt).toBe(now + WINDOW * 1000);
+    expect(result.resetAt).toBe(WINDOW * 2000 + now);
   });
 
   it("should reset after enough time passes", async () => {
@@ -98,19 +97,19 @@ describe("RedisSlidingWindowCounter", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("retryAfter should match next window boundary", async () => {
+  it("retryAt should match next window boundary", async () => {
     const key = "swc-retry-after";
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
-      await store.consume(key, limiter, now);
+      await store.consume(key, limiter, now + i * 200);
     }
 
-    const result = await store.consume(key, limiter, now);
+    const result = await store.consume(key, limiter, now + LIMIT * 200);
 
-    const expectedRetry = Math.ceil((result.reset - now) / 1000);
+    const expectedRetry = now + WINDOW * 1000;
 
-    expect(result.retryAfter).toBeLessThanOrEqual(expectedRetry);
+    expect(result.retryAt).toBeLessThanOrEqual(expectedRetry);
   });
 
   it("cost should consume multiple tokens", async () => {

@@ -1,12 +1,8 @@
-import {
-  BadArgumentsException,
-  SlidingWindowCounterConfig,
-} from "@limitkit/core";
-import { InMemorySlidingWindowCounter } from "../src";
+import { BadArgumentsException } from "@limitkit/core";
+import { InMemorySlidingWindowCounter, slidingWindowCounter } from "../src";
 
 describe("InMemorySlidingWindowCounter", () => {
-  const config: SlidingWindowCounterConfig = {
-    name: "sliding-window-counter",
+  const config = {
     limit: 10,
     window: 10,
   };
@@ -14,29 +10,33 @@ describe("InMemorySlidingWindowCounter", () => {
   const base = 1000000;
 
   beforeEach(() => {
-    limiter = new InMemorySlidingWindowCounter(config);
+    limiter = slidingWindowCounter(config);
   });
 
   test("allows requests within limit", () => {
     let state;
 
     for (let i = 0; i < 5; i++) {
-      const r = limiter.process(state, base);
+      const r = limiter.process(state, base + i * 100);
       state = r.state;
       expect(r.output.allowed).toBe(true);
+      expect(r.output.remaining).toBe(config.limit - i - 1);
+      expect(r.state.count).toBe(i + 1);
     }
   });
 
   test("rejects when effective limit exceeded", () => {
     let state;
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < config.limit; i++) {
       const r = limiter.process(state, base);
       state = r.state;
     }
 
     const r = limiter.process(state, base + 1000);
     expect(r.output.allowed).toBe(false);
+    expect(r.output.resetAt).toBe(base + 2 * config.window * 1000);
+    expect(r.output.retryAt).toBe(base + config.window * 1000);
   });
 
   test("window rollover works", () => {
@@ -52,7 +52,7 @@ describe("InMemorySlidingWindowCounter", () => {
   test("effective calculation uses previous window", () => {
     let state;
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < config.limit; i++) {
       const r = limiter.process(state, base);
       state = r.state;
     }
@@ -62,12 +62,6 @@ describe("InMemorySlidingWindowCounter", () => {
     const r = limiter.process(state, mid);
 
     expect(r.output.allowed).toBe(false);
-  });
-
-  test("reset equals full replenishment", () => {
-    const r = limiter.process(undefined, base);
-
-    expect(r.output.reset).toBe(base + 20000);
   });
 
   test("large time jump clears previous window", () => {

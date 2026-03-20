@@ -1,6 +1,7 @@
 import {
   BadArgumentsException,
   RateLimitResult,
+  RateLimitRuleResult,
   SlidingWindow,
 } from "@limitkit/core";
 import { InMemoryCompatible, SlidingWindowState } from "../types";
@@ -61,7 +62,7 @@ export class InMemorySlidingWindow
     state: SlidingWindowState | undefined,
     now: number,
     cost: number = 1,
-  ): { state: SlidingWindowState; output: RateLimitResult } {
+  ): { state: SlidingWindowState; output: RateLimitRuleResult } {
     if (cost > this.config.limit)
       throw new BadArgumentsException(
         `Cost must never exceed config.limit, (cost=${cost}, config.limit=${this.config.limit})`,
@@ -89,17 +90,18 @@ export class InMemorySlidingWindow
 
     // reject
     if (size + cost > limit) {
+      const oldest = buffer[head];
       const newest = buffer[(head + size - 1) % limit];
-      const reset = newest + windowMs;
-      const retryAfter = Math.max(0, Math.ceil((reset - now) / 1000));
+      const resetAt = newest + windowMs;
+      const retryAt = oldest + windowMs;
       return {
         state,
         output: {
           allowed: false,
           limit,
           remaining: 0,
-          reset,
-          retryAfter,
+          resetAt,
+          retryAt,
         },
       };
     }
@@ -115,7 +117,7 @@ export class InMemorySlidingWindow
     state.size = size;
 
     const remaining = limit - size;
-    const reset = buffer[(head + size - 1) % limit] + windowMs;
-    return { state, output: { allowed: true, limit, remaining, reset } };
+    const resetAt = buffer[(head + size - 1) % limit] + windowMs;
+    return { state, output: { allowed: true, limit, remaining, resetAt } };
   }
 }

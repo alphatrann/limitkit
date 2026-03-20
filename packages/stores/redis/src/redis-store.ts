@@ -1,7 +1,7 @@
 import {
   Algorithm,
   AlgorithmConfig,
-  RateLimitResult,
+  RateLimitRuleResult,
   Store,
 } from "@limitkit/core";
 import { RedisClientType } from "redis";
@@ -142,7 +142,7 @@ export class RedisStore implements Store {
    * - `limit` — maximum number of allowed requests
    * - `remaining` — remaining tokens/requests
    * - `reset` — timestamp when the limit resets
-   * - `retryAfter` — seconds until the request may be retried
+   * - `retryAt` — seconds until the request may be retried
    *
    * @throws BadArgumentsException
    * If the algorithm configuration is invalid.
@@ -152,7 +152,7 @@ export class RedisStore implements Store {
     algorithm: Algorithm<TConfig> & RedisCompatible,
     now: number,
     cost: number = 1,
-  ): Promise<RateLimitResult> {
+  ): Promise<RateLimitRuleResult> {
     // Validate algorithm configuration before executing the script
     algorithm.validate();
 
@@ -178,7 +178,7 @@ export class RedisStore implements Store {
        * This avoids sending the script body across the network and
        * significantly reduces request overhead.
        */
-      const [allowed, remaining, reset, retryAfter] = (await this.redis.evalSha(
+      const [allowed, remaining, resetAt, retryAt] = (await this.redis.evalSha(
         sha,
         {
           keys: [key],
@@ -190,8 +190,8 @@ export class RedisStore implements Store {
         allowed: !!allowed,
         limit: algorithm.limit,
         remaining,
-        reset,
-        retryAfter,
+        resetAt,
+        retryAt: retryAt === 0 ? undefined : retryAt,
       };
     } catch (err: any) {
       /**
@@ -204,7 +204,7 @@ export class RedisStore implements Store {
         sha = await this.redis.scriptLoad(algorithm.luaScript);
         this.scripts.set(algorithm.luaScript, sha);
 
-        const [allowed, remaining, reset, retryAfter] =
+        const [allowed, remaining, resetAt, retryAt] =
           (await this.redis.evalSha(sha, {
             keys: [key],
             arguments: args,
@@ -214,8 +214,8 @@ export class RedisStore implements Store {
           allowed: !!allowed,
           limit: algorithm.limit,
           remaining,
-          reset,
-          retryAfter,
+          resetAt,
+          retryAt: retryAt === 0 ? undefined : retryAt,
         };
       }
 
