@@ -2,7 +2,7 @@ import { FixedWindowState, InMemoryCompatible } from "../types";
 import {
   BadArgumentsException,
   FixedWindow,
-  RateLimitResult,
+  RateLimitRuleResult,
 } from "@limitkit/core";
 
 /**
@@ -60,7 +60,7 @@ export class InMemoryFixedWindow
     state: FixedWindowState | undefined,
     now: number,
     cost: number = 1,
-  ): { state: FixedWindowState; output: RateLimitResult } {
+  ): { state: FixedWindowState; output: RateLimitRuleResult } {
     if (cost > this.config.limit)
       throw new BadArgumentsException(
         `Cost must never exceed config.limit, (cost=${cost}, config.limit=${this.config.limit})`,
@@ -72,16 +72,15 @@ export class InMemoryFixedWindow
 
     const hasExceededLimit = state.count + cost > this.config.limit;
     if (isStillInCurrentWindow && hasExceededLimit) {
-      const reset = state.windowStart + windowInMs;
-      const retryAfter = Math.max(0, Math.ceil((reset - now) / 1000));
+      const resetAt = state.windowStart + windowInMs;
       return {
         state,
         output: {
           allowed: false,
           remaining: 0,
           limit: this.config.limit,
-          reset,
-          retryAfter,
+          resetAt,
+          retryAt: resetAt,
         },
       };
     }
@@ -90,12 +89,12 @@ export class InMemoryFixedWindow
       newState.windowStart = now - (now % windowInMs);
       newState.count = 0;
     }
-    const reset = newState.windowStart + windowInMs;
+    const resetAt = newState.windowStart + windowInMs;
     newState.count += cost;
     const remaining = this.config.limit - newState.count;
     return {
       state: newState,
-      output: { allowed: true, limit: this.config.limit, remaining, reset },
+      output: { allowed: true, limit: this.config.limit, remaining, resetAt },
     };
   }
 }

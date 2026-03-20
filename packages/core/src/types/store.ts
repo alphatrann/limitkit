@@ -1,6 +1,6 @@
 import { Algorithm } from "./algorithm";
 import { AlgorithmConfig } from "./algorithm-config";
-import { RateLimitResult } from "./rate-limit-result";
+import { RateLimitRuleResult } from "./rate-limit-result";
 
 /**
  * Interface for a storage backend that tracks rate limiting state.
@@ -22,12 +22,12 @@ export interface Store {
    * @param now - Unix timestamp in millisecond
    * @param cost - The cost/weight of this request. Defaults to 1. Higher costs consume
    *               more quota (useful for charging different amounts for different operations).
-   * @returns A promise that resolves to the rate limit check result.
+   * @returns A promise that resolves to the rate limit check result for a particular rule.
    */
   consume<TConfig extends AlgorithmConfig>(
     key: string,
     algorithm: Algorithm<TConfig>,
     now: number,
     cost?: number,
-  ): Promise<RateLimitResult>;
+  ): Promise<RateLimitRuleResult>;
 }

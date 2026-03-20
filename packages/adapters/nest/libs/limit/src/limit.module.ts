@@ -133,7 +133,7 @@ export class LimitModule {
    *   imports: [
    *     LimitModule.forRoot({
    *       store: new InMemoryStore(),
-   *       debug: false,
+   *
    *       rules: [
    *         {
    *           name: "global",

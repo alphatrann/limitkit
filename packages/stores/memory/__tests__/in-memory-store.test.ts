@@ -1,4 +1,6 @@
 import {
+  fixedWindow,
+  gcra,
   InMemoryFixedWindow,
   InMemoryGCRA,
   InMemoryLeakyBucket,
@@ -6,6 +8,10 @@ import {
   InMemorySlidingWindowCounter,
   InMemoryStore,
   InMemoryTokenBucket,
+  leakyBucket,
+  slidingWindow,
+  slidingWindowCounter,
+  tokenBucket,
 } from "../src";
 
 const base = 1_000_000;
@@ -15,8 +21,7 @@ function getAlgorithms() {
     {
       name: "FixedWindow",
       instance: () =>
-        new InMemoryFixedWindow({
-          name: "fixed-window",
+        fixedWindow({
           limit: 10,
           window: 10,
         }),
@@ -25,8 +30,7 @@ function getAlgorithms() {
     {
       name: "SlidingWindow",
       instance: () =>
-        new InMemorySlidingWindow({
-          name: "sliding-window",
+        slidingWindow({
           limit: 10,
           window: 10,
         }),
@@ -35,8 +39,7 @@ function getAlgorithms() {
     {
       name: "SlidingWindowCounter",
       instance: () =>
-        new InMemorySlidingWindowCounter({
-          name: "sliding-window-counter",
+        slidingWindowCounter({
           limit: 10,
           window: 10,
         }),
@@ -45,8 +48,7 @@ function getAlgorithms() {
     {
       name: "TokenBucket",
       instance: () =>
-        new InMemoryTokenBucket({
-          name: "token-bucket",
+        tokenBucket({
           capacity: 10,
           refillRate: 5,
         }),
@@ -55,8 +57,7 @@ function getAlgorithms() {
     {
       name: "LeakyBucket",
       instance: () =>
-        new InMemoryLeakyBucket({
-          name: "leaky-bucket",
+        leakyBucket({
           capacity: 10,
           leakRate: 5,
         }),
@@ -64,8 +65,7 @@ function getAlgorithms() {
     },
     {
       name: "GCRA",
-      instance: () =>
-        new InMemoryGCRA({ name: "gcra", burst: 10, interval: 1 }),
+      instance: () => gcra({ burst: 10, interval: 1 }),
       limit: 10,
     },
   ];
@@ -193,7 +193,7 @@ describe("InMemoryStore Global Tests", () => {
     test("reset is always in the future", async () => {
       const r = await store.consume("user", limiter, base);
 
-      expect(r.reset).toBeGreaterThanOrEqual(base);
+      expect(r.resetAt).toBeGreaterThanOrEqual(base);
     });
 
     test("remaining never negative", async () => {

@@ -3,7 +3,7 @@ import { Controller, Get, INestApplication } from "@nestjs/common";
 import * as request from "supertest";
 import { LimitModule } from "../src/limit.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { RedisFixedWindow, RedisStore } from "@limitkit/redis";
+import { slidingWindow, RedisStore } from "@limitkit/redis";
 import { NoLimitController } from "./controllers";
 import { getUserTier } from "./utils";
 import { createClient, RedisClientType } from "redis";
@@ -14,8 +14,7 @@ import { RateLimit, SkipRateLimit } from "../src";
     {
       name: "controller-limit",
       key: (req: any) => req.ip,
-      policy: new RedisFixedWindow({
-        name: "fixed-window",
+      policy: slidingWindow({
         window: 60,
         limit: 3,
       }),
@@ -40,8 +39,7 @@ export class TestController {
       {
         name: "route-limit",
         key: (req: any) => req.ip,
-        policy: new RedisFixedWindow({
-          name: "fixed-window",
+        policy: slidingWindow({
           window: 60,
           limit: 1,
         }),
@@ -81,13 +79,12 @@ describe("LimitModule + Redis (e2e)", () => {
         imports: [
           LimitModule.forRoot({
             store: redisStore,
-            debug: false,
+
             rules: [
               {
                 name: "global-ip-limit",
                 key: (req: any) => req.ip,
-                policy: new RedisFixedWindow({
-                  name: "fixed-window",
+                policy: slidingWindow({
                   window: 60,
                   limit: 5,
                 }),
@@ -201,19 +198,16 @@ describe("LimitModule + Redis (e2e)", () => {
                         : 1001;
                       const tier = await getUserTier(userId);
                       if (tier === "enterprise")
-                        return new RedisFixedWindow({
-                          name: "fixed-window",
+                        return slidingWindow({
                           window: 60,
                           limit: 5,
                         });
                       if (tier === "pro")
-                        return new RedisFixedWindow({
-                          name: "fixed-window",
+                        return slidingWindow({
                           window: 60,
                           limit: 3,
                         });
-                      return new RedisFixedWindow({
-                        name: "fixed-window",
+                      return slidingWindow({
                         window: 60,
                         limit: 1,
                       });
@@ -221,7 +215,6 @@ describe("LimitModule + Redis (e2e)", () => {
                     name: "tier-limit",
                   },
                 ],
-                debug: false,
               };
             },
           }),

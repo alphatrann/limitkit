@@ -9,12 +9,15 @@ import { AlgorithmConfig } from "../types";
  * @warning Avoid nested or non-primitive key-value pairs to ensure deterministic hash value
  *
  * The modified key will have the format: `ratelimit:{algorithm_name}:{sha256_hash}:{key}`
+ *
+ * This prevents accessing corrupted states in the store if the policies are changed.
+ *
  * @param config The algorithm config object
  * @param key The user-defined key
  * @returns {string} A modified key with the format above
  */
 export function addConfigToKey(config: AlgorithmConfig, key: string): string {
-  const sortedKeys = Object.keys(config).sort();
+  const sortedKeys = Object.keys(config ?? {}).sort();
   const sortedConfig = sortedKeys.reduce((acc, k) => {
     acc[k] = (config as any)[k];
     return acc;

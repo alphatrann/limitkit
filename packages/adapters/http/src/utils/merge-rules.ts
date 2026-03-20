@@ -1,4 +1,4 @@
-import { LimitRule } from "../types";
+import { LimitRule } from "@limitkit/core";
 
 /**
  * Merge two arrays of rules by name such that:

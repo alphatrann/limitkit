@@ -27,7 +27,7 @@
     "nodejs"
   ],
   "dependencies": {
-    "@limitkit/core": "^1.0.0",
+    "@limitkit/core": "workspace:^",
     "@nestjs/common": "^11.1.16",
     "@nestjs/core": "^11.1.16",
     "reflect-metadata": "^0.2.2",
@@ -38,6 +38,7 @@
     "test": "jest"
   },
   "devDependencies": {
+    "@limitkit/http": "workspace:^",
     "@limitkit/memory": "workspace:^",
     "@limitkit/redis": "workspace:^",
     "@nestjs/cli": "^11.0.16",

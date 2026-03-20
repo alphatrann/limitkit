@@ -1,5 +1,5 @@
 import { createClient, RedisClientType } from "redis";
-import { RedisStore, RedisGCRA, RedisCompatible } from "../src";
+import { RedisStore, RedisCompatible, gcra } from "../src";
 import { Algorithm, GCRAConfig } from "@limitkit/core";
 
 describe("RedisGCRA", () => {
@@ -17,8 +17,7 @@ describe("RedisGCRA", () => {
 
     store = new RedisStore(redis);
 
-    limiter = new RedisGCRA({
-      name: "gcra",
+    limiter = gcra({
       burst: BURST,
       interval: INTERVAL,
     });
@@ -42,7 +41,7 @@ describe("RedisGCRA", () => {
 
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(BURST - i);
-      expect(result.retryAfter).toBe(0);
+      expect(result.retryAt).toBeUndefined();
     }
   });
 
@@ -58,7 +57,7 @@ describe("RedisGCRA", () => {
 
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
-    expect(result.retryAfter).toBeGreaterThan(0);
+    expect(result.retryAt).toBe(now + INTERVAL * 1000);
   });
 
   it("should allow request after interval passes", async () => {
@@ -84,6 +83,7 @@ describe("RedisGCRA", () => {
 
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(0);
+    expect(result.resetAt).toBe(now + 3000);
   });
 
   it("should reject when cost exceeds burst allowance", async () => {
@@ -97,31 +97,7 @@ describe("RedisGCRA", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("reset should represent when backlog clears", async () => {
-    const key = "gcra-reset";
-    const now = 1_000_000;
-
-    await store.consume(key, limiter, now, 2);
-
-    const result = await store.consume(key, limiter, now);
-
-    expect(result.reset).toBeGreaterThan(now);
-  });
-
-  it("reset should match theoretical arrival time", async () => {
-    const key = "gcra-reset-exact";
-    const now = 1_000_000;
-
-    await store.consume(key, limiter, now);
-
-    const result = await store.consume(key, limiter, now);
-
-    const expected = now + INTERVAL * 1000;
-
-    expect(result.reset).toBeGreaterThanOrEqual(expected);
-  });
-
-  it("retryAfter should exist only when rejected", async () => {
+  it("retryAt should exist only when rejected", async () => {
     const key = "gcra-retry";
     const now = 1_000_000;
 
@@ -132,10 +108,10 @@ describe("RedisGCRA", () => {
     const result = await store.consume(key, limiter, now);
 
     expect(result.allowed).toBe(false);
-    expect(result.retryAfter).toBeGreaterThan(0);
+    expect(result.retryAt).toBeGreaterThan(0);
   });
 
-  it("retryAfter should decrease as time passes", async () => {
+  it("retryAt should decrease as time passes", async () => {
     const key = "gcra-retry-decrease";
     const now = 1_000_000;
 
@@ -146,7 +122,7 @@ describe("RedisGCRA", () => {
     const first = await store.consume(key, limiter, now);
     const later = await store.consume(key, limiter, now + 500);
 
-    expect(later.retryAfter).toBeLessThanOrEqual(first.retryAfter!);
+    expect(later.retryAt).toBeLessThanOrEqual(first.retryAt!);
   });
 
   it("should not exceed burst under concurrency", async () => {

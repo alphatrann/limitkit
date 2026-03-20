@@ -4,23 +4,27 @@
 [![downloads](https://img.shields.io/npm/dw/@limitkit/redis)](https://www.npmjs.com/package/@limitkit/redis)
 [![license](https://img.shields.io/npm/l/@limitkit/redis)](https://github.com/alphatrann/limitkit/blob/main/LICENSE)
 
-**Redis-backed store and algorithms for distributed rate limiting.**
+**Redis-backed store and atomic rate limiting policies for LimitKit.**
 
-Use this in production for consistent limits across multiple instances.
+Designed for **distributed systems**, where multiple instances must share consistent rate limiting state.
 
-Works seamlessly with `@limitkit/core`.
+Each request executes **atomic Lua scripts**, which avoids race conditions and ensures correctness even under high concurrency.
 
 ---
 
-# ⚡ Quick Start
+## ⚡ Installation
 
 ```bash
-npm install @limitkit/redis redis
+npm install @limitkit/core @limitkit/redis redis
 ```
+
+---
+
+## ⚡ Quick Start
 
 ```ts
 import { RateLimiter } from "@limitkit/core";
-import { RedisStore, RedisFixedWindow } from "@limitkit/redis";
+import { RedisStore, fixedWindow } from "@limitkit/redis";
 import { createClient } from "redis";
 
 const client = createClient();
@@ -28,115 +32,116 @@ await client.connect();
 
 const limiter = new RateLimiter({
   store: new RedisStore(client),
+
   rules: [
     {
       name: "global",
       key: "global",
-      policy: new RedisFixedWindow({
+      policy: fixedWindow({
         window: 60,
         limit: 100,
       }),
     },
   ],
 });
+
+await limiter.consume(ctx);
 ```
 
 ---
 
-# 🧩 What’s Included
+## 🧠 How it works
 
-## Store
+Node.js applications send Lua scripts to Redis, which executes them atomically.
 
-```ts
-new RedisStore(client)
+The execution result implies whether the request should be allowed or rejected.
+
 ```
-
-Shared across all instances using Redis.
-
----
-
-## Algorithms
-
-All core strategies are available:
-
-### Fixed Window
-
-```ts
-new RedisFixedWindow({ window: 60, limit: 100 })
-```
-
-### Sliding Window
-
-```ts
-new RedisSlidingWindow({ window: 60, limit: 100 })
-```
-
-### Sliding Window Counter
-
-```ts
-new RedisSlidingWindowCounter({ window: 60, limit: 100 })
-```
-
-### Token Bucket
-
-```ts
-new RedisTokenBucket({ capacity: 100, refillRate: 5 })
-```
-
-### Leaky Bucket
-
-```ts
-new RedisLeakyBucket({ capacity: 100, leakRate: 5 })
-```
-
-### GCRA
-
-```ts
-new RedisGCRA({ burst: 5, interval: 1 })
+app instances → script → Redis → decision
 ```
 
 ---
 
-# 🎯 When to Use
+## 🧩 What’s Included
 
-* Multiple servers / instances
-* Kubernetes or serverless environments
-* Global or shared rate limits
-* Horizontal scaling
+### 🗄 Store
+
+Create and pass a Redis client:
+
+```ts
+import { createClient } from "redis";
+
+const client = createClient({
+  url: "redis://localhost:6379", // set this in a .env file
+});
+
+await client.connect();
+
+new RedisStore(client);
+```
+
+TypeScript may complain about the type mismatch. If needed, explicitly set the type of `client` to `RedisClientType`:
+
+```ts
+import { RedisClientType } from "redis";
+
+const client: RedisClientType = createClient();
+```
 
 ---
 
-# ⚖️ Why Redis
+### ⚙️ Policies
 
-Without a shared store:
+`@limitkit/redis` includes optimized implementations of common rate limiting strategies.
 
-```
-instance A → limit = 100
-instance B → limit = 100
-```
+You have to ensure all the policies use the algorithm functions below from `@limitkit/redis`
 
-→ user effectively gets **200 requests**
-
-With Redis:
-
-```
-shared store → limit = 100 total
+```ts
+import { fixedWindow } from "@limitkit/redis";
 ```
 
-→ consistent enforcement across all instances
+#### Fixed Window
+
+```ts
+fixedWindow({ window: 60, limit: 100 })
+```
 
 ---
 
-# ⚠️ Considerations
+#### Sliding Window
 
-* Requires a running Redis instance
-* Adds network latency (typically minimal)
-* Ensure proper connection handling
+```ts
+slidingWindow({ window: 60, limit: 100 })
+```
 
 ---
 
-# 🏁 Summary
+#### Sliding Window Counter
 
-* Distributed rate limiting
-* Consistent limits across instances
-* Production-ready scaling
+```ts
+slidingWindowCounter({ window: 60, limit: 100 })
+```
+
+---
+
+#### Token Bucket
+
+```ts
+tokenBucket({ capacity: 100, refillRate: 5 })
+```
+
+---
+
+#### Leaky Bucket
+
+```ts
+leakyBucket({ capacity: 100, leakRate: 5 })
+```
+
+---
+
+#### GCRA
+
+```ts
+gcra({ burst: 5, interval: 1 })
+```

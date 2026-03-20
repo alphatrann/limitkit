@@ -1,13 +1,13 @@
 import { createClient, RedisClientType } from "redis";
 import {
   RedisStore,
-  RedisFixedWindow,
-  RedisSlidingWindow,
-  RedisSlidingWindowCounter,
-  RedisTokenBucket,
-  RedisLeakyBucket,
-  RedisGCRA,
   RedisCompatible,
+  slidingWindow,
+  slidingWindowCounter,
+  fixedWindow,
+  tokenBucket,
+  leakyBucket,
+  gcra,
 } from "../src";
 
 import { Algorithm } from "@limitkit/core";
@@ -17,38 +17,32 @@ describe("RedisStore Integration", () => {
   let store: RedisStore;
 
   const algorithms: (Algorithm<any> & RedisCompatible)[] = [
-    new RedisFixedWindow({
-      name: "fixed-window",
+    fixedWindow({
       window: 5,
       limit: 5,
     }),
 
-    new RedisSlidingWindow({
-      name: "sliding-window",
+    slidingWindow({
       window: 5,
       limit: 5,
     }),
 
-    new RedisSlidingWindowCounter({
-      name: "sliding-window-counter",
+    slidingWindowCounter({
       window: 5,
       limit: 5,
     }),
 
-    new RedisTokenBucket({
-      name: "token-bucket",
+    tokenBucket({
       capacity: 5,
       refillRate: 1,
     }),
 
-    new RedisLeakyBucket({
-      name: "leaky-bucket",
+    leakyBucket({
       capacity: 5,
       leakRate: 1,
     }),
 
-    new RedisGCRA({
-      name: "gcra",
+    gcra({
       burst: 5,
       interval: 1,
     }),
@@ -86,8 +80,8 @@ describe("RedisStore Integration", () => {
     expect(result.limit).toBe(algo.limit);
 
     expect(typeof result.remaining).toBe("number");
-    expect(typeof result.reset).toBe("number");
-    expect(typeof result.retryAfter).toBe("number");
+    expect(typeof result.resetAt).toBe("number");
+    expect(typeof result.retryAt).toBe("undefined");
   });
 
   /**
@@ -138,18 +132,15 @@ describe("RedisStore Integration", () => {
    * ---------------------------------------------------------
    */
 
-  it.each(algorithms)(
-    "retryAfter should be 0 when allowed (%p)",
-    async (algo) => {
-      const key = "retry-contract";
-      const now = 1_000_000;
+  it.each(algorithms)("retryAt should be 0 when allowed (%p)", async (algo) => {
+    const key = "retry-contract";
+    const now = 1_000_000;
 
-      const result = await store.consume(key, algo, now);
+    const result = await store.consume(key, algo, now);
 
-      expect(result.allowed).toBe(true);
-      expect(result.retryAfter).toBe(0);
-    },
-  );
+    expect(result.allowed).toBe(true);
+    expect(result.retryAt).toBeUndefined();
+  });
 
   /**
    * ---------------------------------------------------------
@@ -205,8 +196,8 @@ describe("RedisStore Integration", () => {
       expect(result).toHaveProperty("allowed");
       expect(result).toHaveProperty("limit");
       expect(result).toHaveProperty("remaining");
-      expect(result).toHaveProperty("reset");
-      expect(result).toHaveProperty("retryAfter");
+      expect(result).toHaveProperty("resetAt");
+      expect(result).toHaveProperty("retryAt");
     },
   );
 
@@ -238,12 +229,12 @@ describe("RedisStore Integration", () => {
 
         expect(result.remaining).toBeGreaterThanOrEqual(0);
 
-        expect(result.reset).toBeGreaterThanOrEqual(now);
+        expect(result.resetAt).toBeGreaterThanOrEqual(now);
 
         if (result.allowed) {
-          expect(result.retryAfter).toBe(0);
+          expect(result.retryAt).toBeUndefined();
         } else {
-          expect(result.retryAfter).toBeGreaterThanOrEqual(0);
+          expect(result.retryAt).toBeGreaterThanOrEqual(0);
         }
       }
     },

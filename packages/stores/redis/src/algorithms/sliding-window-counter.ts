@@ -54,7 +54,7 @@ import { RedisCompatible } from "../types";
  * ## Script Return Value
  *
  * ```text
- * {allowed, remaining, reset, retryAfter}
+ * {allowed, remaining, reset, retryAt}
  * ```
  *
  * @see SlidingWindowCounter
@@ -102,11 +102,8 @@ export class RedisSlidingWindowCounter
     local reset = 2 * window + windowStart
 
     if effective + cost > limit then
-      local retryAfter = math.max(
-        0,
-        math.ceil((windowStart + window - now) / 1000)
-      ) -- in seconds
-      return {0, 0, reset, retryAfter} -- {allowed, remaining, reset, retryAfter}
+      local retryAt = windowStart + window
+      return {0, 0, reset, retryAt} -- {allowed, remaining, reset, retryAt}
     end
 
     count = count + cost

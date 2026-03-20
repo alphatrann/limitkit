@@ -9,5 +9,6 @@
       "@limitkit/nest": ["libs/limit/src/index.ts"],
       "@limitkit/nest/*": ["libs/limit/src/*"]
     }
-  }
+  },
+  "exclude": ["node_modules", "dist", "tests", "**/*test.ts", "**/*spec.ts"]
 }

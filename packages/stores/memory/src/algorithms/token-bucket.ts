@@ -1,6 +1,7 @@
 import {
   BadArgumentsException,
   RateLimitResult,
+  RateLimitRuleResult,
   TokenBucket,
 } from "@limitkit/core";
 import { InMemoryCompatible, TokenBucketState } from "../types";
@@ -57,7 +58,7 @@ export class InMemoryTokenBucket
     state: TokenBucketState | undefined,
     now: number,
     cost: number = 1,
-  ): { state: TokenBucketState; output: RateLimitResult } {
+  ): { state: TokenBucketState; output: RateLimitRuleResult } {
     if (cost > this.config.capacity)
       throw new BadArgumentsException(
         `Cost must never exceed config.capacity, (cost=${cost}, config.capacity=${this.config.capacity})`,
@@ -81,10 +82,9 @@ export class InMemoryTokenBucket
     // ----- reject -----
     if (tokens < cost) {
       const tokensNeeded = cost - tokens;
-      const retryMs = (tokensNeeded / refillRate) * 1000;
-
-      const retryAfter = Math.max(0, Math.ceil(retryMs / 1000));
-      const reset = now + ((capacity - tokens) / refillRate) * 1000;
+      const retryAt = now + Math.ceil((tokensNeeded / refillRate) * 1000);
+      const resetAt =
+        now + Math.ceil(((capacity - tokens) / refillRate) * 1000);
 
       return {
         state: { tokens, lastRefill },
@@ -92,8 +92,8 @@ export class InMemoryTokenBucket
           allowed: false,
           limit: capacity,
           remaining: Math.floor(tokens),
-          retryAfter,
-          reset,
+          retryAt,
+          resetAt,
         },
       };
     }
@@ -101,7 +101,7 @@ export class InMemoryTokenBucket
     // ----- accept -----
     tokens -= cost;
 
-    const reset = now + ((capacity - tokens) / refillRate) * 1000;
+    const resetAt = now + ((capacity - tokens) / refillRate) * 1000;
 
     return {
       state: { tokens, lastRefill },
@@ -109,7 +109,7 @@ export class InMemoryTokenBucket
         allowed: true,
         limit: capacity,
         remaining: Math.floor(tokens),
-        reset,
+        resetAt,
       },
     };
   }

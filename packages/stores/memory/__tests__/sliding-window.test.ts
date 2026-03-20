@@ -1,9 +1,8 @@
 import { BadArgumentsException, SlidingWindowConfig } from "@limitkit/core";
-import { InMemorySlidingWindow } from "../src";
+import { InMemorySlidingWindow, slidingWindow } from "../src";
 
 describe("InMemorySlidingWindow", () => {
-  const config: SlidingWindowConfig = {
-    name: "sliding-window",
+  const config = {
     limit: 3,
     window: 10,
   };
@@ -11,35 +10,35 @@ describe("InMemorySlidingWindow", () => {
   const base = 1000000;
 
   beforeEach(() => {
-    limiter = new InMemorySlidingWindow(config);
+    limiter = slidingWindow(config);
   });
 
   test("allows requests within limit", () => {
     let state;
 
-    const r1 = limiter.process(state, base);
-    state = r1.state;
-    const r2 = limiter.process(state, base + 1000);
-    state = r2.state;
-    const r3 = limiter.process(state, base + 2000);
-
-    expect(r1.output.allowed).toBe(true);
-    expect(r2.output.allowed).toBe(true);
-    expect(r3.output.allowed).toBe(true);
-    expect(r3.output.remaining).toBe(0);
+    for (let i = 0; i < config.limit; i++) {
+      const r = limiter.process(state, base + i * 100);
+      state = r.state;
+      expect(r.output.remaining).toBe(config.limit - i - 1);
+      expect(r.output.allowed).toBe(true);
+      expect(r.state.size).toBe(i + 1);
+    }
   });
 
   test("rejects when limit exceeded", () => {
     let state;
 
-    for (let i = 0; i < 3; i++) {
-      const r = limiter.process(state, base);
+    for (let i = 0; i < config.limit; i++) {
+      const r = limiter.process(state, base + i * 100);
       state = r.state;
     }
 
-    const r = limiter.process(state, base);
+    const r = limiter.process(state, base + config.limit * 100);
     expect(r.output.allowed).toBe(false);
-    expect(r.output.retryAfter).toBeGreaterThan(0);
+    expect(r.output.resetAt).toBe(
+      base + (config.limit - 1) * 100 + config.window * 1000,
+    );
+    expect(r.output.retryAt).toBe(base + config.window * 1000);
   });
 
   test("expired entries are removed", () => {
@@ -53,13 +52,6 @@ describe("InMemorySlidingWindow", () => {
     expect(r2.state.size).toBe(1);
   });
 
-  test("reset equals newest + window", () => {
-    let state;
-
-    const r = limiter.process(state, base);
-    expect(r.output.reset).toBe(base + 10000);
-  });
-
   test("concurrent burst obeys limit", () => {
     let state;
     let allowed = 0;
@@ -70,7 +62,7 @@ describe("InMemorySlidingWindow", () => {
       if (r.output.allowed) allowed++;
     }
 
-    expect(allowed).toBe(3);
+    expect(allowed).toBe(config.limit);
   });
 
   test("large time jump clears buffer", () => {

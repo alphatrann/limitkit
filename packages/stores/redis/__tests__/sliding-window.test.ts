@@ -1,5 +1,5 @@
 import { createClient, RedisClientType } from "redis";
-import { RedisStore, RedisSlidingWindow, RedisCompatible } from "../src";
+import { RedisStore, RedisCompatible, slidingWindow } from "../src";
 import { Algorithm, SlidingWindowConfig } from "@limitkit/core";
 
 describe("RedisSlidingWindow", () => {
@@ -17,8 +17,7 @@ describe("RedisSlidingWindow", () => {
 
     store = new RedisStore(redis);
 
-    limiter = new RedisSlidingWindow({
-      name: "sliding-window",
+    limiter = slidingWindow({
       window: WINDOW,
       limit: LIMIT,
     });
@@ -43,7 +42,7 @@ describe("RedisSlidingWindow", () => {
       expect(result.allowed).toBe(true);
       expect(result.limit).toBe(LIMIT);
       expect(result.remaining).toBe(LIMIT - i);
-      expect(result.retryAfter).toBe(0);
+      expect(result.retryAt).toBeUndefined();
     }
   });
 
@@ -52,17 +51,17 @@ describe("RedisSlidingWindow", () => {
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
-      await store.consume(key, limiter, now);
+      await store.consume(key, limiter, now + i * 500);
     }
 
-    const result = await store.consume(key, limiter, now);
+    const result = await store.consume(key, limiter, now + LIMIT * 500);
 
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
     expect(result.limit).toBe(LIMIT);
 
-    expect(result.retryAfter).toBeGreaterThanOrEqual(0);
-    expect(result.reset).toBeGreaterThan(now);
+    expect(result.retryAt).toBe(now + WINDOW * 1000);
+    expect(result.resetAt).toBe(now + (LIMIT - 1) * 500 + WINDOW * 1000);
   });
 
   it("should allow requests again after window passes", async () => {
@@ -70,10 +69,10 @@ describe("RedisSlidingWindow", () => {
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
-      await store.consume(key, limiter, now + i);
+      await store.consume(key, limiter, now + i * 500);
     }
 
-    const afterWindow = now + WINDOW * 1000 + 10;
+    const afterWindow = now + LIMIT * 500 + WINDOW * 1000;
 
     const result = await store.consume(key, limiter, afterWindow);
 
@@ -89,10 +88,10 @@ describe("RedisSlidingWindow", () => {
 
     const result = await store.consume(key, limiter, now + 1000);
 
-    expect(result.reset).toBe(now + 1000 + WINDOW * 1000);
+    expect(result.resetAt).toBe(now + 1000 + WINDOW * 1000);
   });
 
-  it("retryAfter should match reset timestamp", async () => {
+  it("retryAt should match oldest timestamp + window ms", async () => {
     const key = "sliding-retry-after";
     const now = 1_000_000;
 
@@ -102,9 +101,7 @@ describe("RedisSlidingWindow", () => {
 
     const result = await store.consume(key, limiter, now + LIMIT * 500);
 
-    const expectedRetry = Math.ceil((LIMIT * 500) / 1000);
-
-    expect(result.retryAfter).toBe(expectedRetry);
+    expect(result.retryAt).toBe(now + WINDOW * 1000);
   });
 
   it("cost should consume multiple tokens", async () => {

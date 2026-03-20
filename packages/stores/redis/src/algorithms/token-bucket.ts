@@ -48,7 +48,7 @@ import { RedisCompatible } from "../types";
  * ## Script Return Value
  *
  * ```text
- * {allowed, remaining, reset, retryAfter}
+ * {allowed, remaining, reset, retryAt}
  * ```
  *
  * - `remaining` represents remaining tokens in the bucket.
@@ -80,12 +80,10 @@ export class RedisTokenBucket extends TokenBucket implements RedisCompatible {
 
     lastRefill = now
     if tokens < cost then
-      local tokensNeeded = cost - tokens
-      local retryMs = (tokensNeeded / refillRate) * 1000
 
-      local retryAfter = math.max(0, math.ceil(retryMs / 1000)) -- in seconds
-      local reset = now + ((capacity - tokens) / refillRate) * 1000
-      return {0, 0, reset, retryAfter}
+      local retryAt = now + math.ceil((cost - tokens) / refillRate * 1000)
+      local reset = now + math.ceil((capacity - tokens) / refillRate * 1000)
+      return {0, 0, reset, retryAt}
     end
 
     tokens = tokens - cost
@@ -93,8 +91,8 @@ export class RedisTokenBucket extends TokenBucket implements RedisCompatible {
     redis.call("HSET", key, "lastRefill", lastRefill, "tokens", tokens)
     redis.call("PEXPIRE", key, math.ceil((capacity / refillRate) * 1000))
 
-    local reset = now + ((capacity - tokens) / refillRate) * 1000
-    return {1, tokens, reset, 0}
+    local reset = now + math.ceil((capacity - tokens) / refillRate * 1000)
+    return {1, math.floor(tokens), reset, 0}
   `;
 
   get limit(): number {
