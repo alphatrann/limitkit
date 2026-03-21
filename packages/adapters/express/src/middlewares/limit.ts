@@ -19,7 +19,7 @@ const defaultRateLimitResponse = {
  *
  * - `RateLimit-Limit` — Maximum number of requests allowed in the window
  * - `RateLimit-Remaining` — Remaining requests in the current window
- * - `RateLimit-Reset` — Time (in seconds) until the limit resets
+ * - `Reset-After — Seconds until the rate limit fully resets.
  * - `Retry-After` — Time (in seconds) the client should wait before retrying (only when limited)
  *
  * Route-specific configuration may provide additional rate-limit rules.

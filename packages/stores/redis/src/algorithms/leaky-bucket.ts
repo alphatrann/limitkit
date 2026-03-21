@@ -51,7 +51,11 @@ import { RedisCompatible } from "../types";
  * {allowed, remaining, reset, retryAt}
  * ```
  *
- * - `remaining` represents remaining tokens in the bucket.
+ * Where:
+ * - `allowed` – 1 if request is permitted
+ * - `remaining` – number of empty slots in the queue
+ * - `reset` – timestamp (ms) when capacity will refresh
+ * - `retryAt` – timestamp (ms) when the next request may succeed
  *
  * @see TokenBucket
  * @see RedisStore

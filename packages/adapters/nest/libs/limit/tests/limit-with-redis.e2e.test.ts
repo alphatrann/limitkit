@@ -115,7 +115,7 @@ describe("LimitModule + Redis (e2e)", () => {
 
       expect(res1.headers["ratelimit-limit"]).toBe("5");
       expect(res1.headers["ratelimit-remaining"]).toBe("4");
-      expect(res1.headers["ratelimit-reset"]).toBeDefined();
+      expect(res1.headers["reset-after"]).toBeDefined();
 
       const res2 = await request(server()).get("/limited").expect(200);
 
@@ -158,7 +158,7 @@ describe("LimitModule + Redis (e2e)", () => {
 
       expect(res.headers["ratelimit-limit"]).toBeUndefined();
       expect(res.headers["ratelimit-remaining"]).toBeUndefined();
-      expect(res.headers["ratelimit-reset"]).toBeUndefined();
+      expect(res.headers["reset-after"]).toBeUndefined();
     });
   });
 

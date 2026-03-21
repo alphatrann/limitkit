@@ -58,10 +58,10 @@ import { RedisCompatible } from "../types";
  *
  * Where:
  *
- * - `allowed` – 1 if the request is permitted, 0 otherwise
- * - `remaining` – remaining tokens in the window
- * - `reset` – timestamp (ms) when the window resets
- * - `retryAt` – seconds until the next request may succeed
+ * - `allowed` – 1 if request is permitted
+ * - `remaining` – remaining requests within the window
+ * - `reset` – timestamp (ms) when capacity will refresh
+ * - `retryAt` – timestamp (ms) when the next request may succeed
  *
  * @example
  * ```ts

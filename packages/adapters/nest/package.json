@@ -27,14 +27,14 @@
     "nodejs"
   ],
   "dependencies": {
-    "@limitkit/core": "workspace:^",
+    "@limitkit/core": "^1.0.2",
     "@nestjs/common": "^11.1.16",
     "@nestjs/core": "^11.1.16",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "scripts": {
-    "build": "nest build limit",
+    "build": "node build.js",
     "test": "jest"
   },
   "devDependencies": {

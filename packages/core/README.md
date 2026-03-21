@@ -200,35 +200,34 @@ In the snippet below, assuming the `/report` endpoint performs expensive computa
 
 ```ts
 interface RateLimitResult {
-  allowed: boolean,
-  limit: number,
-  remaining: number,
-  reset: number,
-  retryAt?: number
+  allowed: boolean;
   failedAt: string | null;
-  details: (RateLimitResult & { name: string })[]
+  rules: IdentifiedRateLimitRuleResult[]
 }
 ```
 
 | Field        | Meaning                            |
 | ------------ | ---------------------------------- |
 | `allowed`    | request permitted or blocked       |
-| `limit`      | maximum requests allowed           |
-| `remaining`  | remaining quota                    |
-| `reset`      | timestamp (ms) when quota fully resets   |
-| `retryAt` | seconds until next allowed request |
 | `failedAt`   | the name of the rule failed, `null` if every rule passes |
-| `details`   | an array of results for each rule evaluated and the rule's name |
+| `rules`      | an array containing the results of all evaluated rules |
 
-When the request is allowed:
-* The `limit` is the **minimum** of all the rules.
-* The `remaining` is the **minimum** of all the rules.
-* The `reset` is the **maximum** of all the rules.
-
+The result of each evaluated rule is represented as `IdentifiedRateLimitRuleResult` interface:
 
 ```ts
-interface DebugLimitResult extends RateLimitResult {
-  failedAt: string | null;
-  details: (RateLimitResult & { name: string })[];
+interface IdentifiedRateLimitRuleResult {
+  allowed: boolean;
+  limit: number;
+  remaining: number;
+  resetAt: number;
+  retryAt?: number;
 }
 ```
+
+| Field        | Meaning                            |
+| ------------ | ---------------------------------- |
+| `allowed`    | request permitted or blocked by the rule      |
+| `limit`   | the maximum number of requests allowed by the rule |
+| `remaining`      | the remaining number of requests allowed by the rule |
+| `resetAt`      | the Unix timestamp (ms) after which the limit for the rule fully resets |
+| `retryAt`      | the Unix timestamp (ms) after which the request is allowed by the rule (`undefined` when allowed) |

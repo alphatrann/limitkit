@@ -1,5 +1,3 @@
-import { RateLimit, SkipRateLimit } from "./decorators";
-
 /**
  * Rate limit config token used when registering the configuration in LimitModule
  */

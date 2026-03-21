@@ -147,6 +147,14 @@ Example:
 consume(context: Request): Promise<ConsumeResult>
 ```
 
+### Formatting
+
+To ensure consistent formatting, check that:
+
+- Formatter: Prettier
+- Tab size: 2
+- Enable Format on save
+
 ---
 
 # Adding New Algorithms

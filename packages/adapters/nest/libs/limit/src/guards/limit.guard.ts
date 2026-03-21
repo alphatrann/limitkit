@@ -67,7 +67,7 @@ import {
  *
  * - `RateLimit-Limit` — Maximum number of requests allowed in the current window.
  * - `RateLimit-Remaining` — Remaining requests in the current window.
- * - `RateLimit-Reset` — Seconds until the rate limit window resets.
+ * - `Reset-After` — Seconds until the rate limit fully resets.
  *
  * If the request exceeds the limit:
  *
@@ -127,10 +127,7 @@ import {
  */
 @Injectable()
 export class LimitGuard implements CanActivate {
-  constructor(
-    private limiter: RateLimiter,
-    private reflector: Reflector,
-  ) {}
+  constructor(private limiter: RateLimiter, private reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest();

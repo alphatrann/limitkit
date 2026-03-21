@@ -37,7 +37,7 @@ describe("toRateLimitHeaders", () => {
 
     expect(headers["RateLimit-Limit"]).toBe(10);
     expect(headers["RateLimit-Remaining"]).toBe(1);
-    expect(headers["RateLimit-Reset"]).toBe(Math.ceil((1500 - now) / 1000));
+    expect(headers["Reset-After"]).toBe(Math.ceil((1500 - now) / 1000));
   });
 
   it("uses failed rule when rejected", () => {

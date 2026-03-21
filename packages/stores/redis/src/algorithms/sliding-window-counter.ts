@@ -57,6 +57,12 @@ import { RedisCompatible } from "../types";
  * {allowed, remaining, reset, retryAt}
  * ```
  *
+ * Where:
+ * - `allowed` – 1 if request is permitted
+ * - `remaining` – remaining requests within the window
+ * - `reset` – timestamp (ms) when capacity will refresh
+ * - `retryAt` – timestamp (ms) when the next request may succeed
+ *
  * @see SlidingWindowCounter
  * @see RedisStore
  */

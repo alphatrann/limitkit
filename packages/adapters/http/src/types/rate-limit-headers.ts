@@ -15,7 +15,7 @@ export interface RateLimitHeaders {
   /**
    * Seconds to wait until the limit fully resets
    */
-  "RateLimit-Reset": number;
+  "Reset-After": number;
 
   /**
    * Seconds to wait until the next allowed request.
