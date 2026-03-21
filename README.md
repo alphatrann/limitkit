@@ -15,6 +15,7 @@ LimitKit is a **rate limiting engine**, not just a middleware — designed for s
 * [🧩 Core Concepts](#-core-concepts)
 * [🧠 Policies](#-policies)
 * [🎯 Real-World Example](#-real-world-example)
+* [⚠️ Unexpected Behavior](#️-unexpected-behavior)
 * [⚙️ Packages](#️-packages)
 * [🧑‍💻 Common Recipes](#-common-recipes)
 * [🤝 Contributing](#-contributing)
@@ -248,17 +249,47 @@ const limiter = new RateLimiter({
 
 ---
 
+## ⚠️ Unexpected Behavior
+
+Note that in some examples, `req.user` may be undefined if applied to every endpoint, which results in unexpected rate limiting behavior. There are two ways of handling this: raising exceptions or creating limiters.
+
+If you are using Express.js and NestJS, LimitKit has supported overriding and appending rules for routes via `@limitkit/express` and `@limitkit/nest` respectively.
+
+### Raising Exceptions
+
+Raise an exception if `req.user` is defined. However, this only works if all the routes require authentication.
+```ts
+      key: (req) => {
+        if (!req.user) throw new Error("Unauthorized")
+        return "acc:" + req.user.id
+      }
+```
+
+### Creating Limiters
+
+Create a separate `limiter` instance that enforces both global rules and rules which require authentication.
+
+> Ensure all the limiters access the same `store` instance.
+
+```ts
+const store = new InMemoryStore()
+const globalLimiter = new RateLimiter({ store, rules: globalRules })
+const authenticatedLimiter = new RateLimiter({ store, rules: [...globalRules, ...authenticatedRules] })
+```
+
+---
+
 ## ⚙️ Packages
 
 LimitKit currently supports five main packages:
 
 | Package             | Role                         | Category    | Status      |
 | ------------------- | ---------------------------- | ----------- | ----------- |
-| `@limitkit/core`    | Orchestration engine         | Core        | Required    |
-| `@limitkit/redis`   | Redis-backed atomic policies | Storage     | Production  |
-| `@limitkit/memory`  | In-memory policies           | Storage     | Development |
-| `@limitkit/express` | Express middleware           | Adapter     | Optional    |
-| `@limitkit/nest`    | NestJS guard and decorators  | Adapter     | Optional    |
+| [`@limitkit/core`](./packages/core/README.md)    | Orchestration engine         | Core        | Required    |
+| [`@limitkit/redis`](./packages/stores/redis/README.md)   | Redis-backed atomic policies | Storage     | Production  |
+| [`@limitkit/memory`](./packages/stores/memory/README.md)  | In-memory policies           | Storage     | Development |
+| [`@limitkit/express`](./packages/adapters/express/README.md) | Express middleware           | Adapter     | Optional    |
+| [`@limitkit/nest`](./packages/adapters/nest/README.md)    | NestJS guard and decorators  | Adapter     | Optional    |
 
 ---
 
