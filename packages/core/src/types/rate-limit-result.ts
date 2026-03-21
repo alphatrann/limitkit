@@ -1,10 +1,9 @@
 /**
- * Result of a rate limit check for a single request.
+ * Result of evaluating a single rate limit rule.
  *
- * Indicates whether the request is allowed, the maximum number of requests can be made, how many requests remain in the current
- * window, when the limit resets and how many seconds to wait before retrying.
+ * Represents the state of one rule (e.g., per-IP, per-user).
  */
-export interface RateLimitResult {
+export interface RateLimitRuleResult {
   /**
    * Whether the request is allowed (true = within limits, false = limit exceeded).
    */
@@ -25,31 +24,43 @@ export interface RateLimitResult {
    * Unix timestamp (in milliseconds) when the rate limit counter fully resets.
    * Useful for implementing client-side backoff strategies.
    */
-  reset: number;
+  resetAt: number;
 
   /**
-   * If the request is rate limited, suggests how many seconds to wait before retrying.
-   * Clients should use exponential backoff and add jitter, rather than strictly following this value.
-   * Only present when `allowed` is false.
+   * If the request is rate limited, suggests the timestamp to retry.
+   * Defined only present when `allowed` is false.
    */
-  retryAfter?: number;
+  retryAt?: number;
+}
+
+export interface IdentifiedRateLimitRuleResult extends RateLimitRuleResult {
+  /**
+   * Unique name of the rule.
+   */
+  name: string;
 }
 
 /**
- * Extended rate limit result with debug information.
+ * Result of a rate limit check across all rules.
  *
- * Returned when debug mode is enabled on the RateLimiter. Includes details about
- * all evaluated rules and which rule caused the rate limit (if any).
+ * This is a composable, lossless representation of all evaluated rules.
+ * No aggregation or interpretation is applied at this level.
  */
-export interface DebugLimitResult extends RateLimitResult {
+export interface RateLimitResult {
   /**
-   * The name of the rule that caused the rate limit to be exceeded.
-   * If the request was allowed, this is null.
+   * Whether the request is allowed across all rules.
+   * Equivalent to: all(rule.allowed === true)
+   */
+  allowed: boolean;
+
+  /**
+   * The name of the rule that caused the rejection.
+   * Null if the request was allowed.
    */
   failedRule: string | null;
 
   /**
-   * An array of results from the first rule to the first failed one
+   * Results for each evaluated rule, in order.
    */
-  details: (RateLimitResult & { name: string })[];
+  rules: IdentifiedRateLimitRuleResult[];
 }

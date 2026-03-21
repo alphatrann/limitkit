@@ -48,10 +48,14 @@ import { RedisCompatible } from "../types";
  * ## Script Return Value
  *
  * ```text
- * {allowed, remaining, reset, retryAfter}
+ * {allowed, remaining, reset, retryAt}
  * ```
  *
- * - `reset` represents the next theoretical arrival time.
+ * Where:
+ * - `allowed` – 1 if request is permitted
+ * - `remaining` – remaining requests allowed
+ * - `reset` – timestamp (ms) of the TAT
+ * - `retryAt` – timestamp (ms) when the next request may succeed
  *
  * @see GCRA
  * @see RedisStore
@@ -76,8 +80,7 @@ export class RedisGCRA extends GCRA implements RedisCompatible {
     local allowAt = tat - burstTolerance
 
     if now < allowAt then
-      local retryAfter = math.max(0, math.ceil((allowAt - now) / 1000))
-      return {0, 0, tat, retryAfter}
+      return {0, 0, tat, allowAt}
     end
 
     tat = math.max(now, tat) + cost * interval

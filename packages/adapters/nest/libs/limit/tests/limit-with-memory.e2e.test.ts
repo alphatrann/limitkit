@@ -2,7 +2,11 @@ import { Test } from "@nestjs/testing";
 import { Controller, Get, INestApplication } from "@nestjs/common";
 import * as request from "supertest";
 import { LimitModule } from "../src/limit.module";
-import { InMemoryFixedWindow, InMemoryStore } from "@limitkit/memory";
+import {
+  InMemoryFixedWindow,
+  InMemoryStore,
+  slidingWindow,
+} from "@limitkit/memory";
 import { getUserTier } from "./utils";
 import { RateLimit, SkipRateLimit } from "../src";
 import { NoLimitController } from "./controllers";
@@ -12,8 +16,7 @@ import { NoLimitController } from "./controllers";
     {
       name: "controller-limit",
       key: (req: any) => req.ip,
-      policy: new InMemoryFixedWindow({
-        name: "fixed-window",
+      policy: slidingWindow({
         window: 60,
         limit: 3,
       }),
@@ -38,8 +41,7 @@ export class TestController {
       {
         name: "route-limit",
         key: (req: any) => req.ip,
-        policy: new InMemoryFixedWindow({
-          name: "fixed-window",
+        policy: slidingWindow({
           window: 60,
           limit: 1,
         }),
@@ -61,13 +63,12 @@ describe("LimitModule + in-memory tests", () => {
         imports: [
           LimitModule.forRoot({
             store: new InMemoryStore(),
-            debug: false,
+
             rules: [
               {
                 name: "global-ip-limit",
                 key: (req: any) => req.ip,
-                policy: new InMemoryFixedWindow({
-                  name: "fixed-window",
+                policy: slidingWindow({
                   window: 60,
                   limit: 5,
                 }),
@@ -102,7 +103,7 @@ describe("LimitModule + in-memory tests", () => {
 
       expect(res1.headers["ratelimit-limit"]).toBe("5");
       expect(res1.headers["ratelimit-remaining"]).toBe("4");
-      expect(res1.headers["ratelimit-reset"]).toBeDefined();
+      expect(res1.headers["reset-after"]).toBeDefined();
 
       const res2 = await request(server()).get("/limited").expect(200);
 
@@ -145,7 +146,7 @@ describe("LimitModule + in-memory tests", () => {
 
       expect(res.headers["ratelimit-limit"]).toBeUndefined();
       expect(res.headers["ratelimit-remaining"]).toBeUndefined();
-      expect(res.headers["ratelimit-reset"]).toBeUndefined();
+      expect(res.headers["reset-after"]).toBeUndefined();
     });
   });
 
@@ -170,19 +171,16 @@ describe("LimitModule + in-memory tests", () => {
                         : 1001;
                       const tier = await getUserTier(userId);
                       if (tier === "enterprise")
-                        return new InMemoryFixedWindow({
-                          name: "fixed-window",
+                        return slidingWindow({
                           window: 60,
                           limit: 5,
                         });
                       if (tier === "pro")
-                        return new InMemoryFixedWindow({
-                          name: "fixed-window",
+                        return slidingWindow({
                           window: 60,
                           limit: 3,
                         });
-                      return new InMemoryFixedWindow({
-                        name: "fixed-window",
+                      return slidingWindow({
                         window: 60,
                         limit: 1,
                       });
@@ -190,7 +188,6 @@ describe("LimitModule + in-memory tests", () => {
                     name: "tier-limit",
                   },
                 ],
-                debug: false,
               };
             },
           }),

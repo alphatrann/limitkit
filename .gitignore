@@ -28,7 +28,9 @@ yarn-error.log*
 .env.*.local
 
 # editors
-.vscode
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
 .idea
 
 # os

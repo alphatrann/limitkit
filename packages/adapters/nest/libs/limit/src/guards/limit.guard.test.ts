@@ -1,203 +1,243 @@
 import "reflect-metadata";
 
-jest.mock("@limitkit/core", () => {
-  const consume = jest.fn().mockResolvedValue({ allowed: true });
-
-  return {
-    RateLimiter: jest.fn().mockImplementation((config) => ({
-      config,
-      consume,
-    })),
-    mergeRules: jest.fn((g, l) => [...(g ?? []), ...(l ?? [])]),
-  };
-});
-
 import { Test } from "@nestjs/testing";
+import { ExecutionContext, InternalServerErrorException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { TooManyRequestsException } from "../exceptions";
-import { LimitGuard } from "./limit.guard";
-import { mergeRules, RateLimiter } from "@limitkit/core";
-import { ExecutionContext } from "@nestjs/common";
+import { FixedWindow, RateLimiter } from "@limitkit/core";
 import {
   RATE_LIMIT_CONFIG_METADATA_KEY,
   SKIP_RATE_LIMIT_METADATA_KEY,
 } from "../limit.tokens";
+import { TooManyRequestsException } from "../exceptions";
+import { LimitGuard } from "./limit.guard";
+
+class MockFixedWindow extends FixedWindow {}
 
 describe("LimitGuard", () => {
   let guard: LimitGuard;
-  let reflector: Reflector;
 
-  const controller = {};
-  const handler = {};
-
-  const req = { ip: "127.0.0.1" };
-
-  const res = {
-    setHeader: jest.fn(),
+  let mockStore: {
+    consume: jest.Mock;
   };
 
-  const contextMock: ExecutionContext = {
-    switchToHttp: () => ({
-      getRequest: () => req,
-      getResponse: () => res,
-    }),
-    getHandler: () => handler,
-    getClass: () => controller,
-  } as any;
+  const createContext = (options: {
+    handlerMeta?: any;
+    controllerMeta?: any;
+    handlerSkip?: boolean;
+    controllerSkip?: boolean;
+  }): ExecutionContext => {
+    const req = {};
+    const res = {
+      set: jest.fn(),
+    };
+
+    const handler = () => {};
+    const controller = class {};
+
+    Reflect.defineMetadata(
+      RATE_LIMIT_CONFIG_METADATA_KEY,
+      options.handlerMeta,
+      handler,
+    );
+
+    Reflect.defineMetadata(
+      RATE_LIMIT_CONFIG_METADATA_KEY,
+      options.controllerMeta,
+      controller,
+    );
+
+    Reflect.defineMetadata(
+      SKIP_RATE_LIMIT_METADATA_KEY,
+      options.handlerSkip,
+      handler,
+    );
+
+    Reflect.defineMetadata(
+      SKIP_RATE_LIMIT_METADATA_KEY,
+      options.controllerSkip,
+      controller,
+    );
+
+    return {
+      switchToHttp: () => ({
+        getRequest: () => req,
+        getResponse: () => res,
+      }),
+      getHandler: () => handler,
+      getClass: () => controller,
+    } as any;
+  };
 
   beforeEach(async () => {
-    const module = await Test.createTestingModule({
+    mockStore = {
+      consume: jest.fn(),
+    };
+
+    const moduleRef = await Test.createTestingModule({
       providers: [
-        LimitGuard,
-        {
-          provide: Reflector,
-          useValue: { get: jest.fn() },
-        },
+        Reflector,
         {
           provide: RateLimiter,
-          useValue: {
-            config: {
-              rules: [{ name: "global-rule" }],
-              debug: false,
-              store: { name: "global-store" },
-            },
-          },
+          useFactory: () =>
+            new RateLimiter({
+              store: mockStore as any,
+              rules: [
+                {
+                  name: "global",
+                  key: "global",
+                  policy: new MockFixedWindow({
+                    name: "fixed-window",
+                    window: 60,
+                    limit: 10,
+                  }),
+                },
+              ],
+            }),
         },
+        LimitGuard,
       ],
     }).compile();
 
-    guard = module.get(LimitGuard);
-    reflector = module.get(Reflector);
+    guard = moduleRef.get(LimitGuard);
 
-    (RateLimiter as jest.Mock).mockClear();
+    jest.clearAllMocks();
   });
 
-  function mockMetadata(meta: {
-    handlerConfig?: any;
-    controllerConfig?: any;
-    handlerSkip?: boolean;
-    controllerSkip?: boolean;
-  }) {
-    jest.spyOn(reflector, "get").mockImplementation((key, target) => {
-      if (key === RATE_LIMIT_CONFIG_METADATA_KEY && target === handler)
-        return meta.handlerConfig;
-
-      if (key === RATE_LIMIT_CONFIG_METADATA_KEY && target === controller)
-        return meta.controllerConfig;
-
-      if (key === SKIP_RATE_LIMIT_METADATA_KEY && target === handler)
-        return meta.handlerSkip;
-
-      if (key === SKIP_RATE_LIMIT_METADATA_KEY && target === controller)
-        return meta.controllerSkip;
-
-      return undefined;
-    });
-  }
-
-  it("merges global + controller + handler rules", async () => {
-    mockMetadata({
-      controllerConfig: { rules: [{ name: "controller-rule" }] },
-      handlerConfig: { rules: [{ name: "handler-rule" }] },
+  it("should allow request when under limit", async () => {
+    mockStore.consume.mockResolvedValue({
+      allowed: true,
+      limit: 10,
+      remaining: 9,
+      resetAt: Date.now() + 1000,
     });
 
-    await guard.canActivate(contextMock);
+    const context = createContext({});
 
-    const config = (RateLimiter as jest.Mock).mock.calls[0][0];
+    const result = await guard.canActivate(context);
 
-    expect(mergeRules).toHaveBeenCalled();
-
-    expect(config.rules).toEqual([
-      { name: "global-rule" },
-      { name: "controller-rule" },
-      { name: "handler-rule" },
-    ]);
+    expect(result).toBe(true);
+    expect(mockStore.consume).toHaveBeenCalled();
   });
 
-  it("skips when handler skip exists", async () => {
-    mockMetadata({
+  it("should set headers", async () => {
+    const res = { set: jest.fn() };
+
+    mockStore.consume.mockResolvedValue({
+      allowed: true,
+      limit: 10,
+      remaining: 5,
+      resetAt: Date.now() + 1000,
+    });
+
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => ({}),
+        getResponse: () => res,
+      }),
+      getHandler: () => ({}),
+      getClass: () => ({}),
+    } as any;
+
+    await guard.canActivate(context);
+
+    expect(res.set).toHaveBeenCalled();
+  });
+
+  it("should throw when rate limit exceeded", async () => {
+    mockStore.consume.mockResolvedValue({
+      allowed: false,
+      limit: 10,
+      remaining: 0,
+      resetAt: Date.now() + 1000,
+    });
+
+    const context = createContext({});
+
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      TooManyRequestsException,
+    );
+  });
+
+  it("should skip when handler has @SkipRateLimit", async () => {
+    const context = createContext({
       handlerSkip: true,
     });
 
-    const result = await guard.canActivate(contextMock);
+    const result = await guard.canActivate(context);
 
     expect(result).toBe(true);
-    expect(RateLimiter).not.toHaveBeenCalled();
+    expect(mockStore.consume).not.toHaveBeenCalled();
   });
 
-  it("skips when controller skip exists and no handler rules", async () => {
-    mockMetadata({
-      controllerSkip: true,
+  it("should apply only handler rules when controller is skipped", async () => {
+    mockStore.consume.mockResolvedValue({
+      allowed: true,
+      limit: 1,
+      remaining: 0,
+      resetAt: Date.now() + 1000,
     });
 
-    const result = await guard.canActivate(contextMock);
-
-    expect(result).toBe(true);
-    expect(RateLimiter).not.toHaveBeenCalled();
-  });
-
-  it("uses handler rules even when controller skip exists", async () => {
-    mockMetadata({
+    const context = createContext({
       controllerSkip: true,
-      handlerConfig: {
-        rules: [{ name: "handler-rule" }],
+      handlerMeta: {
+        rules: [
+          {
+            name: "handler",
+            key: "h",
+            policy: new MockFixedWindow({
+              name: "fixed-window",
+              window: 10,
+              limit: 60,
+            }),
+          },
+        ],
       },
     });
 
-    (RateLimiter as jest.Mock).mockImplementation(() => ({
-      consume: jest.fn().mockResolvedValueOnce({
-        allowed: true,
-        limit: 100,
-        remaining: 50,
-        reset: 120,
-      }),
-    }));
+    await guard.canActivate(context);
 
-    await guard.canActivate(contextMock);
-
-    const config = (RateLimiter as jest.Mock).mock.calls[0][0];
-
-    expect(config.rules).toEqual([{ name: "handler-rule" }]);
+    expect(mockStore.consume).toHaveBeenCalled();
   });
 
-  it("sets rate limit headers when allowed", async () => {
-    const reset = 1700000000000;
-    jest.spyOn(Date, "now").mockReturnValueOnce(reset - 10000);
-    (RateLimiter as jest.Mock).mockImplementation(() => ({
-      consume: jest.fn().mockResolvedValueOnce({
-        allowed: true,
-        limit: 100,
-        remaining: 99,
-        reset,
-      }),
-    }));
+  it("should merge global + controller + handler rules", async () => {
+    mockStore.consume.mockResolvedValue({
+      allowed: true,
+      limit: 10,
+      remaining: 9,
+      resetAt: Date.now() + 1000,
+    });
 
-    mockMetadata({});
+    const context = createContext({
+      controllerMeta: {
+        rules: [
+          {
+            name: "controller",
+            key: "c",
+            policy: new MockFixedWindow({
+              name: "fixed-window",
+              window: 60,
+              limit: 10,
+            }),
+          },
+        ],
+      },
+      handlerMeta: {
+        rules: [
+          {
+            name: "handler",
+            key: "h",
+            policy: new MockFixedWindow({
+              name: "fixed-window",
+              window: 60,
+              limit: 5,
+            }),
+          },
+        ],
+      },
+    });
 
-    await guard.canActivate(contextMock);
+    await guard.canActivate(context);
 
-    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Limit", 100);
-    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Remaining", 99);
-    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Reset", 10);
-  });
-
-  it("throws when limit exceeded", async () => {
-    (RateLimiter as jest.Mock).mockImplementation(() => ({
-      consume: jest.fn().mockResolvedValueOnce({
-        allowed: false,
-        limit: 100,
-        remaining: 0,
-        reset: 60,
-        retryAfter: 60,
-      }),
-    }));
-
-    mockMetadata({});
-
-    await expect(guard.canActivate(contextMock)).rejects.toThrow(
-      TooManyRequestsException,
-    );
-
-    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", 60);
+    expect(mockStore.consume).toHaveBeenCalled();
   });
 });

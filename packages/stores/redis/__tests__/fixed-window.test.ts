@@ -1,5 +1,5 @@
 import { createClient, RedisClientType } from "redis";
-import { RedisStore, RedisFixedWindow, RedisCompatible } from "../src";
+import { RedisStore, RedisCompatible, fixedWindow } from "../src";
 import { Algorithm, FixedWindowConfig } from "@limitkit/core";
 
 describe("RedisFixedWindow", () => {
@@ -17,8 +17,7 @@ describe("RedisFixedWindow", () => {
 
     store = new RedisStore(redis);
 
-    limiter = new RedisFixedWindow({
-      name: "fixed-window",
+    limiter = fixedWindow({
       window: WINDOW,
       limit: LIMIT,
     });
@@ -38,12 +37,12 @@ describe("RedisFixedWindow", () => {
     const now = 1_000_000;
 
     for (let i = 1; i <= LIMIT; i++) {
-      const result = await store.consume(key, limiter, now);
+      const result = await store.consume(key, limiter, now + i * 500);
 
       expect(result.allowed).toBe(true);
       expect(result.limit).toBe(LIMIT);
       expect(result.remaining).toBe(LIMIT - i);
-      expect(result.retryAfter).toBe(0);
+      expect(result.retryAt).toBeUndefined();
     }
   });
 
@@ -52,7 +51,7 @@ describe("RedisFixedWindow", () => {
     const now = 1_000_000;
 
     for (let i = 1; i <= LIMIT; i++) {
-      await store.consume(key, limiter, now);
+      await store.consume(key, limiter, now + i * 500);
     }
 
     const result = await store.consume(key, limiter, now);
@@ -61,8 +60,8 @@ describe("RedisFixedWindow", () => {
     expect(result.remaining).toBe(0);
     expect(result.limit).toBe(LIMIT);
 
-    expect(result.retryAfter).toBeGreaterThanOrEqual(0);
-    expect(result.reset).toBeGreaterThan(now);
+    expect(result.retryAt).toBe(now + WINDOW * 1000);
+    expect(result.resetAt).toBe(result.retryAt);
   });
 
   it("should reset after window expires", async () => {
@@ -91,22 +90,20 @@ describe("RedisFixedWindow", () => {
     const expectedWindowStart = now - (now % (WINDOW * 1000));
     const expectedReset = expectedWindowStart + WINDOW * 1000;
 
-    expect(result.reset).toBe(expectedReset);
+    expect(result.resetAt).toBe(expectedReset);
   });
 
-  it("retryAfter should match reset timestamp", async () => {
+  it("retryAt should match reset timestamp", async () => {
     const key = "fixed-retry-after";
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
-      await store.consume(key, limiter, now);
+      await store.consume(key, limiter, now + i * 200);
     }
 
-    const result = await store.consume(key, limiter, now);
+    const result = await store.consume(key, limiter, now + LIMIT * 200);
 
-    const expectedRetry = Math.ceil((result.reset - now) / 1000);
-
-    expect(result.retryAfter).toBe(expectedRetry);
+    expect(result.retryAt).toBe(result.resetAt);
   });
 
   it("cost should consume multiple tokens", async () => {

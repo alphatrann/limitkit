@@ -1,10 +1,10 @@
 {
   "name": "@limitkit/redis",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "dependencies": {
-    "@limitkit/core": "^1.0.0",
+    "@limitkit/core": "^1.0.2",
     "redis": "^5.11.0"
   },
   "keywords": [

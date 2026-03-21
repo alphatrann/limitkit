@@ -6,6 +6,5 @@
     "moduleResolution": "NodeNext",
     "outDir": "../../dist"
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests", "**/*spec.ts"]
+  "include": ["src/**/*"]
 }

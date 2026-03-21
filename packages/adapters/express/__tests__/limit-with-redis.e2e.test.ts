@@ -61,7 +61,7 @@ describe("RedisStore", () => {
 
       expect(res.headers["ratelimit-limit"]).toBeDefined();
       expect(res.headers["ratelimit-remaining"]).toBeDefined();
-      expect(res.headers["ratelimit-reset"]).toBeDefined();
+      expect(res.headers["reset-after"]).toBeDefined();
     });
 
     it("blocks requests when limit exceeded", async () => {

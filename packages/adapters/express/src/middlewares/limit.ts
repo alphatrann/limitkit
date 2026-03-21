@@ -1,4 +1,5 @@
-import { mergeRules, RateLimiter } from "@limitkit/core";
+import { mergeRules, toRateLimitHeaders } from "@limitkit/http";
+import { RateLimiter } from "@limitkit/core";
 import { NextFunction, Request, Response } from "express";
 import { RouteRateLimitConfig } from "../types";
 
@@ -18,7 +19,7 @@ const defaultRateLimitResponse = {
  *
  * - `RateLimit-Limit` — Maximum number of requests allowed in the window
  * - `RateLimit-Remaining` — Remaining requests in the current window
- * - `RateLimit-Reset` — Time (in seconds) until the limit resets
+ * - `Reset-After — Seconds until the rate limit fully resets.
  * - `Retry-After` — Time (in seconds) the client should wait before retrying (only when limited)
  *
  * Route-specific configuration may provide additional rate-limit rules.
@@ -120,15 +121,13 @@ export function limit(
         rules: mergedRules,
       }).consume(req);
 
-      res.setHeader("RateLimit-Limit", result.limit);
-      res.setHeader("RateLimit-Remaining", result.remaining);
-      res.setHeader(
-        "RateLimit-Reset",
-        Math.ceil((result.reset - Date.now()) / 1000),
-      );
+      const headers = toRateLimitHeaders(result);
+
+      Object.entries(headers).forEach(([key, value]) => {
+        res.setHeader(key, value);
+      });
 
       if (!result.allowed) {
-        res.setHeader("Retry-After", result.retryAfter ?? 0);
         return res.status(429).json(rateLimitResponse);
       }
 

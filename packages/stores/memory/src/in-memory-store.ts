@@ -1,7 +1,7 @@
 import {
   Algorithm,
   AlgorithmConfig,
-  RateLimitResult,
+  RateLimitRuleResult,
   Store,
 } from "@limitkit/core";
 import { InMemoryCompatible, State } from "./types";
@@ -76,7 +76,7 @@ export class InMemoryStore implements Store {
     algorithm: Algorithm<TConfig> & InMemoryCompatible<TState>,
     now: number,
     cost: number = 1,
-  ): Promise<RateLimitResult> {
+  ): Promise<RateLimitRuleResult> {
     algorithm.validate();
     const prev = this.queues.get(key) ?? Promise.resolve();
     const next = prev.then(() => {

@@ -1,70 +1,76 @@
-import { BadArgumentsException, LeakyBucketConfig } from "@limitkit/core";
-import { InMemoryLeakyBucket } from "../src";
+import { BadArgumentsException } from "@limitkit/core";
+import { InMemoryLeakyBucket, leakyBucket } from "../src";
 
-describe("InMemoryLeakyBucket", () => {
-  const config: LeakyBucketConfig = {
-    name: "leaky-bucket",
+describe("InMemoryTokenBucket", () => {
+  const config = {
     capacity: 5,
     leakRate: 1,
   };
+
   let limiter: InMemoryLeakyBucket;
   const base = 1000000;
 
   beforeEach(() => {
-    limiter = new InMemoryLeakyBucket(config);
+    limiter = leakyBucket(config);
   });
 
-  test("accepts until full", () => {
+  test("initial empty queue allows burst", () => {
     let state;
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < config.capacity; i++) {
       const r = limiter.process(state, base);
       state = r.state;
+      expect(r.output.remaining).toBe(config.capacity - i - 1);
       expect(r.output.allowed).toBe(true);
     }
   });
 
-  test("rejects overflow", () => {
+  test("rejects when empty", () => {
     let state;
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < config.capacity; i++) {
       const r = limiter.process(state, base);
       state = r.state;
     }
 
     const r = limiter.process(state, base);
     expect(r.output.allowed).toBe(false);
+    expect(r.output.resetAt).toBe(
+      base + Math.ceil((config.capacity / config.leakRate) * 1000),
+    );
+    expect(r.output.retryAt).toBe(base + Math.ceil(1000 / config.leakRate));
   });
 
-  test("leak reduces queue size", () => {
+  test("refill works over time", () => {
     let state;
 
-    const r1 = limiter.process(state, base, 5);
-    state = r1.state;
+    for (let i = 0; i < 5; i++) {
+      const r = limiter.process(state, base);
+      state = r.state;
+    }
 
-    const r2 = limiter.process(state, base + 3000);
-
-    expect(r2.output.allowed).toBe(true);
+    const r = limiter.process(state, base + 5000);
+    expect(r.output.allowed).toBe(true);
   });
 
-  test("reset equals time until queue empty", () => {
+  test("remaining tokens computed correctly", () => {
     const r = limiter.process(undefined, base, 2);
-
-    expect(r.output.reset).toBeGreaterThan(base);
+    expect(r.output.remaining).toBe(3);
+    expect(r.state.queueSize).toBe(2);
   });
 
-  test("large time jump empties queue", () => {
+  test("large time jump leaks the bucket", () => {
     let state;
 
-    const r1 = limiter.process(state, base, 5);
+    const r1 = limiter.process(state, base);
     state = r1.state;
 
-    const r2 = limiter.process(state, base + 60000);
-
-    expect(r2.output.remaining).toBe(4);
+    const r2 = limiter.process(state, base + 3600000);
+    expect(r2.output.remaining).toBe(config.capacity - 1);
+    expect(r2.state.queueSize).toBe(1);
   });
 
-  test("cost exceeding capacity throws", () => {
+  test("cost > capacity throws", () => {
     expect(() => limiter.process(undefined, base, 10)).toThrow(
       BadArgumentsException,
     );

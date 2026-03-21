@@ -1,0 +1,32 @@
+{
+  "name": "@limitkit/http",
+  "version": "1.0.0",
+  "description": "Cmmon HTTP logic for Node.js framework adapters",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alphatrann/limitkit"
+  },
+  "dependencies": {
+    "@limitkit/core": "^1.0.2"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@limitkit/memory": "workspace:^",
+    "@limitkit/redis": "workspace:^",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.4.0",
+    "@types/supertest": "^7",
+    "redis": "^5.11.0",
+    "supertest": "^7.2.2"
+  }
+}

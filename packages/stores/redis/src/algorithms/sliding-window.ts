@@ -51,13 +51,13 @@ import { RedisCompatible } from "../types";
  * ## Script Return Value
  *
  * ```text
- * {allowed, remaining, reset, retryAfter}
+ * {allowed, remaining, reset, retryAt}
  * ```
  *
  * - `allowed` – 1 if request is permitted
  * - `remaining` – remaining requests within the window
  * - `reset` – timestamp (ms) when capacity will refresh
- * - `retryAfter` – seconds until next request may succeed
+ * - `retryAt` – timestamp (ms) when the next request may succeed
  *
  * @example
  * ```ts
@@ -93,16 +93,17 @@ export class RedisSlidingWindow
     -- reject
     if size + cost > limit then
       local oldest = redis.call("ZRANGE", key, 0, 0, "WITHSCORES")
+      local newest = redis.call("ZRANGE", key, -1, -1, "WITHSCORES")
 
-      if #oldest == 0 then
+      if #oldest == 0 or #newest == 0 then
         return {0, limit, now + window, 0}
       end
 
       local oldestTime = tonumber(oldest[2])
-      local reset = now + window
-      local retryAfter = math.max(0, math.ceil((oldestTime + window - now) / 1000))
+      local reset = tonumber(newest[2]) + window
+      local retryAt = oldestTime + window
 
-      return {0, 0, reset, retryAfter}
+      return {0, 0, reset, retryAt}
     end
 
     -- allow

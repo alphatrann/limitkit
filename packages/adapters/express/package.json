@@ -26,7 +26,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@limitkit/core": "^1.0.0",
+    "@limitkit/core": "^1.0.2",
     "express": "^5.2.1"
   },
   "scripts": {
@@ -34,6 +34,7 @@
     "test": "jest"
   },
   "devDependencies": {
+    "@limitkit/http": "workspace:^",
     "@limitkit/memory": "workspace:^",
     "@limitkit/redis": "workspace:^",
     "@types/express": "^5.0.6",
