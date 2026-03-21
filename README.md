@@ -59,9 +59,11 @@ You can explore all supported packages in the [Packages](#️-packages) section.
 
 ## ⚡ Quick Example
 
+Simply create a simple JavaScript/TypeScript file and paste the following code:
+
 ```ts
 import { RateLimiter } from "@limitkit/core";
-import { fixedWindow, InMemoryStore } from "@limitkit/memory";
+import { slidingWindow, InMemoryStore } from "@limitkit/memory";
 
 const limiter = new RateLimiter({
   store: new InMemoryStore(),
@@ -69,17 +71,38 @@ const limiter = new RateLimiter({
     {
       name: "ip-limit",
       key: (req) => "ip:" + req.ip,
-      policy: fixedWindow({ window: 60, limit: 100 }),
+      policy: slidingWindow({ window: 60, limit: 60 }),
     },
   ],
 });
 
-// somewhere in code
-const result = await limiter.consume(req);
 
-if (!result.allowed) {
-  throw new TooManyRequestsException();
+// minimal test script
+async function sendRequests(n) {
+  let allowed = 0;
+  for (let i = 0; i < n; i++) {
+    const res = await limiter.consume({ ip: "127.0.0.1" });
+    if (res.allowed) allowed++;
+
+    // Uncomment to inspect behavior
+    // console.log(res.failedRule, res.rules);
+  }
+
+  return allowed;
 }
+
+const NUMBER_OF_REQUESTS = 100;
+
+sendRequests(NUMBER_OF_REQUESTS)
+  .then((allowed) => {
+    console.log(`Allowed: ${allowed}/${NUMBER_OF_REQUESTS}; rejected: ${NUMBER_OF_REQUESTS - allowed}/${NUMBER_OF_REQUESTS}`)
+  })
+
+```
+
+Then execute the file with Node.js, it should output:
+```
+Allowed: 60/100; rejected: 40/100
 ```
 
 > Best practice: Add a prefix in front of the key such as `ip:` to distinguish among global, IP and account.
