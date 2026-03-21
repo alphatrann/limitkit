@@ -27,7 +27,7 @@ export function toRateLimitHeaders(result: RateLimitResult): RateLimitHeaders {
   return {
     "RateLimit-Limit": rule.limit,
     "RateLimit-Remaining": rule.remaining,
-    "RateLimit-Reset": resetSeconds,
+    "Reset-After": resetSeconds,
     ...(retrySeconds ? { "Retry-After": retrySeconds } : {}),
   };
 }

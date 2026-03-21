@@ -8,18 +8,19 @@
 
 This package provides a flexible middleware that:
 
+* ✅ integrates with Express.js seamlessly
 * ✅ allows you to override global rules for particular routes
 * ✅ returns 429 if the request is rejected
 * ✅ automatically sets standard IETF rate limit headers
 
 ---
 
-# ⚡ Quick Start
+## ⚡ Quick Start
 
 Install:
 
 ```bash
-npm install @limitkit/express @limitkit/core @limitkit/memory # or @limitkit/redis if using Redis
+npm install @limitkit/express
 ```
 
 ---
@@ -58,7 +59,7 @@ app.listen(3000);
 ```
 ## 🎛 Route-Level Overrides
 
-The second argument of `limit` middleware call receives an object that enables you to override or extend rules per route. It is an optional object containing `rules` property, which is the same as that in `limiter` object:
+Optionally, you can provide an object in the second argument of the `limit` middleware that enables you to override or extend rules per route.
 
 
 Route-level rules are merged with global rules by `name`:
@@ -124,22 +125,27 @@ The list of rules of the route is:
 
 ---
 
-# 📡 Headers
+## 📡 Headers
 
 The `limit` middleware also automatically sets standard IETF rate limit headers for you:
 
 ```
 RateLimit-Limit
 RateLimit-Remaining
-RateLimit-Reset
 Retry-After (when 429)
 ```
+
+Along with that, the middleware also sets a custom header:
+```
+Reset-After
+```
+which is the seconds after which the limit fully resets.
 
 Example:
 
 ```
 RateLimit-Limit: 100
-RateLimit-Remaining: 99
-RateLimit-Reset: 60
+RateLimit-Remaining: 0
+Reset-After: 60
 Retry-After: 30
 ```

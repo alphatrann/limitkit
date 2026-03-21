@@ -18,8 +18,8 @@ import { addConfigToKey } from "./utils";
 /**
  * Core rate limiter implementation that enforces rate limiting rules.
  *
- * The RateLimiter evaluates rules in order and returns the result of the first rule
- * that limits the request. If all rules allow the request, it returns a positive result.
+ * The RateLimiter evaluates rules in order and stops if a rule fails.
+ * The request is allowed if every rule passes.
  *
  * Use cases:
  * - API rate limiting (requests per second/minute)
@@ -45,7 +45,7 @@ import { addConfigToKey } from "./utils";
  *
  * const result = await limiter.consume({ userId: 'user-123' });
  * if (!result.allowed) {
- *   return 429 with headers: Retry-After: result.retryAt
+ *   return 429
  * }
  * ```
  * @see Limiter
@@ -79,8 +79,9 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
   /**
    * Check if a request should be allowed under the configured rate limits.
    *
-   * Evaluates each rule in order from left to right. Returns the result of the failed rule as soon as a rule is exceeded (request denied).
-   * If all rules allow the request, returns the result aggregated from all the rules.
+   * Evaluates each rule in order from left to right.
+   * If a rule fails, remaining rules won't be evaluated and the request is rejected.
+   *
    *
    * Each rule resolution (key, cost, policy) can be static or dynamic:
    * - Static: evaluated once and reused
@@ -89,8 +90,6 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    *
    *
    * @param ctx - Request context passed to rule resolvers to determine dynamic values.
-   * @returns Promise resolving to the rate limit result. If debug mode is enabled,
-   *          includes details about each evaluated rule and which rule failed (if any).
    *
    * @example
    * ```typescript
@@ -105,7 +104,14 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * }
    * ```
    *
+   * @returns {RateLimitResult} an object containing:
+   * - `allowed` (boolean): whether the request is allowed
+   * - `failedRule` (string): the name of the failed rule, `null` if every rule passes
+   * - `rules` ({@link IdentifiedRateLimitRuleResult}): details of all the rules evaluated
+   *
    * @throws UndefinedKeyException if the key is empty or undefined
+   *
+   * @see RateLimitResult
    */
   async consume(ctx: C): Promise<RateLimitResult> {
     const evaluatedRules: IdentifiedRateLimitRuleResult[] = [];

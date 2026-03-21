@@ -1,6 +1,5 @@
 import {
   BadArgumentsException,
-  RateLimitResult,
   RateLimitRuleResult,
   SlidingWindow,
 } from "@limitkit/core";
