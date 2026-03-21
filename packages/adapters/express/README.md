@@ -6,28 +6,34 @@
 
 **Rate limiting for Express using LimitKit’s policy-driven engine.**
 
-This package provides a flexible middleware that lets you define **layered, dynamic, and cost-based rate limits** — not just simple per-IP throttling.
+This package provides a flexible middleware that:
 
+* ✅ integrates with Express.js seamlessly
+* ✅ allows you to override global rules for particular routes
+* ✅ returns 429 if the request is rejected
+* ✅ automatically sets standard IETF rate limit headers
 
 ---
 
-# ⚡ Quick Start
+## ⚡ Quick Start
 
 Install:
 
 ```bash
-npm install @limitkit/express @limitkit/core @limitkit/memory
+npm install @limitkit/express
 ```
 
 ---
 
 ## Basic Setup
 
+To start, simply declare a global `limiter` instance and pass it into every `limit` middleware call.
+
 ```ts
 import express from "express";
 import { RateLimiter } from "@limitkit/core";
 import { limit } from "@limitkit/express";
-import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory";
+import { InMemoryStore, fixedWindow } from "@limitkit/memory";
 
 const app = express();
 
@@ -37,8 +43,7 @@ const limiter = new RateLimiter({
     {
       name: "global",
       key: (req) => req.ip,
-      policy: new InMemoryFixedWindow({
-        name: "fixed-window",
+      policy: fixedWindow({
         window: 60,
         limit: 100,
       }),
@@ -52,63 +57,15 @@ app.get("/", limit(limiter), (req, res) => {
 
 app.listen(3000);
 ```
-
-👉 Your app is now rate-limited.
-
----
-
-# 🧠 How It Works
-
-* `limit(limiter)` returns Express middleware
-* Each request is passed into the `RateLimiter`
-* Rules are evaluated in order (top → bottom)
-
----
-
-# 🎯 Common Usage
-
-## Per-user rate limiting
-
-```ts
-{
-  name: "user",
-  key: (req) => req.headers["user-id"],
-  policy: new InMemoryFixedWindow({
-    window: 60,
-    limit: 1000,
-    name: "fixed-window",
-  }),
-}
-```
-
-Each user gets their own quota.
-
----
-
-## Layered limits
-
-```ts
-const limiter = new RateLimiter({
-  store: new InMemoryStore(),
-  rules: [
-    { name: "global", key: () => "global", policy: ... },
-    { name: "ip", key: (req) => req.ip, policy: ... },
-    { name: "user", key: (req) => req.user.id, policy: ... },
-  ],
-});
-```
-
-Evaluation order:
-
-```
-global → ip → user
-```
-
----
-
 ## 🎛 Route-Level Overrides
 
-Override or extend rules per route:
+Optionally, you can provide an object in the second argument of the `limit` middleware that enables you to override or extend rules per route.
+
+
+Route-level rules are merged with global rules by `name`:
+
+* If a rule with the **same `name` exists**, it is **overridden**
+* If the `name` is **new**, it is **appended**
 
 ```ts
 app.get(
@@ -118,10 +75,9 @@ app.get(
       {
         name: "api",
         key: (req) => req.headers["user-id"],
-        policy: new InMemoryFixedWindow({
+        policy: fixedWindow({
           window: 60,
           limit: 50,
-          name: "fixed-window",
         }),
       },
     ],
@@ -132,20 +88,9 @@ app.get(
 );
 ```
 
----
-
-### 🧠 Merge Behavior
-
-Route-level rules are merged with global rules by `name`:
-
-* If a rule with the **same `name` exists**, it is **overridden**
-* If the `name` is **new**, it is **appended**
-
----
-
 ### Example
 
-Global:
+Given the following global rules:
 
 ```ts
 const limiter = new RateLimiter({
@@ -157,7 +102,7 @@ const limiter = new RateLimiter({
 });
 ```
 
-Route:
+Route rules are global rules, but the rule `"user"` was overriden by what's defined in the route, and the rule `"route"` was appended and evaluated after `"global"` and `"user"` rules:
 
 ```ts
 limit(limiter, {
@@ -168,7 +113,7 @@ limit(limiter, {
 });
 ```
 
-Result:
+The list of rules of the route is:
 
 ```ts
 [
@@ -180,87 +125,27 @@ Result:
 
 ---
 
-### ✅ Why this matters
+## 📡 Headers
 
-* tighten limits per route without redefining everything
-* reuse global structure
-* avoid duplicate or conflicting rules
-
----
-
-# ⚖️ Weighted Requests
-
-```ts
-{
-  key: (req) => req.user.id,
-  cost: (req) => req.path === "/generate-report" ? 10 : 1,
-  policy: new InMemoryTokenBucket({
-    capacity: 100,
-    refillRate: 5,
-    name: "token-bucket",
-  }),
-}
-```
-
-Expensive endpoints consume more quota.
-
----
-
-# 🏢 Dynamic Policies (SaaS Plans)
-
-```ts
-{
-  key: (req) => req.user.id,
-  policy: (req) => {
-    if (req.user.plan === "free")
-      return new InMemoryTokenBucket({ capacity: 50, refillRate: 1 });
-
-    if (req.user.plan === "pro")
-      return new InMemoryTokenBucket({ capacity: 500, refillRate: 10 });
-  },
-}
-```
-
-Define limits based on business logic.
-
----
-
-# 📡 Headers
-
-LimitKit automatically sets standard rate limit headers:
+The `limit` middleware also automatically sets standard IETF rate limit headers for you:
 
 ```
 RateLimit-Limit
 RateLimit-Remaining
-RateLimit-Reset
-Retry-After (when blocked)
+Retry-After (when 429)
 ```
+
+Along with that, the middleware also sets a custom header:
+```
+Reset-After
+```
+which is the seconds after which the limit fully resets.
 
 Example:
 
 ```
 RateLimit-Limit: 100
-RateLimit-Remaining: 99
-RateLimit-Reset: 10
+RateLimit-Remaining: 0
+Reset-After: 60
+Retry-After: 30
 ```
-
----
-
-# 🧩 Features
-
-* Middleware-based integration
-* Layered rule evaluation
-* Route-level overrides
-* Weighted requests (cost)
-* Dynamic runtime policies
-* Works with all LimitKit stores and algorithms
-
----
-
-# 🏁 Summary
-
-LimitKit for Express gives you:
-
-* **drop-in middleware**
-* **fine-grained control per route**
-* **policy-driven flexibility beyond simple throttling**

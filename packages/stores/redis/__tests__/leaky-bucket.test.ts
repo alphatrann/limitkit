@@ -1,5 +1,5 @@
 import { createClient, RedisClientType } from "redis";
-import { RedisCompatible, RedisLeakyBucket, RedisStore } from "../src";
+import { leakyBucket, RedisCompatible, RedisStore } from "../src";
 import { Algorithm, LeakyBucketConfig } from "@limitkit/core";
 
 describe("RedisLeakyBucket", () => {
@@ -17,8 +17,7 @@ describe("RedisLeakyBucket", () => {
 
     store = new RedisStore(redis);
 
-    limiter = new RedisLeakyBucket({
-      name: "leaky-bucket",
+    limiter = leakyBucket({
       capacity: CAPACITY,
       leakRate: LEAK_RATE,
     });
@@ -42,7 +41,7 @@ describe("RedisLeakyBucket", () => {
 
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(CAPACITY - i);
-      expect(result.retryAfter).toBe(0);
+      expect(result.retryAt).toBeUndefined();
     }
   });
 
@@ -58,7 +57,7 @@ describe("RedisLeakyBucket", () => {
 
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
-    expect(result.retryAfter).toBeGreaterThan(0);
+    expect(result.retryAt).toBe(now + Math.ceil((1 / LEAK_RATE) * 1000));
   });
 
   it("should leak requests over time", async () => {
@@ -74,7 +73,7 @@ describe("RedisLeakyBucket", () => {
     const result = await store.consume(key, limiter, later);
 
     expect(result.allowed).toBe(true);
-    expect(result.remaining).toBeLessThan(CAPACITY);
+    expect(result.remaining).toBe(1);
   });
 
   it("cost should add multiple items to queue", async () => {
@@ -98,19 +97,8 @@ describe("RedisLeakyBucket", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("reset should represent time until queue empties", async () => {
-    const key = "lb-reset";
-    const now = 1_000_000;
-
-    await store.consume(key, limiter, now, 2);
-
-    const result = await store.consume(key, limiter, now);
-
-    expect(result.reset).toBeGreaterThan(now);
-  });
-
-  it("reset should equal queue drain time", async () => {
-    const key = "lb-reset-exact";
+  it("resetAt should equal queue drain time", async () => {
+    const key = "lb-resetAt-exact";
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, 2);
@@ -119,19 +107,7 @@ describe("RedisLeakyBucket", () => {
 
     const expectedReset = now + (3 / LEAK_RATE) * 1000;
 
-    expect(result.reset).toBeLessThanOrEqual(expectedReset);
-  });
-
-  it("retryAfter should reflect time until queue has space", async () => {
-    const key = "lb-retry-after";
-    const now = 1_000_000;
-
-    await store.consume(key, limiter, now, CAPACITY);
-
-    const result = await store.consume(key, limiter, now);
-
-    expect(result.allowed).toBe(false);
-    expect(result.retryAfter).toBeGreaterThan(0);
+    expect(result.resetAt).toBeLessThanOrEqual(expectedReset);
   });
 
   it("should not exceed capacity under concurrency", async () => {
@@ -175,6 +151,7 @@ describe("RedisLeakyBucket", () => {
     const result = await store.consume(key, limiter, halfway);
 
     expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(1);
   });
 
   it("should empty queue after long idle", async () => {

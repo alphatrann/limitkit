@@ -4,115 +4,115 @@
 [![downloads](https://img.shields.io/npm/dw/@limitkit/memory)](https://www.npmjs.com/package/@limitkit/memory)
 [![license](https://img.shields.io/npm/l/@limitkit/memory)](https://github.com/alphatrann/limitkit/blob/main/LICENSE)
 
-**In-memory store and built-in algorithms for LimitKit.**
+**In-memory store and built-in rate limiting policies for LimitKit.**
 
-Best for development, testing, and single-instance apps.
+⚠ `@limitkit/memory` is only best suited for:
 
-Works seamlessly with `@limitkit/core`.
+* ✅ Local development
+* ✅ Testing environments
+* ✅ Single-instance applications
+* ✅ Prototyping and evaluation
 
----
+Because all state is stored **in-process**, it does **not scale across multiple instances**.
 
-# ⚡ Quick Start
+> For production and distributed systems, consider using Redis via [`@limitkit/redis`](https://www.npmjs.com/package/@limitkit/redis).
+
+
+
+## ⚡ Installation
 
 ```bash
-npm install @limitkit/memory
+npm install @limitkit/core @limitkit/memory
 ```
 
+
+## ⚡ Quick Start
+
+Set `store: new InMemoryStore()`
 ```ts
 import { RateLimiter } from "@limitkit/core";
-import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory";
+import { InMemoryStore, fixedWindow } from "@limitkit/memory";
 
 const limiter = new RateLimiter({
   store: new InMemoryStore(),
+
   rules: [
     {
       name: "global",
       key: "global",
-      policy: new InMemoryFixedWindow({
+      policy: fixedWindow({
         window: 60,
         limit: 100,
       }),
     },
   ],
 });
+
+await limiter.consume(ctx);
 ```
 
----
+* All rate limiting data is stored **in memory**.
+* Each process maintains its own counters, so there are no shared states across processes.
+* There are no network calls, thus the latency is **very low (sub-ms)**
+* The states are cleared if the application restarts.
 
-# 🧩 What’s Included
+```
+process memory → policy → decision
+```
 
-## Store
+
+## ⚙️ Algorithms
+
+`@limitkit/memory` includes optimized implementations of common rate limiting strategies.
+
+You have to ensure all the policies use the algorithm functions below from `@limitkit/memory`
 
 ```ts
-new InMemoryStore()
+import { fixedWindow } from "@limitkit/memory";
 ```
 
-Zero setup, runs entirely in-process.
-
----
-
-## Algorithms
-
-All core rate limiting strategies are included:
-
-### Fixed Window
+#### Fixed Window
 
 ```ts
-new InMemoryFixedWindow({ window: 60, limit: 100 })
+fixedWindow({ window: 60, limit: 100 })
 ```
 
-### Sliding Window
+
+
+#### Sliding Window
 
 ```ts
-new InMemorySlidingWindow({ window: 60, limit: 100 })
+slidingWindow({ window: 60, limit: 100 })
 ```
 
-### Sliding Window Counter
+
+
+#### Sliding Window Counter
 
 ```ts
-new InMemorySlidingWindowCounter({ window: 60, limit: 100 })
+slidingWindowCounter({ window: 60, limit: 100 })
 ```
 
-### Token Bucket
+
+
+#### Token Bucket
 
 ```ts
-new InMemoryTokenBucket({ capacity: 100, refillRate: 5 })
+tokenBucket({ capacity: 100, refillRate: 5 })
 ```
 
-### Leaky Bucket
+
+
+#### Leaky Bucket
 
 ```ts
-new InMemoryLeakyBucket({ capacity: 100, leakRate: 5 })
+leakyBucket({ capacity: 100, leakRate: 5 })
 ```
 
-### GCRA
+
+
+#### GCRA (Generalized Cell Rate Algorithm)
 
 ```ts
-new InMemoryGCRA({ burst: 5, interval: 1 })
+gcra({ burst: 5, interval: 1 })
 ```
----
-
-# 🎯 When to Use
-
-* Local development
-* Testing
-* Prototyping rate limits
-* Single-instance deployments
-
----
-
-# ⚠️ Limitations
-
-* Not shared across processes
-* Resets on restart
-* Not suitable for horizontal scaling
-
----
-
-# 🏁 Summary
-
-* Zero-config store
-* Built-in algorithms
-* Fast, in-process execution
-
-Use this for development and simple deployments. For distributed systems, use a shared store like Redis.

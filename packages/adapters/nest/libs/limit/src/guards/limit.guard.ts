@@ -1,4 +1,5 @@
-import { RateLimiter, mergeRules } from "@limitkit/core";
+import { RateLimiter } from "@limitkit/core";
+import { mergeRules, toRateLimitHeaders } from "@limitkit/http";
 import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { TooManyRequestsException } from "../exceptions";
@@ -66,7 +67,7 @@ import {
  *
  * - `RateLimit-Limit` — Maximum number of requests allowed in the current window.
  * - `RateLimit-Remaining` — Remaining requests in the current window.
- * - `RateLimit-Reset` — Seconds until the rate limit window resets.
+ * - `Reset-After` — Seconds until the rate limit fully resets.
  *
  * If the request exceeds the limit:
  *
@@ -126,10 +127,7 @@ import {
  */
 @Injectable()
 export class LimitGuard implements CanActivate {
-  constructor(
-    private limiter: RateLimiter,
-    private reflector: Reflector,
-  ) {}
+  constructor(private limiter: RateLimiter, private reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest();
@@ -178,15 +176,13 @@ export class LimitGuard implements CanActivate {
       rules,
     }).consume(req);
 
-    res.setHeader("RateLimit-Limit", result.limit);
-    res.setHeader("RateLimit-Remaining", result.remaining);
-    res.setHeader(
-      "RateLimit-Reset",
-      Math.ceil((result.reset - Date.now()) / 1000),
-    );
+    const headers = toRateLimitHeaders(result);
+
+    Object.entries(headers).forEach(([key, value]) => {
+      res.set(key, value);
+    });
 
     if (!result.allowed) {
-      res.setHeader("Retry-After", result.retryAfter);
       throw new TooManyRequestsException("Too many requests");
     }
 

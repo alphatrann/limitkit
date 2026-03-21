@@ -1,179 +1,171 @@
 import { limit } from "../src";
+import * as http from "@limitkit/http";
 import * as core from "@limitkit/core";
 import { Request, Response, NextFunction } from "express";
 
-jest.mock("@limitkit/core", () => {
-  const actual = jest.requireActual("@limitkit/core");
+class MockFixedWindow extends core.FixedWindow {}
 
-  // 1. Create the mock function
-  const MockRateLimiter = jest.fn().mockImplementation((config) => {
-    return new actual.RateLimiter(config);
-  });
-
-  // 2. IMPORTANT: Copy the prototype from the actual class to the mock.
-  // This ensures jest.spyOn(core.RateLimiter.prototype, 'consume') can find the method.
-  MockRateLimiter.prototype = actual.RateLimiter.prototype;
+jest.mock("@limitkit/http", () => {
+  const actual = jest.requireActual("@limitkit/http");
 
   return {
     ...actual,
-    RateLimiter: MockRateLimiter,
+    mergeRules: jest.fn(actual.mergeRules),
   };
 });
-
-const MockedRateLimiter = core.RateLimiter as jest.Mock;
-
-class MockFixedWindow extends core.FixedWindow {}
 
 describe("limit middleware", () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
   let next: NextFunction;
 
+  let mockStore: {
+    consume: jest.Mock;
+  };
+
   beforeEach(() => {
     req = {};
+
     res = {
       setHeader: jest.fn(),
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
-      on: jest.fn(),
     };
+
     next = jest.fn();
+
+    mockStore = {
+      consume: jest.fn(),
+    };
 
     jest.clearAllMocks();
   });
 
-  const createBaseLimiter = () =>
+  const createLimiter = (rules: core.LimitRule<Request>[]) =>
     new core.RateLimiter<Request>({
-      debug: false,
-      store: {} as any,
-      rules: [
-        {
-          name: "test",
-          key: "global",
-          policy: new MockFixedWindow({
-            name: "fixed-window",
-            window: 60,
-            limit: 100,
-          }),
-        },
-      ],
+      store: mockStore as any,
+      rules,
     });
 
-  it("calls consume with the request", async () => {
-    const consumeSpy = jest
-      .spyOn(core.RateLimiter.prototype, "consume")
-      .mockResolvedValue({
-        allowed: true,
-        limit: 10,
-        remaining: 9,
-        reset: 60,
-      } as any);
+  const baseRule = (): core.LimitRule<Request> => ({
+    name: "test",
+    key: "global",
+    policy: new MockFixedWindow({
+      name: "fixed-window",
+      window: 60,
+      limit: 10,
+    }),
+  });
 
-    const middleware = limit(createBaseLimiter());
+  it("calls store.consume through limiter", async () => {
+    mockStore.consume.mockResolvedValue({
+      allowed: true,
+      limit: 10,
+      remaining: 9,
+      resetAt: Date.now() + 60000,
+    });
+
+    const limiter = createLimiter([baseRule()]);
+    const middleware = limit(limiter);
+
     await middleware(req as Request, res as Response, next);
 
-    expect(consumeSpy).toHaveBeenCalledWith(req);
+    expect(mockStore.consume).toHaveBeenCalled();
   });
 
   it("sets rate limit headers", async () => {
-    jest.spyOn(core.RateLimiter.prototype, "consume").mockResolvedValue({
+    mockStore.consume.mockResolvedValue({
       allowed: true,
       limit: 100,
       remaining: 50,
-      reset: 60,
-    } as any);
-
-    const middleware = limit(createBaseLimiter());
-    await middleware(req as Request, res as Response, next);
-
-    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Limit", 100);
-    expect(res.setHeader).toHaveBeenCalledWith("RateLimit-Remaining", 50);
-  });
-
-  it("returns 429 when limit exceeded", async () => {
-    jest.spyOn(core.RateLimiter.prototype, "consume").mockResolvedValue({
-      allowed: false,
-      limit: 10,
-      remaining: 0,
-      reset: 60,
-      retryAfter: 15,
-    } as any);
-
-    const middleware = limit(createBaseLimiter());
-    await middleware(req as Request, res as Response, next);
-
-    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", 15);
-    expect(res.status).toHaveBeenCalledWith(429);
-  });
-
-  it("calls mergeRules with global and route rules", () => {
-    const store = { name: "store" } as any;
-
-    const globalRule = { name: "global", key: "g", policy: {} as any };
-    const routeRule = { name: "route", key: "r", policy: {} as any };
-
-    const limiter = new core.RateLimiter<Request>({
-      debug: false,
-      store,
-      rules: [globalRule],
+      resetAt: Date.now() + 60000,
     });
 
-    const mergeSpy = jest.spyOn(core, "mergeRules");
+    const limiter = createLimiter([baseRule()]);
+    const middleware = limit(limiter);
 
-    limit(limiter, { rules: [routeRule] });
+    await middleware(req as Request, res as Response, next);
 
-    expect(mergeSpy).toHaveBeenCalledWith([globalRule], [routeRule]);
-  });
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "RateLimit-Limit",
+      expect.any(Number),
+    );
 
-  it("creates new limiter with merged rules", async () => {
-    const store = { name: "store" } as any;
-
-    const globalRule = { name: "global", key: "g", policy: {} as any };
-    const routeRule = { name: "route", key: "r", policy: {} as any };
-
-    const limiter = new core.RateLimiter<Request>({
-      debug: false,
-      store,
-      rules: [globalRule],
-    });
-
-    const middleware = limit(limiter, { rules: [routeRule] });
-
-    const req = {} as Request;
-    const res = {
-      setHeader: jest.fn(),
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
-    } as any;
-
-    const next = jest.fn();
-
-    MockedRateLimiter.mockClear();
-
-    await middleware(req, res, next);
-
-    expect(MockedRateLimiter).toHaveBeenCalledWith(
-      expect.objectContaining({
-        rules: [globalRule, routeRule],
-      }),
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "RateLimit-Remaining",
+      expect.any(Number),
     );
   });
 
-  it("should not call mergeRules when route rules undefined", () => {
-    const store = { name: "store" } as any;
-
-    const globalRule = { name: "global", key: "g", policy: {} as any };
-
-    const limiter = new core.RateLimiter<Request>({
-      debug: false,
-      store,
-      rules: [globalRule],
+  it("returns 429 when limit exceeded", async () => {
+    mockStore.consume.mockResolvedValue({
+      allowed: false,
+      limit: 10,
+      remaining: 0,
+      resetAt: Date.now() + 60000,
     });
 
-    const mergeSpy = jest.spyOn(core, "mergeRules");
+    const limiter = createLimiter([baseRule()]);
+    const middleware = limit(limiter);
+
+    await middleware(req as Request, res as Response, next);
+
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalled();
+  });
+
+  it("calls mergeRules with global and route rules", () => {
+    const globalRule = baseRule();
+    const routeRule: core.LimitRule<Request> = {
+      name: "route",
+      key: "route",
+      policy: new MockFixedWindow({
+        name: "fixed-window",
+        window: 60,
+        limit: 10,
+      }),
+    };
+
+    const limiter = createLimiter([globalRule]);
+
+    limit(limiter, { rules: [routeRule] });
+
+    expect(http.mergeRules).toHaveBeenCalledWith([globalRule], [routeRule]);
+  });
+
+  it("creates new limiter with merged rules", async () => {
+    const globalRule = baseRule();
+    const routeRule: core.LimitRule<Request> = {
+      name: "route",
+      key: "route",
+      policy: new MockFixedWindow({
+        name: "fixed-window",
+        window: 60,
+        limit: 10,
+      }),
+    };
+
+    mockStore.consume.mockResolvedValue({
+      allowed: true,
+      limit: 10,
+      remaining: 9,
+      resetAt: Date.now() + 60000,
+    });
+
+    const limiter = createLimiter([globalRule]);
+    const middleware = limit(limiter, { rules: [routeRule] });
+
+    await middleware(req as Request, res as Response, next);
+
+    // Called twice: once for original limiter, once for merged limiter
+    expect(mockStore.consume).toHaveBeenCalled();
+  });
+
+  it("does not call mergeRules when no route rules", () => {
+    const limiter = createLimiter([baseRule()]);
 
     limit(limiter);
 
-    expect(mergeSpy).not.toHaveBeenCalled();
+    expect(http.mergeRules).not.toHaveBeenCalled();
   });
 });

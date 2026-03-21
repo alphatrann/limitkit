@@ -1,4 +1,4 @@
-import { RateLimitResult } from "@limitkit/core";
+import { RateLimitRuleResult } from "@limitkit/core";
 
 /**
  * Represents a strategy that can be executed in-memory.
@@ -10,7 +10,7 @@ export interface InMemoryCompatible<TState> {
    * @param state Algorithm-dependent state
    * @param now Current Unix timestamp in millisecond
    * @param cost Optional cost/weight of each request. Defaults to 1 if not specified.
-   * @returns {{state: TState; output: RateLimitResult}} The next state and the rate limit result
+   * @returns {{state: TState; output: RateLimitRuleResult}} The next state and the rate limit result
    */
   process(
     state: TState | undefined,
@@ -18,6 +18,6 @@ export interface InMemoryCompatible<TState> {
     cost?: number,
   ): {
     state: TState;
-    output: RateLimitResult;
+    output: RateLimitRuleResult;
   };
 }

@@ -6,22 +6,28 @@
 
 **Rate limiting for NestJS using LimitKit’s policy-driven engine.**
 
-This package integrates LimitKit with NestJS using a global guard, while allowing **fine-grained control at controller and route level**.
+This package:
 
+* ✅ integrates with NestJS seamlessly
+* ✅ allows you to override global rules for particular controllers or routes
+* ✅ returns 429 if the request is rejected
+* ✅ automatically sets standard IETF rate limit headers
 
 ---
 
-# ⚡ Quick Start
-
-Install:
+## ⚡ Quick Start
 
 ```bash
-npm install @limitkit/nest @limitkit/core @limitkit/memory
+npm install @limitkit/nest
 ```
 
 ---
 
 ## Basic Setup
+
+Simply call `LimitModule.forRoot`, provide the store and the rules.
+
+All routes are now rate-limited globally.
 
 ```ts
 import { Module } from "@nestjs/common";
@@ -49,61 +55,14 @@ import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory";
 export class AppModule {}
 ```
 
-👉 All routes are now rate-limited globally.
 
 ---
 
-# 🧠 How It Works
+## 🎛 Route-Level Control
 
-* A global `LimitGuard` is automatically applied
-* Every request goes through the `RateLimiter`
-* Rules are evaluated in order (top → bottom)
+### Override rules
 
----
-
-# 🎯 Common Usage
-
-## Per-user rate limiting
-
-```ts
-{
-  name: "user",
-  key: (req) => req.user.id,
-  policy: new InMemoryFixedWindow({
-    window: 60,
-    limit: 1000,
-    name: "fixed-window",
-  }),
-}
-```
-
-Each user gets their own quota.
-
----
-
-## Layered limits
-
-```ts
-rules: [
-  { name: "global", key: () => "global", policy: ... },
-  { name: "ip", key: (req) => req.ip, policy: ... },
-  { name: "user", key: (req) => req.user.id, policy: ... },
-]
-```
-
-Rules are evaluated in order:
-
-```
-global → ip → user
-```
-
----
-
-# 🎛 Route-Level Control
-
-## Override limits
-
-Use `@RateLimit()` to override or extend global rules:
+Use `@RateLimit()` to override or extend global rules on a controller or route:
 
 ```ts
 import { Controller, Get } from "@nestjs/common";
@@ -134,7 +93,7 @@ export class ApiController {
 
 ---
 
-### 🧠 Merge Behavior
+#### 🧠 Merge Behavior
 
 Route-level rules are merged with global rules by `name`:
 
@@ -143,7 +102,7 @@ Route-level rules are merged with global rules by `name`:
 
 ---
 
-### Example
+#### Example
 
 Global:
 
@@ -177,17 +136,9 @@ Result:
 
 ---
 
-### ✅ Why this matters
+### Skip rate limiting
 
-This lets you:
-
-* tighten limits per route without redefining everything
-* reuse global structure
-* compose rules safely without duplication
-
----
-
-## Skip rate limiting
+Simply add `@SkipRateLimit` decorator to a controller or route to bypass rate limits.
 
 ```ts
 import { SkipRateLimit } from "@limitkit/nest";
@@ -202,46 +153,11 @@ export class HealthController {
 }
 ```
 
----
-
-# ⚖️ Weighted Requests
-
-```ts
-{
-  key: (req) => req.user.id,
-  cost: (req) => req.route.path === "/generate-report" ? 10 : 1,
-  policy: new InMemoryTokenBucket({
-    capacity: 100,
-    refillRate: 5,
-    name: "token-bucket",
-  }),
-}
-```
-
-Expensive operations consume more quota.
+If `@SkipRateLimit` is applied to a controller, but `@RateLimit` is applied to a route within it then the route will bypass all global limits and only the rules defined in the decorator are enforced.
 
 ---
 
-# 🏢 Dynamic Policies (SaaS Plans)
-
-```ts
-{
-  key: (ctx) => ctx.user.id,
-  policy: (ctx) => {
-    if (ctx.user.plan === "free")
-      return new InMemoryTokenBucket({ capacity: 50, refillRate: 1 });
-
-    if (ctx.user.plan === "pro")
-      return new InMemoryTokenBucket({ capacity: 500, refillRate: 10 });
-  },
-}
-```
-
-Define limits based on business logic.
-
----
-
-# 🔌 Async Configuration (Redis, ConfigService, etc.)
+## Async Configuration (Redis, ConfigService, etc.)
 
 Use `forRootAsync` when config depends on other providers:
 
@@ -288,9 +204,9 @@ export class AppModule {}
 
 ---
 
-# 💉 Using RateLimiter in Services
+## 💉 Using RateLimiter in Services
 
-You can inject the limiter directly:
+You can inject the limiter directly in the module that imports `LimitModule` for custom contexts such as GraphQL, WebSockets, job queues:
 
 ```ts
 import { Injectable } from "@nestjs/common";
@@ -310,24 +226,27 @@ export class MyService {
 }
 ```
 
----
+## 📡 Headers
 
-# 🧩 Features
+The guard provided by `@limitkit/nest` also automatically sets standard IETF rate limit headers for you:
 
-* Global rate limiting via guard
-* Route-level overrides (`@RateLimit`)
-* Route exclusions (`@SkipRateLimit`)
-* Policy-driven rules
-* Weighted requests
-* Dynamic runtime policies
-* Works with all LimitKit stores and algorithms
+```
+RateLimit-Limit
+RateLimit-Remaining
+Retry-After (when 429)
+```
 
----
+Along with that, the guard also sets a custom header:
+```
+Reset-After
+```
+which is the seconds after which the limit fully resets.
 
-# 🏁 Summary
+Example:
 
-LimitKit for NestJS gives you:
-
-* **zero-config global protection**
-* **fine-grained control per route**
-* **policy-driven flexibility beyond middleware**
+```
+RateLimit-Limit: 100
+RateLimit-Remaining: 0
+Reset-After: 60
+Retry-After: 30
+```

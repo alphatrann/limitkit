@@ -1,4 +1,5 @@
-import { FixedWindow, mergeRules, TokenBucket } from "../src";
+import { FixedWindow, TokenBucket } from "@limitkit/core";
+import { mergeRules } from "../src";
 
 class MockFixedWindow extends FixedWindow {}
 class MockTokenBucket extends TokenBucket {}
