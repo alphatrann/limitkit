@@ -15,7 +15,6 @@ LimitKit is a **rate limiting engine**, not just a middleware — designed for s
 * [🧩 Core Concepts](#-core-concepts)
 * [🧠 Policies](#-policies)
 * [🎯 Real-World Example](#-real-world-example)
-* [⚠️ Unexpected Behavior](#️-unexpected-behavior)
 * [⚙️ Packages](#️-packages)
 * [🧑‍💻 Common Recipes](#-common-recipes)
 * [🤝 Contributing](#-contributing)
@@ -60,29 +59,49 @@ You can explore all supported packages in the [Packages](#️-packages) section.
 
 ## ⚡ Quick Example
 
-Simply create a simple JavaScript/TypeScript file and paste the following code:
+Simply copy-paste the snippets below in order into a JavaScript/TypeScript file
 
+### Import necessary packages
+
+CommonJS:
+```js
+const { RateLimiter } = require("@limitkit/core");
+const { slidingWindow, InMemoryStore } = require("@limitkit/memory");
+```
+
+ESM:
 ```ts
 import { RateLimiter } from "@limitkit/core";
 import { slidingWindow, InMemoryStore } from "@limitkit/memory";
+```
 
+### Instantiate a rate limiter
+
+```ts
 const limiter = new RateLimiter({
   store: new InMemoryStore(),
   rules: [
     {
+      name: "global-limit",
+      key: "global",
+      policy: slidingWindow({ window: 10, limit: 1000 }),
+    },
+    {
       name: "ip-limit",
-      key: (req) => "ip:" + req.ip,
+      key: (ctx) => "ip:" + ctx.ip,
+      cost: (ctx) => ctx.isPriority ? 5 : 1,
       policy: slidingWindow({ window: 60, limit: 60 }),
     },
   ],
 });
+```
 
-
-// minimal test script
+### Testing
+```ts
 async function sendRequests(n) {
   let allowed = 0;
   for (let i = 0; i < n; i++) {
-    const res = await limiter.consume({ ip: "127.0.0.1" });
+    const res = await limiter.consume({ ip: "127.0.0.1", isPriority: true });
     if (res.allowed) allowed++;
 
     // Uncomment to inspect behavior
@@ -101,9 +120,9 @@ sendRequests(NUMBER_OF_REQUESTS)
 
 ```
 
-Then execute the file with Node.js, it should output:
+Execute the file with Node.js, which should output:
 ```
-Allowed: 60/100; rejected: 40/100
+Allowed: 12/100; rejected: 88/100
 ```
 
 > Best practice: Add a prefix in front of the key such as `ip:` to distinguish among global, IP and account.
@@ -203,78 +222,61 @@ In the snippet below:
 * Conditionally raise the costs for expensive endpoints
 * Dynamically resolve the policies e.g., subscription plan, time of day, CPU usage
 
+Note that two separate limiters are created. The `globalLimiter` is enforced on public routes, while `authenticatedLimiter` is enforced on endpoints that require authentication since `req.user` may be undefined in public routes, causing unexpected behavior.
+
+> Best practice: separate a single list of rules into multiple lists and merge them depending on when you want to enforce the limiter.
+
 ```ts
-const limiter = new RateLimiter({
+const globalRules = [
+  // Global protection
+  {
+    name: "global",
+    key: "global",
+    policy: fixedWindow({ window: 1, limit: 1000 }),
+  },
+
+  // Per-IP limits
+  {
+    name: "ip",
+    key: (req) => "ip:" + req.ip,
+    policy: fixedWindow({ window: 1, limit: 500 }),
+  }
+]
+
+const authenticatedRules = [
+  // Per-user limits
+  {
+    name: "user",
+    key: (req) => "acc:" + req.user.id,
+    policy: slidingWindow({ window: 60, limit: 100 }),
+  },
+
+  // Expensive endpoints
+  {
+    name: "costly",
+    key: (req) => "acc:" + req.user.id,
+    cost: (req) => (req.path.includes("export") ? 10 : 1),
+    policy: tokenBucket({ refillRate: 5, capacity: 100 }),
+  },
+
+  // SaaS plan-based limits
+  {
+    name: "plan",
+    key: (req) => "acc:" + req.user.id,
+    policy: (req) =>
+      req.user.plan === "pro" ? proPolicy : freePolicy,
+  },
+]
+
+const globalLimiter = new RateLimiter({
   store,
-  rules: [
-    // Global protection
-    {
-      name: "global",
-      key: "global",
-      policy: fixedWindow({ window: 1, limit: 1000 }),
-    },
+  rules: globalRules
+})
 
-    // Per-IP limits
-    {
-      name: "ip",
-      key: (req) => "ip:" + req.ip,
-      policy: fixedWindow({ window: 1, limit: 500 }),
-    },
-
-    // Per-user limits
-    {
-      name: "user",
-      key: (req) => "acc:" + req.user.id,
-      policy: slidingWindow({ window: 60, limit: 100 }),
-    },
-
-    // Expensive endpoints
-    {
-      name: "costly",
-      key: (req) => "acc:" + req.user.id,
-      cost: (req) => (req.path.includes("export") ? 10 : 1),
-      policy: tokenBucket({ refillRate: 5, capacity: 100 }),
-    },
-
-    // SaaS plan-based limits
-    {
-      name: "plan",
-      key: (req) => "acc:" + req.user.id,
-      policy: (req) =>
-        req.user.plan === "pro" ? proPolicy : freePolicy,
-    },
-  ],
+const authenticatedLimiter = new RateLimiter({
+  store,
+  rules: [...globalRules, ...authenticatedRules],
 });
-```
-
----
-
-## ⚠️ Unexpected Behavior
-
-Note that in some examples, `req.user` may be undefined if applied to every endpoint, which results in unexpected rate limiting behavior. There are two ways of handling this: raising exceptions or creating limiters.
-
-If you are using Express.js and NestJS, LimitKit has supported overriding and appending rules for routes via `@limitkit/express` and `@limitkit/nest` respectively.
-
-### Raising Exceptions
-
-Raise an exception if `req.user` is defined. However, this only works if all the routes require authentication.
-```ts
-      key: (req) => {
-        if (!req.user) throw new Error("Unauthorized")
-        return "acc:" + req.user.id
-      }
-```
-
-### Creating Limiters
-
-Create a separate `limiter` instance that enforces both global rules and rules which require authentication.
-
-> Ensure all the limiters access the same `store` instance.
-
-```ts
-const store = new InMemoryStore()
-const globalLimiter = new RateLimiter({ store, rules: globalRules })
-const authenticatedLimiter = new RateLimiter({ store, rules: [...globalRules, ...authenticatedRules] })
 ```
 
 ---
