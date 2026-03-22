@@ -1,11 +1,10 @@
 # LimitKit
 
-**Rate limiting starts simple — until it turns into nested conditionals across middleware.**
+**The "Zod" of Rate Limiting for Node.js.**
 
-Stop rewriting rate limiting logic every time your requirements change.
+Rate limiting starts simple — until it turns into nested conditionals across middleware.
 
-LimitKit lets you define all your rate limiting rules in one place —
-instead of burying them in middleware and conditionals.
+Stop writing imperative logic. Define your rate limiting Schema, and let LimitKit handle the orchestration.
 
 ## 📄 Table of Contents
 
