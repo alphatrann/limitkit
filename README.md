@@ -1,10 +1,22 @@
 # LimitKit
 
-**The "Zod" of Rate Limiting for Node.js.**
+**A schema-based approach to rate limiting for Node.js.**
 
-Rate limiting starts simple — until it turns into nested conditionals across middleware.
+Rate limiting starts simple — until your application grows.
 
-Stop writing imperative logic. Define your rate limiting Schema, and let LimitKit handle the orchestration.
+What begins as a single global limit often turns into a mix of:
+- per-IP limits
+- per-user limits
+- plan-based rules (free vs pro)
+- endpoint-specific costs
+- dynamic conditions based on context
+
+At that point, rate limiting stops being a simple middleware — and becomes a system.
+
+LimitKit helps you design that system declaratively.
+
+Instead of scattering logic across middleware and conditionals, you define your rules in one place — and let LimitKit handle the orchestration.
+
 
 ## 📄 Table of Contents
 
