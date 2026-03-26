@@ -104,7 +104,7 @@ A rule in LimitKit consists of these main properties:
 ```ts
 {
   name: "user",
-  key: (ctx) => ctx.user.id,
+  key: (ctx) => "acc:" + ctx.user.id,
   policy: tokenBucket(...),
   cost: 1
 }
@@ -152,8 +152,8 @@ If any rule fails, the evaluation stops and the request is rejected.
 ```ts
 rules: [
   { name: "global", key: "global", policy: globalPolicy },
-  { name: "ip", key: (ctx) => ctx.ip, policy: ipPolicy },
-  { name: "user", key: (ctx) => ctx.user.id, policy: userPolicy },
+  { name: "ip", key: (ctx) => "ip:" + ctx.ip, policy: ipPolicy },
+  { name: "user", key: (ctx) => "acc:" + ctx.user.id, policy: userPolicy },
 ]
 ```
 
@@ -167,7 +167,7 @@ The `policy` can be an async function in which you can query the database or cac
 
 ```ts
 {
-  key: (ctx) => ctx.user.id,
+  key: (ctx) => "acc:" + ctx.user.id,
   policy: (ctx) => {
     return ctx.user.plan === "pro"
       ? proPolicy
@@ -186,7 +186,7 @@ In the snippet below, assuming the `/report` endpoint performs expensive computa
 
 ```ts
 {
-  key: (ctx) => ctx.user.id,
+  key: (ctx) => "acc:" + ctx.user.id,
   cost: (ctx) => ctx.endpoint === "/report" ? 10 : 1,
   policy: tokenBucketPolicy
 }
@@ -230,4 +230,4 @@ interface IdentifiedRateLimitRuleResult {
 | `limit`   | the maximum number of requests allowed by the rule |
 | `remaining`      | the remaining number of requests allowed by the rule |
 | `resetAt`      | the Unix timestamp (ms) after which the limit for the rule fully resets |
-| `availableAt`      | the Unix timestamp (ms) after which the request is allowed by the rule (`undefined` when allowed) |
+| `availableAt`      | the Unix timestamp (ms) after which the request is allowed by the rule. |

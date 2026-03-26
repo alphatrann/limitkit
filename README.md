@@ -346,8 +346,69 @@ tokenBucket({ capacity: 100, refillRate: 5 })
 
 ### Leaky Bucket
 
+#### Policing
+
+This is a mathematical inverse of token bucket.
+
 ```ts
 leakyBucket({ capacity: 100, leakRate: 5 })
+```
+
+#### Shaping
+
+Traffic-shaping leaky bucket is a version of leaky bucket that is typically used in worker queues to handle backpressure by delaying operations.
+
+Simply create a store, a traffic shaper and call `store.consume` with the shaper. The result contains `availableAt`, which tells when to execute this job.
+
+This reduces backpressure when producers enqueue too many tasks while consumers can't handle them fast enough.
+
+```ts
+import { createClient } from "redis";
+import { RedisStore, shapingLeakyBucket } from "@limitkit/redis";
+
+const redis = createClient();
+await redis.connect();
+
+const shaper = shapingLeakyBucket({
+   capacity: 100,
+   leakRate: 2 // requests per second
+})
+
+const redisStore = new RedisStore(redis);
+
+// somewhere in code
+const now = Date.now()
+const result = await redisStore.consume(key, shaper, now, 1);
+// schedule execution based on `availableAt`
+setTimeout(() => handleJob(), result.availableAt - now);
+```
+
+Alternatively, you can still create a `limiter` and call `consume`:
+
+```ts
+import { RateLimiter } from "@limitkit/core";
+import { InMemoryStore, shapingLeakyBucket } from "@limitkit/memory";
+
+const redis = createClient();
+await redis.connect();
+
+const limiter = new RateLimiter({
+  store: new RedisStore(redis),
+  rules: [
+    {
+      name: "queue",
+      key: (ctx) => ctx.queue.name, // handle backpressure for all the job queues
+      policy: shapingLeakyBucket({
+        capacity: 200,
+        leakRate: 4,
+      }),
+    },
+  ],
+});
+
+// somewhere in code
+const result = await limiter.consume(ctx);
+setTimeout(() => handleJob(), result.rules[0].availableAt - now);
 ```
 
 ### GCRA (Generic Cell Rate Algorithm)
@@ -417,6 +478,8 @@ const authenticatedLimiter = new RateLimiter({
   rules: [...globalRules, ...authenticatedRules],
 });
 ```
+
+> It is recommended to place the snippet above in a separate file.
 
 Now, public routes use `globalLimiter` while authenticated routes combine both `globalLimiter` and `authenticatedLimiter`, the same `globalRules` are reused without duplication. Looking at the code, it's easier to see exactly what applies — without tracing middleware or conditionals.
 

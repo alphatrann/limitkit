@@ -6,12 +6,12 @@ import {
 import { InMemoryCompatible, LeakyBucketState } from "../types";
 
 /**
- * In-memory implementation of the **Leaky Bucket** rate limiting algorithm.
+ * In-memory implementation of the **Policing Leaky Bucket** rate limiting algorithm.
  *
  * Requests enter a queue (the bucket) and leak out at a constant rate.
  * If the bucket overflows, new requests are rejected.
  *
- * This algorithm smooths bursts by enforcing a steady processing rate.
+ * The implementation is simply a mathematical inverse to that of token bucket.
  *
  * ## Characteristics
  * - Smooth request rate
@@ -28,6 +28,7 @@ import { InMemoryCompatible, LeakyBucketState } from "../types";
  *   leakRate: 2
  * });
  * ```
+ *
  *
  * @extends LeakyBucket
  * @implements {InMemoryCompatible<LeakyBucketState>}

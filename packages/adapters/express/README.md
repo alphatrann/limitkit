@@ -42,7 +42,7 @@ const limiter = new RateLimiter({
   rules: [
     {
       name: "global",
-      key: (req) => req.ip,
+      key: (req) => "ip:" + req.ip,
       policy: fixedWindow({
         window: 60,
         limit: 100,
@@ -74,7 +74,7 @@ app.get(
     rules: [
       {
         name: "api",
-        key: (req) => req.headers["user-id"],
+        key: (req) => "acc:" + req.user.id,
         policy: fixedWindow({
           window: 60,
           limit: 50,
@@ -96,7 +96,7 @@ Given the following global rules:
 const limiter = new RateLimiter({
   rules: [
     { name: "global", key: "global", policy: ... },
-    { name: "user", key: (req) => req.user.id, policy: ... },
+    { name: "user", key: (req) => "acc:" + req.user.id, policy: ... },
   ],
   store,
 });
@@ -107,7 +107,7 @@ Route rules are global rules, but the rule `"user"` was overriden by what's defi
 ```ts
 limit(limiter, {
   rules: [
-    { name: "user", key: (req) => req.user.id, policy: stricterPolicy },
+    { name: "user", key: (req) => "acc:" + req.user.id, policy: stricterPolicy },
     { name: "route", key: "route", policy: ... },
   ],
 });

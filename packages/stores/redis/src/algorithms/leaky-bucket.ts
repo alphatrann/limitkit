@@ -2,12 +2,14 @@ import { LeakyBucket } from "@limitkit/core";
 import { RedisCompatible } from "../types";
 
 /**
- * Redis implementation of the Token Bucket rate limiting algorithm.
+ * Redis implementation of the Policing Token Bucket rate limiting algorithm.
  *
  * Token Bucket allows bursts of requests while enforcing a sustained rate
  * limit over time.
  *
  * ## Algorithm
+ *
+ * The implementation is simply a mathematical inverse to that of token bucket.
  *
  * A bucket contains tokens representing available request capacity.
  *

@@ -1,5 +1,16 @@
 # @limitkit/redis
 
+## 1.1.0
+
+### Minor Changes
+
+- Add traffic shaper leaky bucket algorithm support
+
+### Patch Changes
+
+- Updated dependencies
+  - @limitkit/core@1.1.0
+
 ## 1.0.1
 
 - Update outdated README
