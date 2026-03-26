@@ -46,7 +46,7 @@ describe("InMemoryFixedWindow", () => {
     expect(r.output.allowed).toBe(false);
     expect(r.output.remaining).toBe(0);
     expect(r.output.resetAt).toBe(baseTime + config.window * 1000);
-    expect(r.output.retryAt).toBe(baseTime + config.window * 1000);
+    expect(r.output.availableAt).toBe(baseTime + config.window * 1000);
   });
 
   test("state count increments correctly", () => {

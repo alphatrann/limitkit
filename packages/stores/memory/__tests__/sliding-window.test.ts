@@ -38,7 +38,7 @@ describe("InMemorySlidingWindow", () => {
     expect(r.output.resetAt).toBe(
       base + (config.limit - 1) * 100 + config.window * 1000,
     );
-    expect(r.output.retryAt).toBe(base + config.window * 1000);
+    expect(r.output.availableAt).toBe(base + config.window * 1000);
   });
 
   test("expired entries are removed", () => {

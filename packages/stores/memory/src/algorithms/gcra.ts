@@ -87,7 +87,7 @@ export class InMemoryGCRA
         output: {
           allowed: false,
           remaining: 0,
-          retryAt: allowAt,
+          availableAt: allowAt,
           limit: burst,
           resetAt: tat,
         },

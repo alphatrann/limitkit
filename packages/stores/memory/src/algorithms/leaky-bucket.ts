@@ -77,7 +77,7 @@ export class InMemoryLeakyBucket
     // ----- reject -----
     if (queueSize + cost > capacity) {
       const overflow = queueSize + cost - capacity;
-      const retryAt = now + (overflow / leakRate) * 1000;
+      const availableAt = now + (overflow / leakRate) * 1000;
       const resetAt = now + (queueSize / leakRate) * 1000;
       return {
         state: { lastLeak, queueSize },
@@ -86,7 +86,7 @@ export class InMemoryLeakyBucket
           limit: capacity,
           remaining: 0,
           resetAt,
-          retryAt,
+          availableAt,
         },
       };
     }
