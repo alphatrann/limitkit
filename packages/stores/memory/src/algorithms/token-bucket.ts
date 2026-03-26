@@ -82,7 +82,7 @@ export class InMemoryTokenBucket
     // ----- reject -----
     if (tokens < cost) {
       const tokensNeeded = cost - tokens;
-      const retryAt = now + Math.ceil((tokensNeeded / refillRate) * 1000);
+      const availableAt = now + Math.ceil((tokensNeeded / refillRate) * 1000);
       const resetAt =
         now + Math.ceil(((capacity - tokens) / refillRate) * 1000);
 
@@ -92,7 +92,7 @@ export class InMemoryTokenBucket
           allowed: false,
           limit: capacity,
           remaining: Math.floor(tokens),
-          retryAt,
+          availableAt,
           resetAt,
         },
       };

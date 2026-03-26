@@ -48,14 +48,14 @@ import { RedisCompatible } from "../types";
  * ## Script Return Value
  *
  * ```text
- * {allowed, remaining, reset, retryAt}
+ * {allowed, remaining, reset, availableAt}
  * ```
  *
  * Where:
  * - `allowed` – 1 if request is permitted
  * - `remaining` – remaining requests allowed
  * - `reset` – timestamp (ms) of the TAT
- * - `retryAt` – timestamp (ms) when the next request may succeed
+ * - `availableAt` – timestamp (ms) when the next request may succeed
  *
  * @see GCRA
  * @see RedisStore

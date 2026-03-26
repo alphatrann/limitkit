@@ -80,7 +80,7 @@ export class InMemoryFixedWindow
           remaining: 0,
           limit: this.config.limit,
           resetAt,
-          retryAt: resetAt,
+          availableAt: resetAt,
         },
       };
     }

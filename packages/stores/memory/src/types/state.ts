@@ -2,14 +2,19 @@ export type TokenBucketState = {
   /** Available tokens in the bucket */
   tokens: number;
   /** Timestamp of the last token refill (ms) */
-  lastRefill: number | null;
+  lastRefill: number;
 };
 
 export type LeakyBucketState = {
   /** Number of requests currently in the queue */
   queueSize: number;
   /** Timestamp of the last leak event (ms) */
-  lastLeak: number | null;
+  lastLeak: number;
+};
+
+export type ShapingLeakyBucketState = {
+  /** The next timestamp when an item can leave the bucket */
+  nextFreeAt: number;
 };
 
 export type FixedWindowState = {
@@ -43,7 +48,7 @@ export type SlidingWindowCounterState = {
 
 export type GCRAState = {
   /** Theoretical Arrival Time for the next eligible request */
-  tat: number | null;
+  tat: number;
 };
 
 export type CustomAlgorithmState = {
@@ -83,6 +88,7 @@ export type State =
   | FixedWindowState
   | SlidingWindowState
   | SlidingWindowCounterState
+  | ShapingLeakyBucketState
   | LeakyBucketState
   | GCRAState
   | CustomAlgorithmState;

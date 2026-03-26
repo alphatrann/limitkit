@@ -51,13 +51,13 @@ import { RedisCompatible } from "../types";
  * ## Script Return Value
  *
  * ```text
- * {allowed, remaining, reset, retryAt}
+ * {allowed, remaining, reset, availableAt}
  * ```
  *
  * - `allowed` – 1 if request is permitted
  * - `remaining` – remaining requests within the window
  * - `reset` – timestamp (ms) when capacity will refresh
- * - `retryAt` – timestamp (ms) when the next request may succeed
+ * - `availableAt` – timestamp (ms) when the next request may succeed
  *
  * @example
  * ```ts
@@ -101,9 +101,9 @@ export class RedisSlidingWindow
 
       local oldestTime = tonumber(oldest[2])
       local reset = tonumber(newest[2]) + window
-      local retryAt = oldestTime + window
+      local availableAt = oldestTime + window
 
-      return {0, 0, reset, retryAt}
+      return {0, 0, reset, availableAt}
     end
 
     -- allow

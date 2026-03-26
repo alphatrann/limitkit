@@ -10,6 +10,7 @@ import {
   InMemoryFixedWindow,
   InMemoryGCRA,
   InMemoryLeakyBucket,
+  InMemoryShapingLeakyBucket,
   InMemorySlidingWindow,
   InMemorySlidingWindowCounter,
   InMemoryTokenBucket,
@@ -41,6 +42,10 @@ export function tokenBucket(config: Omit<TokenBucketConfig, "name">) {
 
 export function leakyBucket(config: Omit<LeakyBucketConfig, "name">) {
   return new InMemoryLeakyBucket({ name: "leaky-bucket", ...config });
+}
+
+export function shapingLeakyBucket(config: Omit<LeakyBucketConfig, "name">) {
+  return new InMemoryShapingLeakyBucket({ name: "leaky-bucket", ...config });
 }
 
 export function gcra(config: Omit<GCRAConfig, "name">) {

@@ -29,8 +29,11 @@ export interface RateLimitRuleResult {
   /**
    * If the request is rate limited, suggests the timestamp to retry.
    * Defined only present when `allowed` is false.
+   *
+   * In traffic shaping leaky bucket, it is defined when `allowed` is true, which indicates
+   * the earliest time the request can safely run.
    */
-  retryAt?: number;
+  availableAt?: number;
 }
 
 export interface IdentifiedRateLimitRuleResult extends RateLimitRuleResult {

@@ -41,7 +41,7 @@ describe("RedisLeakyBucket", () => {
 
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(CAPACITY - i);
-      expect(result.retryAt).toBeUndefined();
+      expect(result.availableAt).toBeUndefined();
     }
   });
 
@@ -57,7 +57,7 @@ describe("RedisLeakyBucket", () => {
 
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
-    expect(result.retryAt).toBe(now + Math.ceil((1 / LEAK_RATE) * 1000));
+    expect(result.availableAt).toBe(now + Math.ceil((1 / LEAK_RATE) * 1000));
   });
 
   it("should leak requests over time", async () => {

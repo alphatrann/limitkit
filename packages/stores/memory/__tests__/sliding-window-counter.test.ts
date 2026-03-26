@@ -36,7 +36,7 @@ describe("InMemorySlidingWindowCounter", () => {
     const r = limiter.process(state, base + 1000);
     expect(r.output.allowed).toBe(false);
     expect(r.output.resetAt).toBe(base + 2 * config.window * 1000);
-    expect(r.output.retryAt).toBe(base + config.window * 1000);
+    expect(r.output.availableAt).toBe(base + config.window * 1000);
   });
 
   test("window rollover works", () => {

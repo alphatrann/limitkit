@@ -48,14 +48,14 @@ import { RedisCompatible } from "../types";
  * ## Script Return Value
  *
  * ```text
- * {allowed, remaining, reset, retryAt}
+ * {allowed, remaining, reset, availableAt}
  * ```
  *
  * Where:
  * - `allowed` – 1 if request is permitted
  * - `remaining` – number of empty slots in the queue
  * - `reset` – timestamp (ms) when capacity will refresh
- * - `retryAt` – timestamp (ms) when the next request may succeed
+ * - `availableAt` – timestamp (ms) when the next request may succeed
  *
  * @see TokenBucket
  * @see RedisStore
@@ -83,9 +83,9 @@ export class RedisLeakyBucket extends LeakyBucket implements RedisCompatible {
 
     if queueSize + cost > capacity then
       local overflow = queueSize + cost - capacity
-      local retryAt = now + math.ceil((overflow / leakRate) * 1000)
+      local availableAt = now + math.ceil((overflow / leakRate) * 1000)
       local reset = now + math.ceil((queueSize / leakRate) * 1000)
-      return {0, 0, reset, retryAt}
+      return {0, 0, reset, availableAt}
     end
 
     queueSize = queueSize + cost

@@ -42,7 +42,7 @@ describe("RedisTokenBucket", () => {
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(CAPACITY - i);
       expect(result.limit).toBe(CAPACITY);
-      expect(result.retryAt).toBeUndefined();
+      expect(result.availableAt).toBeUndefined();
     }
   });
 
@@ -58,7 +58,7 @@ describe("RedisTokenBucket", () => {
 
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
-    expect(result.retryAt).toBe(now + Math.ceil((1 / REFILL) * 1000));
+    expect(result.availableAt).toBe(now + Math.ceil((1 / REFILL) * 1000));
   });
 
   it("should refill tokens over time", async () => {
@@ -127,7 +127,7 @@ describe("RedisTokenBucket", () => {
     expect(allowed).toBe(CAPACITY);
   });
 
-  it("retryAt should match token refill time", async () => {
+  it("availableAt should match token refill time", async () => {
     const key = "tb-retry-after";
     const now = 1_000_000;
 
@@ -139,7 +139,7 @@ describe("RedisTokenBucket", () => {
     const expectedRetry = now + Math.ceil((1 / REFILL) * 1000);
 
     expect(result.allowed).toBe(false);
-    expect(result.retryAt).toBe(expectedRetry);
+    expect(result.availableAt).toBe(expectedRetry);
   });
 
   it("resetAt should equal full refill time when bucket empty", async () => {
@@ -155,7 +155,7 @@ describe("RedisTokenBucket", () => {
     expect(result.resetAt).toBeCloseTo(expectedReset, -2);
   });
 
-  it("retryAt should scale with cost", async () => {
+  it("availableAt should scale with cost", async () => {
     const key = "tb-retry-after-cost";
     const now = 1_000_000;
 
@@ -166,7 +166,7 @@ describe("RedisTokenBucket", () => {
     const expectedRetry = now + Math.ceil((3 / REFILL) * 1000);
 
     expect(result.allowed).toBe(false);
-    expect(result.retryAt).toBe(expectedRetry);
+    expect(result.availableAt).toBe(expectedRetry);
   });
 
   it("should handle concurrent cost consumption", async () => {

@@ -42,7 +42,7 @@ describe("RedisSlidingWindow", () => {
       expect(result.allowed).toBe(true);
       expect(result.limit).toBe(LIMIT);
       expect(result.remaining).toBe(LIMIT - i);
-      expect(result.retryAt).toBeUndefined();
+      expect(result.availableAt).toBeUndefined();
     }
   });
 
@@ -60,7 +60,7 @@ describe("RedisSlidingWindow", () => {
     expect(result.remaining).toBe(0);
     expect(result.limit).toBe(LIMIT);
 
-    expect(result.retryAt).toBe(now + WINDOW * 1000);
+    expect(result.availableAt).toBe(now + WINDOW * 1000);
     expect(result.resetAt).toBe(now + (LIMIT - 1) * 500 + WINDOW * 1000);
   });
 
@@ -91,7 +91,7 @@ describe("RedisSlidingWindow", () => {
     expect(result.resetAt).toBe(now + 1000 + WINDOW * 1000);
   });
 
-  it("retryAt should match oldest timestamp + window ms", async () => {
+  it("availableAt should match oldest timestamp + window ms", async () => {
     const key = "sliding-retry-after";
     const now = 1_000_000;
 
@@ -101,7 +101,7 @@ describe("RedisSlidingWindow", () => {
 
     const result = await store.consume(key, limiter, now + LIMIT * 500);
 
-    expect(result.retryAt).toBe(now + WINDOW * 1000);
+    expect(result.availableAt).toBe(now + WINDOW * 1000);
   });
 
   it("cost should consume multiple tokens", async () => {

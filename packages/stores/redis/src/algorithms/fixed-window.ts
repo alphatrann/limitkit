@@ -53,7 +53,7 @@ import { RedisCompatible } from "../types";
  * The script returns a tuple:
  *
  * ```text
- * {allowed, remaining, reset, retryAt}
+ * {allowed, remaining, reset, availableAt}
  * ```
  *
  * Where:
@@ -61,7 +61,7 @@ import { RedisCompatible } from "../types";
  * - `allowed` – 1 if request is permitted
  * - `remaining` – remaining requests within the window
  * - `reset` – timestamp (ms) when capacity will refresh
- * - `retryAt` – timestamp (ms) when the next request may succeed
+ * - `availableAt` – timestamp (ms) when the next request may succeed
  *
  * @example
  * ```ts

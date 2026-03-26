@@ -37,7 +37,9 @@ describe("InMemoryTokenBucket", () => {
     expect(r.output.resetAt).toBe(
       base + Math.ceil((config.capacity / config.refillRate) * 1000),
     );
-    expect(r.output.retryAt).toBe(base + Math.ceil(1000 / config.refillRate));
+    expect(r.output.availableAt).toBe(
+      base + Math.ceil(1000 / config.refillRate),
+    );
   });
 
   test("refill works over time", () => {
