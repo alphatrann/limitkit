@@ -1,6 +1,6 @@
 {
   "name": "@limitkit/nest",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "NestJS integration for LimitKit",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -27,7 +27,7 @@
     "nodejs"
   ],
   "dependencies": {
-    "@limitkit/core": "^1.0.2",
+    "@limitkit/core": "^1.1.0",
     "@nestjs/common": "^11.1.16",
     "@nestjs/core": "^11.1.16",
     "reflect-metadata": "^0.2.2",

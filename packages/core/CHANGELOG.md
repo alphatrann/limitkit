@@ -1,5 +1,11 @@
 # @limitkit/core
 
+## 1.1.0
+
+### Minor Changes
+
+- Add traffic shaper leaky bucket algorithm support
+
 ## 1.0.2
 
 - Update outdated README

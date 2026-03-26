@@ -77,15 +77,11 @@ import { fixedWindow } from "@limitkit/memory";
 fixedWindow({ window: 60, limit: 100 })
 ```
 
-
-
 #### Sliding Window
 
 ```ts
 slidingWindow({ window: 60, limit: 100 })
 ```
-
-
 
 #### Sliding Window Counter
 
@@ -93,15 +89,11 @@ slidingWindow({ window: 60, limit: 100 })
 slidingWindowCounter({ window: 60, limit: 100 })
 ```
 
-
-
 #### Token Bucket
 
 ```ts
 tokenBucket({ capacity: 100, refillRate: 5 })
 ```
-
-
 
 #### Leaky Bucket
 
@@ -109,7 +101,54 @@ tokenBucket({ capacity: 100, refillRate: 5 })
 leakyBucket({ capacity: 100, leakRate: 5 })
 ```
 
+#### Shaping Leaky Bucket
 
+Shaping leaky bucket is a special algorithm that is typically used in worker queues to handle backpressure by delaying operations.
+
+Simply create a store, a traffic shaper and call `store.consume` with the shaper. The result contains `availableAt`, which tells when to execute this job.
+
+This reduces backpressure when producers enqueue too many tasks while consumers can't handle them fast enough.
+
+```ts
+import { shapingLeakyBucket, InMemoryStore } from "@limitkit/memory";
+
+const shaper = shapingLeakyBucket({
+  capacity: 100,
+  leakRate: 2, // requests per second
+});
+
+const store = new InMemoryStore();
+const now = Date.now();
+
+const result = store.consume(key, shaper, now, 1);
+
+// schedule execution based on `availableAt`
+setTimeout(() => handleJob(), result.availableAt - now);
+```
+
+Alternatively, you can still create a `limiter` and call `limiter.consume`:
+
+```ts
+import { RateLimiter } from "@limitkit/core";
+import { InMemoryStore, shapingLeakyBucket } from "@limitkit/memory";
+
+const limiter = new RateLimiter({
+  store: new InMemoryStore(),
+  rules: [
+    {
+      name: "queue",
+      key: (ctx) => ctx.queue.name, // handle backpressure for all the job queues
+      policy: shapingLeakyBucket({
+        capacity: 200,
+        leakRate: 4,
+      }),
+    },
+  ],
+});
+
+const result = await limiter.consume(ctx);
+setTimeout(() => handleJob(), result.rules[0].availableAt - now);
+```
 
 #### GCRA (Generalized Cell Rate Algorithm)
 

@@ -110,7 +110,7 @@ import {
  *     rules: [
  *       {
  *         name: "per-ip",
- *         key: (req) => req.ip,
+ *         key: (req) => "ip:" + req.ip,
  *         policy: new RedisFixedWindow({ name: "fixed-window", window: 60, limit: 100 })
  *       }
  *     ]

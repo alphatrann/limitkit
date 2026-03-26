@@ -41,7 +41,7 @@ import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory";
       rules: [
         {
           name: "global",
-          key: (req) => req.ip,
+          key: (req) => "ip:" + req.ip,
           policy: new InMemoryFixedWindow({
             name: "fixed-window",
             window: 60,
@@ -76,7 +76,7 @@ export class ApiController {
     rules: [
       {
         name: "api",
-        key: (req) => req.user.id,
+        key: (req) => "acc:" + req.user.id,
         policy: new InMemoryFixedWindow({
           window: 60,
           limit: 50,
@@ -109,7 +109,7 @@ Global:
 ```ts
 rules: [
   { name: "global", key: "global", policy: ... },
-  { name: "user", key: (req) => req.user.id, policy: ... },
+  { name: "user", key: (req) => "acc:" + req.user.id, policy: ... },
 ]
 ```
 
@@ -118,7 +118,7 @@ Route:
 ```ts
 @RateLimit({
   rules: [
-    { name: "user", key: (req) => req.user.id, policy: stricterPolicy },
+    { name: "user", key: (req) => "acc:" + req.user.id, policy: stricterPolicy },
     { name: "route", key: "route", policy: ... },
   ],
 })

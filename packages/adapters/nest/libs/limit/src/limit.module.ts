@@ -137,7 +137,7 @@ export class LimitModule {
    *       rules: [
    *         {
    *           name: "global",
-   *           key: (req) => req.ip,
+   *           key: (req) => "ip:" + req.ip,
    *           policy: new InMemoryFixedWindow({ name: "fixed-window", window: 60, limit: 100 })
    *         }
    *       ]
