@@ -8,6 +8,8 @@ import {
   tokenBucket,
   leakyBucket,
   gcra,
+  shapingLeakyBucket,
+  RedisShapingLeakyBucket,
 } from "../src";
 
 import { Algorithm } from "@limitkit/core";
@@ -40,6 +42,10 @@ describe("RedisStore Integration", () => {
     leakyBucket({
       capacity: 5,
       leakRate: 1,
+    }),
+    shapingLeakyBucket({
+      capacity: 10,
+      leakRate: 5,
     }),
 
     gcra({
@@ -81,7 +87,9 @@ describe("RedisStore Integration", () => {
 
     expect(typeof result.remaining).toBe("number");
     expect(typeof result.resetAt).toBe("number");
-    expect(typeof result.retryAt).toBe("undefined");
+    if (algo instanceof RedisShapingLeakyBucket)
+      expect(typeof result.availableAt).toBe("number");
+    else expect(typeof result.availableAt).toBe("undefined");
   });
 
   /**
@@ -132,15 +140,20 @@ describe("RedisStore Integration", () => {
    * ---------------------------------------------------------
    */
 
-  it.each(algorithms)("retryAt should be 0 when allowed (%p)", async (algo) => {
-    const key = "retry-contract";
-    const now = 1_000_000;
+  it.each(algorithms)(
+    "availableAt should be undefined when allowed, except shaping leaky bucket (%p)",
+    async (algo) => {
+      const key = "retry-contract";
+      const now = 1_000_000;
 
-    const result = await store.consume(key, algo, now);
+      const result = await store.consume(key, algo, now);
 
-    expect(result.allowed).toBe(true);
-    expect(result.retryAt).toBeUndefined();
-  });
+      expect(result.allowed).toBe(true);
+      if (algo instanceof RedisShapingLeakyBucket)
+        expect(result.availableAt).toBeDefined();
+      else expect(result.availableAt).toBeUndefined();
+    },
+  );
 
   /**
    * ---------------------------------------------------------
@@ -197,7 +210,7 @@ describe("RedisStore Integration", () => {
       expect(result).toHaveProperty("limit");
       expect(result).toHaveProperty("remaining");
       expect(result).toHaveProperty("resetAt");
-      expect(result).toHaveProperty("retryAt");
+      expect(result).toHaveProperty("availableAt");
     },
   );
 
@@ -231,10 +244,10 @@ describe("RedisStore Integration", () => {
 
         expect(result.resetAt).toBeGreaterThanOrEqual(now);
 
-        if (result.allowed) {
-          expect(result.retryAt).toBeUndefined();
+        if (result.allowed && !(algo instanceof RedisShapingLeakyBucket)) {
+          expect(result.availableAt).toBeUndefined();
         } else {
-          expect(result.retryAt).toBeGreaterThanOrEqual(0);
+          expect(result.availableAt).toBeGreaterThanOrEqual(0);
         }
       }
     },

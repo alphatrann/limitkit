@@ -42,7 +42,7 @@ describe("RedisFixedWindow", () => {
       expect(result.allowed).toBe(true);
       expect(result.limit).toBe(LIMIT);
       expect(result.remaining).toBe(LIMIT - i);
-      expect(result.retryAt).toBeUndefined();
+      expect(result.availableAt).toBeUndefined();
     }
   });
 
@@ -60,8 +60,8 @@ describe("RedisFixedWindow", () => {
     expect(result.remaining).toBe(0);
     expect(result.limit).toBe(LIMIT);
 
-    expect(result.retryAt).toBe(now + WINDOW * 1000);
-    expect(result.resetAt).toBe(result.retryAt);
+    expect(result.availableAt).toBe(now + WINDOW * 1000);
+    expect(result.resetAt).toBe(result.availableAt);
   });
 
   it("should reset after window expires", async () => {
@@ -93,7 +93,7 @@ describe("RedisFixedWindow", () => {
     expect(result.resetAt).toBe(expectedReset);
   });
 
-  it("retryAt should match reset timestamp", async () => {
+  it("availableAt should match reset timestamp", async () => {
     const key = "fixed-retry-after";
     const now = 1_000_000;
 
@@ -103,7 +103,7 @@ describe("RedisFixedWindow", () => {
 
     const result = await store.consume(key, limiter, now + LIMIT * 200);
 
-    expect(result.retryAt).toBe(result.resetAt);
+    expect(result.availableAt).toBe(result.resetAt);
   });
 
   it("cost should consume multiple tokens", async () => {

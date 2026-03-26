@@ -1,14 +1,9 @@
 import {
   fixedWindow,
   gcra,
-  InMemoryFixedWindow,
-  InMemoryGCRA,
-  InMemoryLeakyBucket,
-  InMemorySlidingWindow,
-  InMemorySlidingWindowCounter,
   InMemoryStore,
-  InMemoryTokenBucket,
   leakyBucket,
+  shapingLeakyBucket,
   slidingWindow,
   slidingWindowCounter,
   tokenBucket,
@@ -58,6 +53,15 @@ function getAlgorithms() {
       name: "LeakyBucket",
       instance: () =>
         leakyBucket({
+          capacity: 10,
+          leakRate: 5,
+        }),
+      limit: 10,
+    },
+    {
+      name: "ShapingLeakyBucket",
+      instance: () =>
+        shapingLeakyBucket({
           capacity: 10,
           leakRate: 5,
         }),

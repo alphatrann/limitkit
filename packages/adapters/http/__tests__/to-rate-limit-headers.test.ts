@@ -61,13 +61,13 @@ describe("toRateLimitHeaders", () => {
     expect(headers["RateLimit-Remaining"]).toBe(0);
   });
 
-  it("includes Retry-After when retryAt is present", () => {
+  it("includes Retry-After when availableAt is present", () => {
     const r1 = {
       name: "r1",
       limit: 10,
       remaining: 0,
       resetAt: 2000,
-      retryAt: 3000,
+      availableAt: 3000,
       allowed: false,
     };
 
@@ -82,7 +82,7 @@ describe("toRateLimitHeaders", () => {
     expect(headers["Retry-After"]).toBe(Math.ceil((3000 - now) / 1000));
   });
 
-  it("does not include Retry-After when retryAt is absent", () => {
+  it("does not include Retry-After when availableAt is absent", () => {
     const r1 = {
       name: "r1",
       limit: 10,

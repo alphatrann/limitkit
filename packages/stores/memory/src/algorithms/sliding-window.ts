@@ -92,7 +92,7 @@ export class InMemorySlidingWindow
       const oldest = buffer[head];
       const newest = buffer[(head + size - 1) % limit];
       const resetAt = newest + windowMs;
-      const retryAt = oldest + windowMs;
+      const availableAt = oldest + windowMs;
       return {
         state,
         output: {
@@ -100,7 +100,7 @@ export class InMemorySlidingWindow
           limit,
           remaining: 0,
           resetAt,
-          retryAt,
+          availableAt,
         },
       };
     }

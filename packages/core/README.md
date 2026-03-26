@@ -220,7 +220,7 @@ interface IdentifiedRateLimitRuleResult {
   limit: number;
   remaining: number;
   resetAt: number;
-  retryAt?: number;
+  availableAt?: number;
 }
 ```
 
@@ -230,4 +230,4 @@ interface IdentifiedRateLimitRuleResult {
 | `limit`   | the maximum number of requests allowed by the rule |
 | `remaining`      | the remaining number of requests allowed by the rule |
 | `resetAt`      | the Unix timestamp (ms) after which the limit for the rule fully resets |
-| `retryAt`      | the Unix timestamp (ms) after which the request is allowed by the rule (`undefined` when allowed) |
+| `availableAt`      | the Unix timestamp (ms) after which the request is allowed by the rule (`undefined` when allowed) |

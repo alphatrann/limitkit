@@ -20,8 +20,8 @@ export function toRateLimitHeaders(result: RateLimitResult): RateLimitHeaders {
   const now = Date.now();
 
   const resetSeconds = Math.ceil((rule.resetAt - now) / 1000);
-  const retrySeconds = rule.retryAt
-    ? Math.ceil((rule.retryAt - now) / 1000)
+  const retrySeconds = rule.availableAt
+    ? Math.ceil((rule.availableAt - now) / 1000)
     : undefined;
 
   return {
