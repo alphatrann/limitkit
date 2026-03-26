@@ -142,7 +142,7 @@ export class RedisStore implements Store {
    * - `limit` — maximum number of allowed requests
    * - `remaining` — remaining tokens/requests
    * - `reset` — timestamp when the limit resets
-   * - `retryAt` — seconds until the request may be retried
+   * - `availableAt` — seconds until the request may be retried
    *
    * @throws BadArgumentsException
    * If the algorithm configuration is invalid.
@@ -178,20 +178,18 @@ export class RedisStore implements Store {
        * This avoids sending the script body across the network and
        * significantly reduces request overhead.
        */
-      const [allowed, remaining, resetAt, retryAt] = (await this.redis.evalSha(
-        sha,
-        {
+      const [allowed, remaining, resetAt, availableAt] =
+        (await this.redis.evalSha(sha, {
           keys: [key],
           arguments: args,
-        },
-      )) as [number, number, number, number];
+        })) as [number, number, number, number];
 
       return {
         allowed: !!allowed,
         limit: algorithm.limit,
         remaining,
         resetAt,
-        retryAt: retryAt === 0 ? undefined : retryAt,
+        availableAt: availableAt === 0 ? undefined : availableAt,
       };
     } catch (err: any) {
       /**
@@ -204,7 +202,7 @@ export class RedisStore implements Store {
         sha = await this.redis.scriptLoad(algorithm.luaScript);
         this.scripts.set(algorithm.luaScript, sha);
 
-        const [allowed, remaining, resetAt, retryAt] =
+        const [allowed, remaining, resetAt, availableAt] =
           (await this.redis.evalSha(sha, {
             keys: [key],
             arguments: args,
@@ -215,7 +213,7 @@ export class RedisStore implements Store {
           limit: algorithm.limit,
           remaining,
           resetAt,
-          retryAt: retryAt === 0 ? undefined : retryAt,
+          availableAt: availableAt === 0 ? undefined : availableAt,
         };
       }
 

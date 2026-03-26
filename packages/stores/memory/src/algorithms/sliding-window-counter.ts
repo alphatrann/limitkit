@@ -85,10 +85,10 @@ export class InMemorySlidingWindowCounter
     const resetAt = windowStart + 2 * windowInMs;
 
     if (effective + cost > limit) {
-      const retryAt = windowStart + windowInMs;
+      const availableAt = windowStart + windowInMs;
       return {
         state: { windowStart, prevCount, count },
-        output: { resetAt, limit, remaining: 0, retryAt, allowed: false },
+        output: { resetAt, limit, remaining: 0, availableAt, allowed: false },
       };
     }
 

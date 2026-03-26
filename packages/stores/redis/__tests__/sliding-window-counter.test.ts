@@ -43,7 +43,7 @@ describe("RedisSlidingWindowCounter", () => {
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(LIMIT - i);
       expect(result.limit).toBe(LIMIT);
-      expect(result.retryAt).toBeUndefined();
+      expect(result.availableAt).toBeUndefined();
     }
   });
 
@@ -61,7 +61,7 @@ describe("RedisSlidingWindowCounter", () => {
     expect(result.remaining).toBe(0);
     expect(result.limit).toBe(LIMIT);
 
-    expect(result.retryAt).toBe(now + WINDOW * 1000);
+    expect(result.availableAt).toBe(now + WINDOW * 1000);
     expect(result.resetAt).toBe(WINDOW * 2000 + now);
   });
 
@@ -97,7 +97,7 @@ describe("RedisSlidingWindowCounter", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("retryAt should match next window boundary", async () => {
+  it("availableAt should match next window boundary", async () => {
     const key = "swc-retry-after";
     const now = 1_000_000;
 
@@ -109,7 +109,7 @@ describe("RedisSlidingWindowCounter", () => {
 
     const expectedRetry = now + WINDOW * 1000;
 
-    expect(result.retryAt).toBeLessThanOrEqual(expectedRetry);
+    expect(result.availableAt).toBeLessThanOrEqual(expectedRetry);
   });
 
   it("cost should consume multiple tokens", async () => {

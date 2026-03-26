@@ -100,7 +100,7 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * });
    *
    * if (!result.allowed) {
-   *   console.log(`Rate limited. Retry at ${new Date(result.retryAt)}`);
+   *   console.log(`Rate limited. Retry at ${new Date(result.availableAt)}`);
    * }
    * ```
    *

@@ -10,6 +10,7 @@ import {
   RedisFixedWindow,
   RedisGCRA,
   RedisLeakyBucket,
+  RedisShapingLeakyBucket,
   RedisSlidingWindow,
   RedisSlidingWindowCounter,
   RedisTokenBucket,
@@ -41,6 +42,10 @@ export function tokenBucket(config: Omit<TokenBucketConfig, "name">) {
 
 export function leakyBucket(config: Omit<LeakyBucketConfig, "name">) {
   return new RedisLeakyBucket({ name: "leaky-bucket", ...config });
+}
+
+export function shapingLeakyBucket(config: Omit<LeakyBucketConfig, "name">) {
+  return new RedisShapingLeakyBucket({ name: "leaky-bucket", ...config });
 }
 
 export function gcra(config: Omit<GCRAConfig, "name">) {

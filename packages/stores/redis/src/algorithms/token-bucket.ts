@@ -48,14 +48,14 @@ import { RedisCompatible } from "../types";
  * ## Script Return Value
  *
  * ```text
- * {allowed, remaining, reset, retryAt}
+ * {allowed, remaining, reset, availableAt}
  * ```
  *
  * Where:
  * - `allowed` – 1 if request is permitted
  * - `remaining` – number of tokens left
  * - `reset` – timestamp (ms) when capacity will refresh
- * - `retryAt` – timestamp (ms) when the next request may succeed
+ * - `availableAt` – timestamp (ms) when the next request may succeed
  *
  * @see TokenBucket
  * @see RedisStore
@@ -85,9 +85,9 @@ export class RedisTokenBucket extends TokenBucket implements RedisCompatible {
     lastRefill = now
     if tokens < cost then
 
-      local retryAt = now + math.ceil((cost - tokens) / refillRate * 1000)
+      local availableAt = now + math.ceil((cost - tokens) / refillRate * 1000)
       local reset = now + math.ceil((capacity - tokens) / refillRate * 1000)
-      return {0, 0, reset, retryAt}
+      return {0, 0, reset, availableAt}
     end
 
     tokens = tokens - cost
