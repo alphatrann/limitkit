@@ -1,67 +1,29 @@
 # LimitKit
 
-**A schema-based approach to rate limiting for Node.js.**
+**Declarative rate limiting for Node.js.**
 
-Rate limiting starts simple — until your application grows.
+Most rate limiters give you primitives. LimitKit gives you a system — define your rules in one place, pass context, get a decision.
 
-What begins as a single global limit often turns into a mix of:
-- per-IP limits
-- per-user limits
-- plan-based rules (free vs pro)
-- endpoint-specific costs
-- dynamic conditions based on context
+## Table of Contents
 
-At that point, rate limiting stops being a simple middleware — and becomes a system.
-
-LimitKit helps you design that system declaratively.
-
-Instead of scattering logic across middleware and conditionals, you define your rules in one place — and let LimitKit handle the orchestration.
-
-
-## 📄 Table of Contents
-
-* [🚀 Why LimitKit?](#-why-limitkit)
-* [📦 Installation](#-installation)
-* [⚡ Quick Example](#-quick-example)
-* [🧠 How it works](#-how-it-works)
-* [🧩 Core Concepts](#-core-concepts)
-* [🧠 Policies](#-policies)
-* [🎯 Real-World Example](#-real-world-example)
-* [⚙️ Packages](#️-packages)
-* [🧑‍💻 Common Recipes](#-common-recipes)
-* [🤝 Contributing](#-contributing)
-* [⚖️️ Comparisons](#️-comparisons)
-* [📄 License](#-license)
+* [Why LimitKit?](#why-limitkit)
+* [Installation](#installation)
+* [Quick Example](#quick-example)
+* [How it works](#how-it-works)
+* [Core Concepts](#core-concepts)
+* [Policies](#policies)
+* [Real-World Example](#real-world-example)
+* [Packages](#packages)
+* [Common Recipes](#common-recipes)
+* [Comparisons](#comparisons)
+* [Contributing](#contributing)
+* [License](#license)
 
 ---
 
-## 🚀 Why LimitKit?
+## Why LimitKit?
 
-### Problems
-
-Suppose your rate limiting started with something simple like this:
-
-```ts
-app.use(async (req, res, next) => {
-  try {
-    await globalLimiter.consume("global");
-    await ipLimiter.consume("ip:" + req.ip);
-  } catch (error) {
-    return res.status(429).json({ message: "Too many requests" })
-  }
-
-  next();
-});
-```
-
-Then your app grows. You need extra protection layers:
-
-* global + per-IP + per-user limits
-* free vs pro plans
-* stricter rules for expensive endpoints
-* rate limiting by time of day, CPU usage
-
-And your logic ends up like this:
+Rate limiting grows messy as your app grows. Here's what that looks like:
 
 ```ts
 app.use(async (req, res, next) => {
@@ -77,51 +39,23 @@ app.use(async (req, res, next) => {
       }
 
       if (req.path.includes("export")) {
-        await exportLimiter.consume("acc:" + req.user.id);
+        if (req.user.plan === "pro") {
+          await exportLimiter.consume("acc:" + req.user.id, 1);
+        } else {
+          await exportLimiter.consume("acc:" + req.user.id, 10);
+        }
       }
     }
-  } catch (error) {
-    return res.status(429).json({ message: "Too many requests" })
+  } catch {
+    return res.status(429).json({ message: "Too many requests" });
   }
-
-
   next();
 });
 ```
 
-It works — but some problems begin to arise:
+Every new rule means another limiter instance, another conditional, another place to keep in sync.
 
-* Every new rule means adding another limiter instance
-* Logic gets buried in nested conditionals
-* Small changes require touching multiple places
-* Different endpoints start duplicating similar logic
-* It’s hard to see what the actual limits are at a glance
-
-Imagine your client wanted:
-
-> Export should cost 10x more for free users only.
-
-You then added another nested conditional:
-
-```ts
-if (req.path.includes("export")) {
-  if (req.user.plan === "pro") {
-    await exportLimiter.consume("acc:" + req.user.id, 1);
-  } else {
-    await exportLimiter.consume("acc:" + req.user.id, 10);
-  }
-}
-```
-
-Now your client wants another endpoint which needs slightly different behavior.
-
-You either duplicate this logic — or make this middleware even more complex.
-
----
-
-### A different approach
-
-Instead of spreading logic across middleware, define your rules in one place:
+LimitKit replaces this with a schema of rules and a single `consume` call:
 
 ```ts
 const limiter = new RateLimiter({
@@ -148,418 +82,242 @@ const limiter = new RateLimiter({
     {
       name: "costly",
       key: (req) => "acc:" + req.user.id,
-      cost: (req) =>
-        req.path.includes("export")
-          ? req.user.plan === "pro" ? 1 : 10
-          : 1,
+      cost: (req) => req.path.includes("export")
+        ? req.user.plan === "pro" ? 1 : 10
+        : 1,
       policy: tokenBucket({ capacity: 100, refillRate: 5 }),
     },
   ],
 });
 ```
 
-Then your middleware becomes:
-
 ```ts
 app.use(async (req, res, next) => {
   const result = await limiter.consume(req);
-
-  if (!result.allowed) {
-    return res.status(429).json({ message: "Too many requests" });
-  }
-
+  if (!result.allowed) return res.status(429).json({ message: "Too many requests" });
   next();
 });
 ```
 
-These are what LimitKit is trying to achieve:
-
-* All rules are defined in one place
-* No nested conditionals in middleware
-* No duplicated logic across endpoints
-* Adding a new rule doesn’t require touching existing ones
-
-You stop thinking in "how do I structure this middleware?" with nested if-else statements
-and start thinking in "what are my rules?"
+All rules in one place. No nested conditionals. Adding a rule doesn't touch existing ones.
 
 ---
 
-## 📦 Installation
-
-To get started, install:
-* `@limitkit/core`: the core library of LimitKit
-* `@limitkit/memory`: LimitKit's in-memory rate limiting support:
+## Installation
 
 ```bash
 npm install @limitkit/core @limitkit/memory
 ```
 
-You can explore all supported packages in the [Packages](#️-packages) section.
+See [Packages](#packages) for all available packages.
 
 ---
 
-## ⚡ Quick Example
+## Quick Example
 
-Let's start with a minimal code example to know how LimitKit works.
-
-Simply copy-paste the snippets below in order into a JavaScript/TypeScript file
-
-### Import necessary packages
-
-CommonJS:
-```js
-const { RateLimiter } = require("@limitkit/core");
-const { slidingWindow, InMemoryStore } = require("@limitkit/memory");
-```
-
-ESM:
 ```ts
 import { RateLimiter } from "@limitkit/core";
 import { slidingWindow, InMemoryStore } from "@limitkit/memory";
-```
 
-### Instantiate a rate limiter
-
-```ts
 const limiter = new RateLimiter({
   store: new InMemoryStore(),
   rules: [
     {
-      name: "global-limit",
+      name: "global",
       key: "global",
       policy: slidingWindow({ window: 10, limit: 1000 }),
     },
     {
-      name: "ip-limit",
+      name: "per-ip",
       key: (ctx) => "ip:" + ctx.ip,
       cost: (ctx) => ctx.isPriority ? 5 : 1,
       policy: slidingWindow({ window: 60, limit: 60 }),
     },
   ],
 });
-```
 
-### Testing
-```ts
-async function sendRequests(n) {
-  let allowed = 0;
-  for (let i = 0; i < n; i++) {
-    const res = await limiter.consume({ ip: "127.0.0.1", isPriority: true });
-    if (res.allowed) allowed++;
+const result = await limiter.consume({ ip: "127.0.0.1", isPriority: false });
 
-    // Uncomment to inspect behavior
-    // console.log(res.failedRule, res.rules);
-  }
-
-  return allowed;
+if (!result.allowed) {
+  console.log(`Blocked by "${result.failedRule}". Retry after ${result.rules[0].availableAt}`);
 }
-
-const NUMBER_OF_REQUESTS = 100;
-
-sendRequests(NUMBER_OF_REQUESTS)
-  .then((allowed) => {
-    console.log(`Allowed: ${allowed}/${NUMBER_OF_REQUESTS}; rejected: ${NUMBER_OF_REQUESTS - allowed}/${NUMBER_OF_REQUESTS}`)
-  })
-
 ```
 
-Execute the file with Node.js, which should output:
-```
-Allowed: 12/100; rejected: 88/100
-```
-
-> Best practice: Add a unique prefix in front of the key such as `ip:` to distinguish among global, IP and account.
+> Prefix keys with a namespace (`ip:`, `acc:`) to avoid collisions between rules targeting the same identifier.
 
 ---
 
-## 🧠 How it works
+## How it works
 
 ```
 Request → Rules → Key → Policy → Store → Decision
 ```
 
-Each rule:
-
-1. Generates a key to identify who to limit
-2. Resolves a policy statically or dynamically
-3. Consumes from the store atomically
-4. Indicates whether the request is allowed or rejected.
-
-Rules are evaluated **sequentially**.
-
-The request is allowed only if all rules pass.
-
-If there's a failed rule, the remaining rules won't be evaluated.
+Rules are evaluated in order. Each rule resolves a key, a policy, and an optional cost — all of which can be static values, synchronous functions, or async functions. The first rule that fails short-circuits the chain. The result tells you which rule failed and the state of each evaluated rule.
 
 ---
 
-## 🧩 Core Concepts
+## Core Concepts
 
-### Rule
-
-A rule in LimitKit consists of 4 properties:
+A rule has four fields:
 
 ```ts
 { name, key, policy, cost? }
 ```
 
-* `name` (string, required): rate limit identifier, which is useful when you want to know which rule fails. To avoid confusion, ensure it's globally unique in a set of rules.
-* `key` (string, required): rate limit target, which can be IP, account or a single global key. It can be a static or dynamic value returned from a function.
-* `policy` (required): rate limit strategy applied to the `key`, which can be static or dynamic. See all the supported algorithms in the [Policies](#-policies) section.
-* `cost` (number, optional): weight per request (default: 1), which is a more convenient way of limiting compared to lowering the number of requests. For example, requests hitting resource-intensive endpoints should have higher costs. Likewise, `cost` can be static or dynamic.
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` | Unique identifier. Appears in `result.failedRule` when this rule is exceeded. |
+| `key` | `string \| (ctx) => string` | Who to limit — IP, user ID, a global constant, anything. Can be async. |
+| `policy` | `Algorithm \| (ctx) => Algorithm` | Which algorithm to apply. Can be dynamic (e.g., different limits per plan). |
+| `cost` | `number \| (ctx) => number` | Weight per request (default: `1`). Use for operations that should consume more than one unit. |
 
 ---
 
-## 🧠 Policies
+## Policies
 
-Different strategies produce different behavior.
+Algorithms are imported from the store package (`@limitkit/memory` or `@limitkit/redis`), not from `@limitkit/core`. The algorithm and the store must come from the same package.
 
-LimitKit supports common algorithms that fit most of the basic use cases.
+| Algorithm | Signature | Best for |
+|---|---|---|
+| Fixed Window | `fixedWindow({ window, limit })` | Simplest option. Fast, O(1) state. Allows boundary bursts. |
+| Sliding Window | `slidingWindow({ window, limit })` | Accurate per-request tracking. No boundary bursts. |
+| Sliding Window Counter | `slidingWindowCounter({ window, limit })` | Approximation of sliding window with lower memory overhead. |
+| Token Bucket | `tokenBucket({ capacity, refillRate })` | Smooth limiting that tolerates short bursts. |
+| Leaky Bucket | `leakyBucket({ capacity, leakRate })` | Drops requests above the leak rate. Inverse of token bucket. |
+| Leaky Bucket (shaping) | `shapingLeakyBucket({ capacity, leakRate })` | Delays instead of dropping. Returns `availableAt` for scheduling. |
+| GCRA | `gcra({ burst, interval })` | Precise, low-memory rate limiting derived from telecom standards. |
 
-These algorithms are functions imported from store-specific libraries such as `@limitkit/memory`.
+### Traffic shaping
 
-Please ensure that the `store` used and the algorithm functions below are imported from **the same library**.
-
-### Fixed Window
-
-```ts
-fixedWindow({ window: 60, limit: 100 })
-```
-
-### Sliding Window
-
-```ts
-slidingWindow({ window: 60, limit: 100 })
-```
-
-### Sliding Window Counter
+`shapingLeakyBucket` never rejects — it tells you *when* a request can safely run. Use it for job queues to absorb backpressure without dropping work:
 
 ```ts
-slidingWindowCounter({ window: 60, limit: 100 })
-```
-
-### Token Bucket
-
-```ts
-tokenBucket({ capacity: 100, refillRate: 5 })
-```
-
-### Leaky Bucket
-
-#### Policing
-
-This is a mathematical inverse of token bucket.
-
-```ts
-leakyBucket({ capacity: 100, leakRate: 5 })
-```
-
-#### Shaping
-
-Traffic-shaping leaky bucket is a version of leaky bucket that is typically used in worker queues to handle backpressure by delaying operations.
-
-Simply create a store, a traffic shaper and call `store.consume` with the shaper. The result contains `availableAt`, which tells when to execute this job.
-
-This reduces backpressure when producers enqueue too many tasks while consumers can't handle them fast enough.
-
-```ts
-import { createClient } from "redis";
-import { RedisStore, shapingLeakyBucket } from "@limitkit/redis";
-
-const redis = createClient();
-await redis.connect();
-
-const shaper = shapingLeakyBucket({
-   capacity: 100,
-   leakRate: 2 // requests per second
-})
-
-const redisStore = new RedisStore(redis);
-
-// somewhere in code
-const now = Date.now()
-const result = await redisStore.consume(key, shaper, now, 1);
-// schedule execution based on `availableAt`
-setTimeout(() => handleJob(), result.availableAt - now);
-```
-
-Alternatively, you can still create a `limiter` and call `consume`:
-
-```ts
-import { RateLimiter } from "@limitkit/core";
-import { InMemoryStore, shapingLeakyBucket } from "@limitkit/memory";
-
-const redis = createClient();
-await redis.connect();
-
-const limiter = new RateLimiter({
-  store: new RedisStore(redis),
-  rules: [
-    {
-      name: "queue",
-      key: (ctx) => ctx.queue.name, // handle backpressure for all the job queues
-      policy: shapingLeakyBucket({
-        capacity: 200,
-        leakRate: 4,
-      }),
-    },
-  ],
-});
-
-// somewhere in code
 const result = await limiter.consume(ctx);
-setTimeout(() => handleJob(), result.rules[0].availableAt - now);
-```
-
-### GCRA (Generic Cell Rate Algorithm)
-
-```ts
-gcra({ burst: 5, interval: 1 })
+setTimeout(() => handleJob(), result.rules[0].availableAt - Date.now());
 ```
 
 ---
 
-## 🎯 Real-World Example
+## Real-World Example
 
-In real applications, different contexts have different shapes. For example, in public routes, `req.user` may be `undefined`, whereas in authenticated routes, `req.user` always exists and you want to enforce rate limiting per account here.
-
-Trying to handle both in a single limiter usually leads to writing messy conditionals.
-
-Instead of one long list of rules, separate them into contexts:
+Public and authenticated routes have different contexts — `req.user` is undefined on public routes. Rather than handle both in one limiter with conditionals, split into two rule sets and compose:
 
 ```ts
 const globalRules = [
-  {
-    name: "global",
-    key: "global",
-    policy: fixedWindow({ window: 1, limit: 1000 }),
-  },
-  {
-    name: "ip",
-    key: (req) => "ip:" + req.ip,
-    policy: fixedWindow({ window: 5, limit: 500 }),
-  }
-]
+  { name: "global", key: "global", policy: fixedWindow({ window: 1, limit: 1000 }) },
+  { name: "ip", key: (req) => "ip:" + req.ip, policy: fixedWindow({ window: 5, limit: 500 }) },
+];
 
 const authenticatedRules = [
-  // Per-user limits
   {
     name: "user",
     key: (req) => "acc:" + req.user.id,
     policy: slidingWindow({ window: 60, limit: 100 }),
   },
-
-  // Expensive endpoints
   {
     name: "costly",
     key: (req) => "acc:" + req.user.id,
-    cost: (req) => (req.path.includes("export") ? 10 : 1),
+    cost: (req) => req.path.includes("export") ? 10 : 1,
     policy: tokenBucket({ refillRate: 5, capacity: 100 }),
   },
-
-  // SaaS plan-based limits
   {
     name: "plan",
     key: (req) => "acc:" + req.user.id,
-    policy: (req) =>
-      req.user.plan === "pro" ?
-        gcra({ burst: 1000, interval: 30 }) :
-        gcra({ burst: 100, interval: 60 }),
+    policy: (req) => req.user.plan === "pro"
+      ? gcra({ burst: 1000, interval: 30 })
+      : gcra({ burst: 100, interval: 60 }),
   },
-]
+];
 
-const globalLimiter = new RateLimiter({
-  store,
-  rules: globalRules
-})
-
-const authenticatedLimiter = new RateLimiter({
-  store,
-  rules: [...globalRules, ...authenticatedRules],
-});
+const publicLimiter = new RateLimiter({ store, rules: globalRules });
+const authedLimiter = new RateLimiter({ store, rules: [...globalRules, ...authenticatedRules] });
 ```
 
-> It is recommended to place the snippet above in a separate file.
-
-Now, public routes use `globalLimiter` while authenticated routes combine both `globalLimiter` and `authenticatedLimiter`, the same `globalRules` are reused without duplication. Looking at the code, it's easier to see exactly what applies — without tracing middleware or conditionals.
+`globalRules` is reused without duplication. Each limiter is a transparent description of exactly what applies.
 
 ---
 
-## ⚙️ Packages
+## Packages
 
-LimitKit currently supports five main packages:
-
-| Package             | Role                         | Category    | Status      |
-| ------------------- | ---------------------------- | ----------- | ----------- |
-| [`@limitkit/core`](./packages/core/README.md)    | Orchestration engine         | Core        | Required    |
-| [`@limitkit/redis`](./packages/stores/redis/README.md)   | Redis-backed atomic policies | Storage     | Production  |
-| [`@limitkit/memory`](./packages/stores/memory/README.md)  | In-memory policies           | Storage     | Development |
-| [`@limitkit/express`](./packages/adapters/express/README.md) | Express middleware           | Adapter     | Optional    |
-| [`@limitkit/nest`](./packages/adapters/nest/README.md)    | NestJS guard and decorators  | Adapter     | Optional    |
+| Package | Role | Status |
+|---|---|---|
+| [`@limitkit/core`](./packages/core/README.md) | Orchestration engine | Required |
+| [`@limitkit/redis`](./packages/stores/redis/README.md) | Redis-backed atomic policies | Production |
+| [`@limitkit/memory`](./packages/stores/memory/README.md) | In-memory policies | Development / testing |
+| [`@limitkit/express`](./packages/adapters/express/README.md) | Express middleware | Optional |
+| [`@limitkit/nest`](./packages/adapters/nest/README.md) | NestJS guard and decorators | Optional |
 
 ---
 
-## 🧑‍💻 Common Recipes
+## Common Recipes
 
-Here are some common patterns you'll use:
+### Login protection
 
-### 🔐 Login Protection
-
-The code below enforces rate limit by IP, which mitigates brute-force attacks on the login endpoint.
+Rate limit by IP to block brute-force attempts:
 
 ```ts
-{ key: (req) => "ip:" + req.ip, policy: slidingWindow({ window: 60, limit: 5 }) }
+{ name: "login", key: (req) => "ip:" + req.ip, policy: slidingWindow({ window: 60, limit: 5 }) }
 ```
 
-### 💸 Expensive Endpoints
+### Expensive endpoints
 
-The code below enforces rate limit by account. This assumes the `user` has been injected into the request when authenticating them.
-
-The `cost` is dynamically resolved by the endpoint. Assume the `/generate` endpoint performs heavy computations, each request consumes more tokens, ultimately throttles earlier than other endpoints.
+Charge more tokens for compute-heavy routes:
 
 ```ts
 {
+  name: "costly",
   key: (req) => "acc:" + req.user.id,
   cost: (req) => req.path === "/generate" ? 10 : 1,
-  policy: tokenBucket({ refillRate: 5, capacity: 1000 })
+  policy: tokenBucket({ refillRate: 5, capacity: 1000 }),
 }
 ```
 
-### 🏢 SaaS Plans
+### AI token tracking
 
-The code below enforces dynamic rate limit based on user's subscription plan.
-
-In this case, the `policy` is dynamically resolved by the user's plan. For instance, if the user's plan is `"pro"`, they will have higher limits than free users.
-
-> Replace `proPolicy` and `freePolicy` with actual policies.
+Track actual LLM token consumption instead of request count:
 
 ```ts
 {
+  name: "monthly-tokens",
+  key: (ctx) => "user:" + ctx.userId,
+  cost: (ctx) => ctx.tokensUsed,
+  policy: tokenBucket({ capacity: 1_000_000, refillRate: 33_333 }), // ~1M tokens/month
+}
+```
+
+### SaaS plan-based limits
+
+Apply different policies per subscription tier:
+
+```ts
+{
+  name: "plan",
   key: (ctx) => "acc:" + ctx.user.id,
-  policy: (ctx) => ctx.user.plan === "pro" ? proPolicy : freePolicy
+  policy: (ctx) => ctx.user.plan === "pro"
+    ? gcra({ burst: 1000, interval: 30 })
+    : gcra({ burst: 100, interval: 60 }),
 }
 ```
 
 ---
 
-## ⚖️ Comparisons
+## Comparisons
 
-Libraries like [`express-rate-limit`](https://github.com/express-rate-limit/express-rate-limit) and [`rate-limiter-flexible`](https://github.com/animir/node-rate-limiter-flexible) provide fast, reliable primitives for rate limiting.
+[`express-rate-limit`](https://github.com/express-rate-limit/express-rate-limit) is the right choice for simple, Express-specific rate limiting — one global or per-IP limit as middleware, minimal setup.
 
-They are great when your rules are simple and static.
+[`rate-limiter-flexible`](https://github.com/animir/node-rate-limiter-flexible) covers more storage backends and is solid for imperative use — you instantiate a limiter per strategy and call each one manually.
 
-As your application grows, rate limiting often depends on multiple overlapping factors that are hard to manage with conditionals at scale. That's what LimitKit was built to solve.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome.
-
-Please read [`CONTRIBUTING.md`](./CONTRIBUTING.md) for development guidelines.
+LimitKit is for when you outgrow the imperative model: multiple overlapping rules, dynamic policies per context, weighted request costs, and plan-based limits. The difference is whether you're writing middleware logic or declaring a rule set.
 
 ---
 
-## 📄 License
+## Contributing
+
+Contributions are welcome. Read [`CONTRIBUTING.md`](./CONTRIBUTING.md) for development guidelines.
+
+---
+
+## License
 
 MIT
