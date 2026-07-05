@@ -36,14 +36,18 @@ describe("RedisStore client compatibility", () => {
 
   it("supports ioredis clients", async () => {
     const redis: jest.Mocked<IoRedisCompatibleClient> = {
-      script: jest.fn().mockResolvedValue("io-sha"),
+      call: jest.fn().mockResolvedValue("io-sha"),
       evalsha: jest.fn().mockResolvedValue(["1", "8", "5000", "0"]),
     };
 
     const store = new RedisStore(redis);
     const result = await store.consume("user:2", algorithm, 1_000, 2);
 
-    expect(redis.script).toHaveBeenCalledWith("LOAD", algorithm.luaScript);
+    expect(redis.call).toHaveBeenCalledWith(
+      "SCRIPT",
+      "LOAD",
+      algorithm.luaScript,
+    );
     expect(redis.evalsha).toHaveBeenCalledWith(
       "io-sha",
       1,
@@ -91,7 +95,7 @@ describe("RedisStore client compatibility", () => {
 
   it("reloads ioredis scripts after NOSCRIPT", async () => {
     const redis: jest.Mocked<IoRedisCompatibleClient> = {
-      script: jest
+      call: jest
         .fn()
         .mockResolvedValueOnce("stale-sha")
         .mockResolvedValueOnce("fresh-sha"),
@@ -104,7 +108,7 @@ describe("RedisStore client compatibility", () => {
     const store = new RedisStore(redis);
     const result = await store.consume("user:4", algorithm, 1_000);
 
-    expect(redis.script).toHaveBeenCalledTimes(2);
+    expect(redis.call).toHaveBeenCalledTimes(2);
     expect(redis.evalsha).toHaveBeenNthCalledWith(
       1,
       "stale-sha",
@@ -128,4 +132,3 @@ describe("RedisStore client compatibility", () => {
     expect(result.allowed).toBe(true);
   });
 });
-

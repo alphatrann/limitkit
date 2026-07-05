@@ -25,7 +25,7 @@ async function loadScript(
     return redis.scriptLoad(script);
   }
 
-  return redis.script("LOAD", script);
+  return String(await redis.call("SCRIPT", "LOAD", script));
 }
 
 function normalizeScriptResult(result: unknown): RedisScriptResult {
