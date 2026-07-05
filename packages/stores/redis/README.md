@@ -18,6 +18,12 @@ Each request executes **atomic Lua scripts**, which avoids race conditions and e
 npm install @limitkit/core @limitkit/redis redis
 ```
 
+or, if your application uses ioredis:
+
+```bash
+npm install @limitkit/core @limitkit/redis ioredis
+```
+
 ---
 
 ## ⚡ Quick Start
@@ -86,6 +92,16 @@ TypeScript may complain about the type mismatch. If needed, explicitly set the t
 import { RedisClientType } from "redis";
 
 const client: RedisClientType = createClient();
+```
+
+You can also pass an ioredis client:
+
+```ts
+import Redis from "ioredis";
+
+const client = new Redis("redis://localhost:6379");
+
+new RedisStore(client);
 ```
 
 ---

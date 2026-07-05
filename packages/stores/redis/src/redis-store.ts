@@ -4,8 +4,55 @@ import {
   RateLimitRuleResult,
   Store,
 } from "@limitkit/core";
-import { RedisClientType } from "redis";
-import { RedisCompatible } from "./types";
+import {
+  NodeRedisCompatibleClient,
+  RedisClientLike,
+  RedisCompatible,
+  RedisScriptResult,
+} from "./types";
+
+function isNodeRedisClient(
+  redis: RedisClientLike,
+): redis is NodeRedisCompatibleClient {
+  return "scriptLoad" in redis && "evalSha" in redis;
+}
+
+async function loadScript(
+  redis: RedisClientLike,
+  script: string,
+): Promise<string> {
+  if (isNodeRedisClient(redis)) {
+    return redis.scriptLoad(script);
+  }
+
+  return redis.script("LOAD", script);
+}
+
+function normalizeScriptResult(result: unknown): RedisScriptResult {
+  if (!Array.isArray(result) || result.length !== 4) {
+    throw new Error("Redis script returned an invalid result");
+  }
+
+  return result.map(Number) as RedisScriptResult;
+}
+
+async function evalScript(
+  redis: RedisClientLike,
+  sha: string,
+  key: string,
+  args: string[],
+): Promise<RedisScriptResult> {
+  if (isNodeRedisClient(redis)) {
+    return normalizeScriptResult(
+      await redis.evalSha(sha, {
+        keys: [key],
+        arguments: args,
+      }),
+    );
+  }
+
+  return normalizeScriptResult(await redis.evalsha(sha, 1, key, ...args));
+}
 
 /**
  * Redis-based implementation of the Store interface.
@@ -108,7 +155,7 @@ export class RedisStore implements Store {
    *
    * @param redis Connected Redis client instance
    */
-  constructor(private redis: RedisClientType) {}
+  constructor(private redis: RedisClientLike) {}
 
   /**
    * Consumes rate limit tokens for a given key using the configured algorithm.
@@ -165,7 +212,7 @@ export class RedisStore implements Store {
     let sha = this.scripts.get(algorithm.luaScript);
 
     if (!sha) {
-      sha = await this.redis.scriptLoad(algorithm.luaScript);
+      sha = await loadScript(this.redis, algorithm.luaScript);
       this.scripts.set(algorithm.luaScript, sha);
     }
 
@@ -178,11 +225,12 @@ export class RedisStore implements Store {
        * This avoids sending the script body across the network and
        * significantly reduces request overhead.
        */
-      const [allowed, remaining, resetAt, availableAt] =
-        (await this.redis.evalSha(sha, {
-          keys: [key],
-          arguments: args,
-        })) as [number, number, number, number];
+      const [allowed, remaining, resetAt, availableAt] = await evalScript(
+        this.redis,
+        sha,
+        key,
+        args,
+      );
 
       return {
         allowed: !!allowed,
@@ -199,14 +247,15 @@ export class RedisStore implements Store {
        * We recover by reloading the script and retrying the call.
        */
       if (err?.message?.includes("NOSCRIPT")) {
-        sha = await this.redis.scriptLoad(algorithm.luaScript);
+        sha = await loadScript(this.redis, algorithm.luaScript);
         this.scripts.set(algorithm.luaScript, sha);
 
-        const [allowed, remaining, resetAt, availableAt] =
-          (await this.redis.evalSha(sha, {
-            keys: [key],
-            arguments: args,
-          })) as [number, number, number, number];
+        const [allowed, remaining, resetAt, availableAt] = await evalScript(
+          this.redis,
+          sha,
+          key,
+          args,
+        );
 
         return {
           allowed: !!allowed,

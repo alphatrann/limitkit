@@ -1795,7 +1795,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@limitkit/core@npm:^1.0.2, @limitkit/core@workspace:packages/core":
+"@limitkit/core@npm:^1.0.2, @limitkit/core@npm:^1.1.0, @limitkit/core@workspace:packages/core":
   version: 0.0.0-use.local
   resolution: "@limitkit/core@workspace:packages/core"
   dependencies:
@@ -1874,9 +1874,17 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@limitkit/redis@workspace:packages/stores/redis"
   dependencies:
-    "@limitkit/core": "npm:^1.0.2"
+    "@limitkit/core": "npm:^1.1.0"
     "@types/node": "npm:^25.4.0"
     redis: "npm:^5.11.0"
+  peerDependencies:
+    ioredis: ^5.0.0
+    redis: ^5.0.0
+  peerDependenciesMeta:
+    ioredis:
+      optional: true
+    redis:
+      optional: true
   languageName: unknown
   linkType: soft
 
