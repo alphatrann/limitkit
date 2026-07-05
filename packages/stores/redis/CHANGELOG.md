@@ -1,5 +1,11 @@
 # @limitkit/redis
 
+## 1.2.0
+
+### Minor Changes
+
+- Support both `redis` and `ioredis` clients in `RedisStore`.
+
 ## 1.1.0
 
 ### Minor Changes

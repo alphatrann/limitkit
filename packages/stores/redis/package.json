@@ -1,11 +1,22 @@
 {
   "name": "@limitkit/redis",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "dependencies": {
-    "@limitkit/core": "^1.1.0",
-    "redis": "^5.11.0"
+    "@limitkit/core": "^1.1.0"
+  },
+  "peerDependencies": {
+    "ioredis": "^5.0.0",
+    "redis": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ioredis": {
+      "optional": true
+    },
+    "redis": {
+      "optional": true
+    }
   },
   "keywords": [
     "rate-limiter",
@@ -34,6 +45,8 @@
     "test": "jest --runInBand"
   },
   "devDependencies": {
-    "@types/node": "^25.4.0"
+    "@types/node": "^25.4.0",
+    "ioredis": "^5.8.2",
+    "redis": "^5.11.0"
   }
 }
