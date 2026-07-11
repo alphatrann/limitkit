@@ -1,6 +1,6 @@
-# @limitkit/core
+# @limitkit/postgres
 
-## 1.2.0
+## 1.1.0
 
 ### Minor Changes
 
@@ -8,20 +8,7 @@
 
   Extracted the pure per-algorithm reducer functions (Fixed Window, Sliding Window Counter, Token Bucket, Leaky Bucket, Shaping Leaky Bucket, GCRA) into a shared kernel in `@limitkit/core`, reused by both `@limitkit/memory` and `@limitkit/postgres` so behavior stays identical across stores. `@limitkit/memory`'s public API and behavior are unchanged.
 
-## 1.1.0
+### Patch Changes
 
-### Minor Changes
-
-- Add traffic shaper leaky bucket algorithm support
-
-## 1.0.2
-
-- Update outdated README
-
-## 1.0.1
-
-- Update outdated JSDoc for public APIs
-
-## 1.0.0
-
-- Initial working release
+- Updated dependencies [9404ddb]
+  - @limitkit/core@1.2.0
