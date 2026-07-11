@@ -1,5 +1,5 @@
-import Redis from "ioredis";
-import { Algorithm } from "@limitkit/core";
+import Redis from 'ioredis';
+import { Algorithm } from '@limitkit/core';
 import {
   RedisCompatible,
   RedisShapingLeakyBucket,
@@ -11,9 +11,9 @@ import {
   slidingWindow,
   slidingWindowCounter,
   tokenBucket,
-} from "../src";
+} from '../src';
 
-describe("RedisStore ioredis Integration", () => {
+describe('RedisStore ioredis Integration', () => {
   let redis: Redis;
   let store: RedisStore;
 
@@ -55,7 +55,7 @@ describe("RedisStore ioredis Integration", () => {
   ];
 
   beforeAll(() => {
-    redis = new Redis("redis://localhost:6379", {
+    redis = new Redis('redis://localhost:6379', {
       lazyConnect: true,
       maxRetriesPerRequest: 1,
     });
@@ -76,29 +76,29 @@ describe("RedisStore ioredis Integration", () => {
     redis.disconnect();
   });
 
-  it.each(algorithms)("should execute algorithm %p", async (algo) => {
-    const key = "ioredis-store-basic";
+  it.each(algorithms)('should execute algorithm %p', async (algo) => {
+    const key = 'ioredis-store-basic';
     const now = 1_000_000;
 
     const result = await store.consume(key, algo, now);
 
     expect(result.allowed).toBe(true);
     expect(result.limit).toBe(algo.limit);
-    expect(typeof result.remaining).toBe("number");
-    expect(typeof result.resetAt).toBe("number");
+    expect(typeof result.remaining).toBe('number');
+    expect(typeof result.resetAt).toBe('number');
     if (algo instanceof RedisShapingLeakyBucket)
-      expect(typeof result.availableAt).toBe("number");
-    else expect(typeof result.availableAt).toBe("undefined");
+      expect(typeof result.availableAt).toBe('number');
+    else expect(typeof result.availableAt).toBe('undefined');
   });
 
-  it("should reload script when Redis loses script cache", async () => {
+  it('should reload script when Redis loses script cache', async () => {
     const limiter = algorithms[0];
-    const key = "ioredis-store-noscript";
+    const key = 'ioredis-store-noscript';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now);
 
-    await redis.script("FLUSH");
+    await redis.script('FLUSH');
 
     const result = await store.consume(key, limiter, now);
 
@@ -106,9 +106,9 @@ describe("RedisStore ioredis Integration", () => {
   });
 
   it.each(algorithms)(
-    "should enforce limits under concurrency (%p)",
+    'should enforce limits under concurrency (%p)',
     async (algo) => {
-      const key = "ioredis-store-concurrency";
+      const key = 'ioredis-store-concurrency';
       const now = 1_000_000;
 
       const results = await Promise.all(
@@ -121,4 +121,3 @@ describe("RedisStore ioredis Integration", () => {
     },
   );
 });
-

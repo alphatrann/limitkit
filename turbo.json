@@ -9,6 +9,8 @@
     "dev": {
       "cache": false
     },
-    "typecheck": {}
+    "typecheck": {
+      "dependsOn": ["^build"]
+    }
   }
 }

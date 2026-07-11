@@ -1,5 +1,5 @@
-import { BadArgumentsException } from "../exceptions";
-import { Algorithm, FixedWindowConfig } from "../types";
+import { BadArgumentsException } from '../exceptions';
+import { Algorithm, FixedWindowConfig } from '../types';
 
 /**
  * Base implementation of the **Fixed Window** rate limiting algorithm.

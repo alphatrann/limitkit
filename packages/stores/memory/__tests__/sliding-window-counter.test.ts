@@ -1,7 +1,7 @@
-import { BadArgumentsException } from "@limitkit/core";
-import { InMemorySlidingWindowCounter, slidingWindowCounter } from "../src";
+import { BadArgumentsException } from '@limitkit/core';
+import { InMemorySlidingWindowCounter, slidingWindowCounter } from '../src';
 
-describe("InMemorySlidingWindowCounter", () => {
+describe('InMemorySlidingWindowCounter', () => {
   const config = {
     limit: 10,
     window: 10,
@@ -13,7 +13,7 @@ describe("InMemorySlidingWindowCounter", () => {
     limiter = slidingWindowCounter(config);
   });
 
-  test("allows requests within limit", () => {
+  test('allows requests within limit', () => {
     let state;
 
     for (let i = 0; i < 5; i++) {
@@ -25,7 +25,7 @@ describe("InMemorySlidingWindowCounter", () => {
     }
   });
 
-  test("rejects when effective limit exceeded", () => {
+  test('rejects when effective limit exceeded', () => {
     let state;
 
     for (let i = 0; i < config.limit; i++) {
@@ -39,7 +39,7 @@ describe("InMemorySlidingWindowCounter", () => {
     expect(r.output.availableAt).toBe(base + config.window * 1000);
   });
 
-  test("window rollover works", () => {
+  test('window rollover works', () => {
     let state;
 
     const r1 = limiter.process(state, base);
@@ -49,7 +49,7 @@ describe("InMemorySlidingWindowCounter", () => {
     expect(r2.output.allowed).toBe(true);
   });
 
-  test("effective calculation uses previous window", () => {
+  test('effective calculation uses previous window', () => {
     let state;
 
     for (let i = 0; i < config.limit; i++) {
@@ -64,7 +64,7 @@ describe("InMemorySlidingWindowCounter", () => {
     expect(r.output.allowed).toBe(false);
   });
 
-  test("large time jump clears previous window", () => {
+  test('large time jump clears previous window', () => {
     let state;
 
     const r1 = limiter.process(state, base);
@@ -74,14 +74,14 @@ describe("InMemorySlidingWindowCounter", () => {
     expect(r2.output.allowed).toBe(true);
   });
 
-  test("cost increments correctly", () => {
+  test('cost increments correctly', () => {
     let state;
 
     const r = limiter.process(state, base, 3);
     expect(r.state.count).toBe(3);
   });
 
-  test("throws if cost exceeds limit", () => {
+  test('throws if cost exceeds limit', () => {
     expect(() => limiter.process(undefined, base, 20)).toThrow(
       BadArgumentsException,
     );

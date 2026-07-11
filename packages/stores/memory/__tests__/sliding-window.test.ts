@@ -1,7 +1,7 @@
-import { BadArgumentsException, SlidingWindowConfig } from "@limitkit/core";
-import { InMemorySlidingWindow, slidingWindow } from "../src";
+import { BadArgumentsException, SlidingWindowConfig } from '@limitkit/core';
+import { InMemorySlidingWindow, slidingWindow } from '../src';
 
-describe("InMemorySlidingWindow", () => {
+describe('InMemorySlidingWindow', () => {
   const config = {
     limit: 3,
     window: 10,
@@ -13,7 +13,7 @@ describe("InMemorySlidingWindow", () => {
     limiter = slidingWindow(config);
   });
 
-  test("allows requests within limit", () => {
+  test('allows requests within limit', () => {
     let state;
 
     for (let i = 0; i < config.limit; i++) {
@@ -25,7 +25,7 @@ describe("InMemorySlidingWindow", () => {
     }
   });
 
-  test("rejects when limit exceeded", () => {
+  test('rejects when limit exceeded', () => {
     let state;
 
     for (let i = 0; i < config.limit; i++) {
@@ -41,7 +41,7 @@ describe("InMemorySlidingWindow", () => {
     expect(r.output.availableAt).toBe(base + config.window * 1000);
   });
 
-  test("expired entries are removed", () => {
+  test('expired entries are removed', () => {
     let state;
 
     const r1 = limiter.process(state, base);
@@ -52,7 +52,7 @@ describe("InMemorySlidingWindow", () => {
     expect(r2.state.size).toBe(1);
   });
 
-  test("concurrent burst obeys limit", () => {
+  test('concurrent burst obeys limit', () => {
     let state;
     let allowed = 0;
 
@@ -65,7 +65,7 @@ describe("InMemorySlidingWindow", () => {
     expect(allowed).toBe(config.limit);
   });
 
-  test("large time jump clears buffer", () => {
+  test('large time jump clears buffer', () => {
     let state;
 
     const r1 = limiter.process(state, base);
@@ -76,7 +76,7 @@ describe("InMemorySlidingWindow", () => {
     expect(r2.state.size).toBe(1);
   });
 
-  test("cost increments multiple timestamps", () => {
+  test('cost increments multiple timestamps', () => {
     let state;
 
     const r = limiter.process(state, base, 2);
@@ -85,7 +85,7 @@ describe("InMemorySlidingWindow", () => {
     expect(r.output.remaining).toBe(1);
   });
 
-  test("throws if cost > limit", () => {
+  test('throws if cost > limit', () => {
     expect(() => limiter.process(undefined, base, 4)).toThrow(
       BadArgumentsException,
     );

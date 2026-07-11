@@ -1,4 +1,4 @@
-import { RateLimitRuleResult } from "@limitkit/core";
+import { RateLimitRuleResult } from '@limitkit/core';
 
 /**
  * Represents a strategy that can be executed in-memory.

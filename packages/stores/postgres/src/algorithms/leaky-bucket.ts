@@ -3,8 +3,8 @@ import {
   LeakyBucketState,
   processLeakyBucket,
   RateLimitRuleResult,
-} from "@limitkit/core";
-import { PostgresCompatible } from "../types";
+} from '@limitkit/core';
+import { PostgresCompatible } from '../types';
 
 /**
  * Postgres implementation of the **Policing Leaky Bucket** rate limiting algorithm.
@@ -21,8 +21,8 @@ export class PostgresLeakyBucket
   extends LeakyBucket
   implements PostgresCompatible<LeakyBucketState>
 {
-  readonly table = "leaky_bucket_state";
-  readonly selectColumns = "queue_size, last_leak::float8 AS last_leak";
+  readonly table = 'leaky_bucket_state';
+  readonly selectColumns = 'queue_size, last_leak::float8 AS last_leak';
 
   toRow(state: LeakyBucketState): Record<string, number> {
     return { queue_size: state.queueSize, last_leak: state.lastLeak };

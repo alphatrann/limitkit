@@ -35,7 +35,8 @@
   },
   "scripts": {
     "build": "node build.js",
-    "test": "jest"
+    "test": "jest",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@limitkit/http": "workspace:^",

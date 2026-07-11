@@ -1,4 +1,4 @@
-import { AlgorithmConfig } from "./algorithm-config";
+import { AlgorithmConfig } from './algorithm-config';
 
 /**
  * Represents an algorithm that can be executed

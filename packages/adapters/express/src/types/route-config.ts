@@ -1,5 +1,5 @@
-import { RateLimitConfig } from "@limitkit/core";
-import { Request } from "express";
+import { RateLimitConfig } from '@limitkit/core';
+import { Request } from 'express';
 
 /**
  * Route-level rate limit configuration.
@@ -9,7 +9,7 @@ import { Request } from "express";
  * configuration remain unchanged.
  */
 export interface RouteRateLimitConfig extends Partial<
-  Pick<RateLimitConfig<Request>, "rules">
+  Pick<RateLimitConfig<Request>, 'rules'>
 > {
   /**
    * Custom rate limit response (optional)

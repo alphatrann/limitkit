@@ -2,8 +2,8 @@ import {
   BadArgumentsException,
   RateLimitRuleResult,
   SlidingWindow,
-} from "@limitkit/core";
-import { InMemoryCompatible, SlidingWindowState } from "../types";
+} from '@limitkit/core';
+import { InMemoryCompatible, SlidingWindowState } from '../types';
 
 /**
  * In-memory implementation of the **Sliding Window** rate limiting algorithm.

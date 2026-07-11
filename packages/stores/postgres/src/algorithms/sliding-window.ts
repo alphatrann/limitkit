@@ -2,8 +2,8 @@ import {
   BadArgumentsException,
   RateLimitRuleResult,
   SlidingWindow,
-} from "@limitkit/core";
-import { PostgresLogCompatible, PostgresPoolClientLike } from "../types";
+} from '@limitkit/core';
+import { PostgresLogCompatible, PostgresPoolClientLike } from '../types';
 
 /**
  * Postgres implementation of the **Sliding Window** rate limiting algorithm.
@@ -27,7 +27,7 @@ export class PostgresSlidingWindow
   extends SlidingWindow
   implements PostgresLogCompatible
 {
-  readonly logTable = "sliding_window_log";
+  readonly logTable = 'sliding_window_log';
 
   async processLog(
     client: PostgresPoolClientLike,

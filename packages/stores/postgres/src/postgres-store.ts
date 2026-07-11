@@ -1,11 +1,16 @@
-import { Algorithm, AlgorithmConfig, RateLimitRuleResult, Store } from "@limitkit/core";
-import { assertValidSchemaName } from "./schema";
+import {
+  Algorithm,
+  AlgorithmConfig,
+  RateLimitRuleResult,
+  Store,
+} from '@limitkit/core';
+import { assertValidSchemaName } from './schema';
 import {
   isPostgresLogCompatible,
   PostgresCompatible,
   PostgresLogCompatible,
   PostgresPoolLike,
-} from "./types";
+} from './types';
 
 /**
  * Postgres-based implementation of the Store interface.
@@ -59,7 +64,7 @@ export class PostgresStore implements Store {
    */
   constructor(
     private readonly pool: PostgresPoolLike,
-    schema: string = "limitkit",
+    schema: string = 'limitkit',
   ) {
     assertValidSchemaName(schema);
     this.schema = schema;
@@ -76,7 +81,7 @@ export class PostgresStore implements Store {
 
     const client = await this.pool.connect();
     try {
-      await client.query("BEGIN");
+      await client.query('BEGIN');
 
       const anchor = await client.query<{ id: number | string }>(
         `INSERT INTO "${this.schema}".rate_limit_state (key, algorithm)
@@ -92,13 +97,19 @@ export class PostgresStore implements Store {
         const table = `"${this.schema}".${algorithm.logTable}`;
         output = await algorithm.processLog(client, table, stateId, now, cost);
       } else {
-        output = await this.consumeRowState(client, stateId, algorithm, now, cost);
+        output = await this.consumeRowState(
+          client,
+          stateId,
+          algorithm,
+          now,
+          cost,
+        );
       }
 
-      await client.query("COMMIT");
+      await client.query('COMMIT');
       return output;
     } catch (err) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       throw err;
     } finally {
       client.release();
@@ -106,7 +117,7 @@ export class PostgresStore implements Store {
   }
 
   private async consumeRowState<TState>(
-    client: Awaited<ReturnType<PostgresPoolLike["connect"]>>,
+    client: Awaited<ReturnType<PostgresPoolLike['connect']>>,
     stateId: number,
     algorithm: PostgresCompatible<TState>,
     now: number,
@@ -131,13 +142,13 @@ export class PostgresStore implements Store {
     const row = algorithm.toRow(nextState);
     const columns = Object.keys(row);
     const values = columns.map((column) => row[column]);
-    const insertPlaceholders = columns.map((_, i) => `$${i + 2}`).join(", ");
+    const insertPlaceholders = columns.map((_, i) => `$${i + 2}`).join(', ');
     const updateSet = columns
       .map((column) => `${column} = EXCLUDED.${column}`)
-      .join(", ");
+      .join(', ');
 
     await client.query(
-      `INSERT INTO ${table} (state_id, ${columns.join(", ")})
+      `INSERT INTO ${table} (state_id, ${columns.join(', ')})
        VALUES ($1, ${insertPlaceholders})
        ON CONFLICT (state_id) DO UPDATE SET ${updateSet}`,
       [stateId, ...values],

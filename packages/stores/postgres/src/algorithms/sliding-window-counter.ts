@@ -3,8 +3,8 @@ import {
   RateLimitRuleResult,
   SlidingWindowCounter,
   SlidingWindowCounterState,
-} from "@limitkit/core";
-import { PostgresCompatible } from "../types";
+} from '@limitkit/core';
+import { PostgresCompatible } from '../types';
 
 /**
  * Postgres implementation of the **Sliding Window Counter** algorithm.
@@ -21,9 +21,9 @@ export class PostgresSlidingWindowCounter
   extends SlidingWindowCounter
   implements PostgresCompatible<SlidingWindowCounterState>
 {
-  readonly table = "sliding_window_counter_state";
+  readonly table = 'sliding_window_counter_state';
   readonly selectColumns =
-    "count, prev_count, window_start::float8 AS window_start";
+    'count, prev_count, window_start::float8 AS window_start';
 
   toRow(state: SlidingWindowCounterState): Record<string, number> {
     return {

@@ -2,8 +2,8 @@ import {
   LeakyBucket,
   processShapingLeakyBucket,
   RateLimitRuleResult,
-} from "@limitkit/core";
-import { InMemoryCompatible, ShapingLeakyBucketState } from "../types";
+} from '@limitkit/core';
+import { InMemoryCompatible, ShapingLeakyBucketState } from '../types';
 
 /**
  * In-memory implementation of the **Shaping Leaky Bucket** algorithm.

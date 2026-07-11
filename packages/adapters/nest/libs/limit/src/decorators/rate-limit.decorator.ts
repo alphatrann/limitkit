@@ -1,6 +1,6 @@
-import { RateLimitConfig } from "@limitkit/core";
-import { SetMetadata } from "@nestjs/common";
-import { RATE_LIMIT_CONFIG_METADATA_KEY } from "../limit.tokens";
+import { RateLimitConfig } from '@limitkit/core';
+import { SetMetadata } from '@nestjs/common';
+import { RATE_LIMIT_CONFIG_METADATA_KEY } from '../limit.tokens';
 
 /**
  * Apply additional rate limiting rules at the controller or route level.
@@ -46,5 +46,5 @@ import { RATE_LIMIT_CONFIG_METADATA_KEY } from "../limit.tokens";
  * findPosts() {}
  * ```
  */
-export const RateLimit = (config?: Pick<RateLimitConfig, "rules">) =>
+export const RateLimit = (config?: Pick<RateLimitConfig, 'rules'>) =>
   SetMetadata(RATE_LIMIT_CONFIG_METADATA_KEY, config);

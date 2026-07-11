@@ -22,7 +22,7 @@
  * ```
  */
 
-export * from "./redis-store";
-export * from "./types";
-export * from "./algorithms";
-export * from "./factory";
+export * from './redis-store';
+export * from './types';
+export * from './algorithms';
+export * from './factory';

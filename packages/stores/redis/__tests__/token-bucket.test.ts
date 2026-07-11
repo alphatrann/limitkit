@@ -1,8 +1,8 @@
-import { createClient, RedisClientType } from "redis";
-import { RedisStore, RedisCompatible, tokenBucket } from "../src";
-import { Algorithm, TokenBucketConfig } from "@limitkit/core";
+import { createClient, RedisClientType } from 'redis';
+import { RedisStore, RedisCompatible, tokenBucket } from '../src';
+import { Algorithm, TokenBucketConfig } from '@limitkit/core';
 
-describe("RedisTokenBucket", () => {
+describe('RedisTokenBucket', () => {
   const CAPACITY = 5;
   const REFILL = 1; // tokens per second
 
@@ -32,8 +32,8 @@ describe("RedisTokenBucket", () => {
     await redis.quit();
   });
 
-  it("should allow requests until capacity is reached", async () => {
-    const key = "tb-allow";
+  it('should allow requests until capacity is reached', async () => {
+    const key = 'tb-allow';
     const now = 1_000_000;
 
     for (let i = 1; i <= CAPACITY; i++) {
@@ -46,8 +46,8 @@ describe("RedisTokenBucket", () => {
     }
   });
 
-  it("should reject when bucket is empty", async () => {
-    const key = "tb-empty";
+  it('should reject when bucket is empty', async () => {
+    const key = 'tb-empty';
     const now = 1_000_000;
 
     for (let i = 0; i < CAPACITY; i++) {
@@ -61,8 +61,8 @@ describe("RedisTokenBucket", () => {
     expect(result.availableAt).toBe(now + Math.ceil((1 / REFILL) * 1000));
   });
 
-  it("should refill tokens over time", async () => {
-    const key = "tb-refill";
+  it('should refill tokens over time', async () => {
+    const key = 'tb-refill';
     const now = 1_000_000;
 
     for (let i = 0; i < CAPACITY; i++) {
@@ -77,8 +77,8 @@ describe("RedisTokenBucket", () => {
     expect(result.remaining).toBe(2);
   });
 
-  it("should not exceed capacity when refilling", async () => {
-    const key = "tb-cap";
+  it('should not exceed capacity when refilling', async () => {
+    const key = 'tb-cap';
     const now = 1_000_000;
 
     const later = now + 60_000;
@@ -89,8 +89,8 @@ describe("RedisTokenBucket", () => {
     expect(result.remaining).toBe(CAPACITY - 1);
   });
 
-  it("cost should consume multiple tokens", async () => {
-    const key = "tb-cost";
+  it('cost should consume multiple tokens', async () => {
+    const key = 'tb-cost';
     const now = 1_000_000;
 
     const result = await store.consume(key, limiter, now, 3);
@@ -99,8 +99,8 @@ describe("RedisTokenBucket", () => {
     expect(result.remaining).toBe(CAPACITY - 3);
   });
 
-  it("should reject when cost exceeds tokens", async () => {
-    const key = "tb-cost-reject";
+  it('should reject when cost exceeds tokens', async () => {
+    const key = 'tb-cost-reject';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, CAPACITY - 1);
@@ -110,8 +110,8 @@ describe("RedisTokenBucket", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("should not exceed capacity under concurrency", async () => {
-    const key = "tb-concurrency";
+  it('should not exceed capacity under concurrency', async () => {
+    const key = 'tb-concurrency';
     const now = 1_000_000;
 
     const concurrency = 50;
@@ -127,8 +127,8 @@ describe("RedisTokenBucket", () => {
     expect(allowed).toBe(CAPACITY);
   });
 
-  it("availableAt should match token refill time", async () => {
-    const key = "tb-retry-after";
+  it('availableAt should match token refill time', async () => {
+    const key = 'tb-retry-after';
     const now = 1_000_000;
 
     // empty the bucket
@@ -142,8 +142,8 @@ describe("RedisTokenBucket", () => {
     expect(result.availableAt).toBe(expectedRetry);
   });
 
-  it("resetAt should equal full refill time when bucket empty", async () => {
-    const key = "tb-reset-empty";
+  it('resetAt should equal full refill time when bucket empty', async () => {
+    const key = 'tb-reset-empty';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, CAPACITY);
@@ -155,8 +155,8 @@ describe("RedisTokenBucket", () => {
     expect(result.resetAt).toBeCloseTo(expectedReset, -2);
   });
 
-  it("availableAt should scale with cost", async () => {
-    const key = "tb-retry-after-cost";
+  it('availableAt should scale with cost', async () => {
+    const key = 'tb-retry-after-cost';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, CAPACITY);
@@ -169,8 +169,8 @@ describe("RedisTokenBucket", () => {
     expect(result.availableAt).toBe(expectedRetry);
   });
 
-  it("should handle concurrent cost consumption", async () => {
-    const key = "tb-concurrency-cost";
+  it('should handle concurrent cost consumption', async () => {
+    const key = 'tb-concurrency-cost';
     const now = 1_000_000;
 
     const concurrency = 10;
@@ -187,7 +187,7 @@ describe("RedisTokenBucket", () => {
   });
 
   it("should not allow when there's only half a token", async () => {
-    const key = "tb-partial";
+    const key = 'tb-partial';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, CAPACITY);

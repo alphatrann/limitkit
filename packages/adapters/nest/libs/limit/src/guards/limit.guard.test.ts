@@ -1,19 +1,19 @@
-import "reflect-metadata";
+import 'reflect-metadata';
 
-import { Test } from "@nestjs/testing";
-import { ExecutionContext, InternalServerErrorException } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
-import { FixedWindow, RateLimiter } from "@limitkit/core";
+import { Test } from '@nestjs/testing';
+import { ExecutionContext, InternalServerErrorException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { FixedWindow, RateLimiter } from '@limitkit/core';
 import {
   RATE_LIMIT_CONFIG_METADATA_KEY,
   SKIP_RATE_LIMIT_METADATA_KEY,
-} from "../limit.tokens";
-import { TooManyRequestsException } from "../exceptions";
-import { LimitGuard } from "./limit.guard";
+} from '../limit.tokens';
+import { TooManyRequestsException } from '../exceptions';
+import { LimitGuard } from './limit.guard';
 
 class MockFixedWindow extends FixedWindow {}
 
-describe("LimitGuard", () => {
+describe('LimitGuard', () => {
   let guard: LimitGuard;
 
   let mockStore: {
@@ -83,10 +83,10 @@ describe("LimitGuard", () => {
               store: mockStore as any,
               rules: [
                 {
-                  name: "global",
-                  key: "global",
+                  name: 'global',
+                  key: 'global',
                   policy: new MockFixedWindow({
-                    name: "fixed-window",
+                    name: 'fixed-window',
                     window: 60,
                     limit: 10,
                   }),
@@ -103,7 +103,7 @@ describe("LimitGuard", () => {
     jest.clearAllMocks();
   });
 
-  it("should allow request when under limit", async () => {
+  it('should allow request when under limit', async () => {
     mockStore.consume.mockResolvedValue({
       allowed: true,
       limit: 10,
@@ -119,7 +119,7 @@ describe("LimitGuard", () => {
     expect(mockStore.consume).toHaveBeenCalled();
   });
 
-  it("should set headers", async () => {
+  it('should set headers', async () => {
     const res = { set: jest.fn() };
 
     mockStore.consume.mockResolvedValue({
@@ -143,7 +143,7 @@ describe("LimitGuard", () => {
     expect(res.set).toHaveBeenCalled();
   });
 
-  it("should throw when rate limit exceeded", async () => {
+  it('should throw when rate limit exceeded', async () => {
     mockStore.consume.mockResolvedValue({
       allowed: false,
       limit: 10,
@@ -158,7 +158,7 @@ describe("LimitGuard", () => {
     );
   });
 
-  it("should skip when handler has @SkipRateLimit", async () => {
+  it('should skip when handler has @SkipRateLimit', async () => {
     const context = createContext({
       handlerSkip: true,
     });
@@ -169,7 +169,7 @@ describe("LimitGuard", () => {
     expect(mockStore.consume).not.toHaveBeenCalled();
   });
 
-  it("should apply only handler rules when controller is skipped", async () => {
+  it('should apply only handler rules when controller is skipped', async () => {
     mockStore.consume.mockResolvedValue({
       allowed: true,
       limit: 1,
@@ -182,10 +182,10 @@ describe("LimitGuard", () => {
       handlerMeta: {
         rules: [
           {
-            name: "handler",
-            key: "h",
+            name: 'handler',
+            key: 'h',
             policy: new MockFixedWindow({
-              name: "fixed-window",
+              name: 'fixed-window',
               window: 10,
               limit: 60,
             }),
@@ -199,7 +199,7 @@ describe("LimitGuard", () => {
     expect(mockStore.consume).toHaveBeenCalled();
   });
 
-  it("should merge global + controller + handler rules", async () => {
+  it('should merge global + controller + handler rules', async () => {
     mockStore.consume.mockResolvedValue({
       allowed: true,
       limit: 10,
@@ -211,10 +211,10 @@ describe("LimitGuard", () => {
       controllerMeta: {
         rules: [
           {
-            name: "controller",
-            key: "c",
+            name: 'controller',
+            key: 'c',
             policy: new MockFixedWindow({
-              name: "fixed-window",
+              name: 'fixed-window',
               window: 60,
               limit: 10,
             }),
@@ -224,10 +224,10 @@ describe("LimitGuard", () => {
       handlerMeta: {
         rules: [
           {
-            name: "handler",
-            key: "h",
+            name: 'handler',
+            key: 'h',
             policy: new MockFixedWindow({
-              name: "fixed-window",
+              name: 'fixed-window',
               window: 60,
               limit: 5,
             }),

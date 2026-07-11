@@ -2,8 +2,8 @@ import {
   processSlidingWindowCounter,
   RateLimitRuleResult,
   SlidingWindowCounter,
-} from "@limitkit/core";
-import { InMemoryCompatible, SlidingWindowCounterState } from "../types";
+} from '@limitkit/core';
+import { InMemoryCompatible, SlidingWindowCounterState } from '../types';
 
 /**
  * In-memory implementation of the **Sliding Window Counter** algorithm.

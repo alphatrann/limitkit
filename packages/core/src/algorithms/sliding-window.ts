@@ -1,5 +1,5 @@
-import { BadArgumentsException } from "../exceptions";
-import { Algorithm, SlidingWindowConfig } from "../types";
+import { BadArgumentsException } from '../exceptions';
+import { Algorithm, SlidingWindowConfig } from '../types';
 
 /**
  * Base implementation of the **Sliding Window** rate limiting algorithm.

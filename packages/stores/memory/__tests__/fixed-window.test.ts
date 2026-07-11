@@ -1,7 +1,7 @@
-import { BadArgumentsException } from "@limitkit/core";
-import { fixedWindow, FixedWindowState, InMemoryFixedWindow } from "../src";
+import { BadArgumentsException } from '@limitkit/core';
+import { fixedWindow, FixedWindowState, InMemoryFixedWindow } from '../src';
 
-describe("InMemoryFixedWindow", () => {
+describe('InMemoryFixedWindow', () => {
   const config = {
     window: 10,
     limit: 5,
@@ -15,7 +15,7 @@ describe("InMemoryFixedWindow", () => {
 
   const baseTime = 1000 * 1000; // arbitrary timestamp
 
-  test("allows requests within limit", () => {
+  test('allows requests within limit', () => {
     let state;
 
     const r1 = limiter.process(state, baseTime);
@@ -32,7 +32,7 @@ describe("InMemoryFixedWindow", () => {
     expect(r2.output.remaining).toBe(3);
   });
 
-  test("rejects request when limit exceeded", () => {
+  test('rejects request when limit exceeded', () => {
     let state;
 
     for (let i = 0; i < config.limit; i++) {
@@ -49,7 +49,7 @@ describe("InMemoryFixedWindow", () => {
     expect(r.output.availableAt).toBe(baseTime + config.window * 1000);
   });
 
-  test("state count increments correctly", () => {
+  test('state count increments correctly', () => {
     let state;
 
     const r1 = limiter.process(state, baseTime);
@@ -63,7 +63,7 @@ describe("InMemoryFixedWindow", () => {
     expect(state.count).toBe(2);
   });
 
-  test("window resets when time moves to next window", () => {
+  test('window resets when time moves to next window', () => {
     let state;
 
     const r1 = limiter.process(state, baseTime);
@@ -78,7 +78,7 @@ describe("InMemoryFixedWindow", () => {
     expect(state.count).toBe(1);
   });
 
-  test("handles large time jumps", () => {
+  test('handles large time jumps', () => {
     let state;
 
     const r1 = limiter.process(state, baseTime);
@@ -92,7 +92,7 @@ describe("InMemoryFixedWindow", () => {
     expect(r2.state.count).toBe(1);
   });
 
-  test("cost increments correctly", () => {
+  test('cost increments correctly', () => {
     let state;
 
     const r = limiter.process(state, baseTime, 3);
@@ -102,7 +102,7 @@ describe("InMemoryFixedWindow", () => {
     expect(r.output.remaining).toBe(config.limit - 3);
   });
 
-  test("rejects when cost exceeds remaining limit", () => {
+  test('rejects when cost exceeds remaining limit', () => {
     let state;
 
     const r1 = limiter.process(state, baseTime, 4);
@@ -113,13 +113,13 @@ describe("InMemoryFixedWindow", () => {
     expect(r2.output.allowed).toBe(false);
   });
 
-  test("throws when cost > limit", () => {
+  test('throws when cost > limit', () => {
     expect(() => limiter.process(undefined, baseTime, 6)).toThrow(
       BadArgumentsException,
     );
   });
 
-  test("resetAt remains stable within the same window", () => {
+  test('resetAt remains stable within the same window', () => {
     let state;
 
     const r1 = limiter.process(state, baseTime);
@@ -130,7 +130,7 @@ describe("InMemoryFixedWindow", () => {
     expect(r2.output.resetAt).toBe(r1.output.resetAt);
   });
 
-  test("request exactly at window resetAt starts new window", () => {
+  test('request exactly at window resetAt starts new window', () => {
     let state;
 
     const r1 = limiter.process(state, baseTime);
@@ -147,7 +147,7 @@ describe("InMemoryFixedWindow", () => {
     );
   });
 
-  test("last millisecond of window still belongs to current window", () => {
+  test('last millisecond of window still belongs to current window', () => {
     let state: FixedWindowState | undefined;
 
     for (let i = 0; i < config.limit; i++) {

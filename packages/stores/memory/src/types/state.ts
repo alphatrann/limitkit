@@ -5,7 +5,7 @@ export type {
   ShapingLeakyBucketState,
   LeakyBucketState,
   GCRAState,
-} from "@limitkit/core";
+} from '@limitkit/core';
 import type {
   TokenBucketState,
   FixedWindowState,
@@ -13,7 +13,7 @@ import type {
   ShapingLeakyBucketState,
   LeakyBucketState,
   GCRAState,
-} from "@limitkit/core";
+} from '@limitkit/core';
 
 export type SlidingWindowState = {
   /** Fixed array of timestamps (ms) in **ascending** order */

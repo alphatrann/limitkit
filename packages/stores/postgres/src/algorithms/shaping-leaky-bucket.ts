@@ -3,8 +3,8 @@ import {
   processShapingLeakyBucket,
   RateLimitRuleResult,
   ShapingLeakyBucketState,
-} from "@limitkit/core";
-import { PostgresCompatible } from "../types";
+} from '@limitkit/core';
+import { PostgresCompatible } from '../types';
 
 /**
  * Postgres implementation of the **Shaping Leaky Bucket** (traffic shaping) algorithm.
@@ -21,8 +21,8 @@ export class PostgresShapingLeakyBucket
   extends LeakyBucket
   implements PostgresCompatible<ShapingLeakyBucketState>
 {
-  readonly table = "shaping_leaky_bucket_state";
-  readonly selectColumns = "next_free_at::float8 AS next_free_at";
+  readonly table = 'shaping_leaky_bucket_state';
+  readonly selectColumns = 'next_free_at::float8 AS next_free_at';
 
   toRow(state: ShapingLeakyBucketState): Record<string, number> {
     return { next_free_at: state.nextFreeAt };

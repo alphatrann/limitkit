@@ -5,21 +5,21 @@ export interface RateLimitHeaders {
   /**
    * The maximum number of requests allowed
    */
-  "RateLimit-Limit": number;
+  'RateLimit-Limit': number;
 
   /**
    * The number of requests remaining that the client can send
    */
-  "RateLimit-Remaining": number;
+  'RateLimit-Remaining': number;
 
   /**
    * Seconds to wait until the limit fully resets
    */
-  "Reset-After": number;
+  'Reset-After': number;
 
   /**
    * Seconds to wait until the next allowed request.
    * Only defined when the request is **rejected**.
    */
-  "Retry-After"?: number;
+  'Retry-After'?: number;
 }

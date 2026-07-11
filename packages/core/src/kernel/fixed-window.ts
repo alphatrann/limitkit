@@ -1,5 +1,5 @@
-import { BadArgumentsException } from "../exceptions";
-import { FixedWindowConfig, RateLimitRuleResult } from "../types";
+import { BadArgumentsException } from '../exceptions';
+import { FixedWindowConfig, RateLimitRuleResult } from '../types';
 
 export type FixedWindowState = {
   /** Number of requests in the current window */
