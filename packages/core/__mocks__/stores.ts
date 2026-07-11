@@ -1,9 +1,9 @@
 import {
   Algorithm,
   AlgorithmConfig,
-  RateLimitResult,
+  RateLimitRuleResult,
   Store,
-} from "../src/types";
+} from '../src/types';
 
 export class MockStore implements Store {
   async consume<TConfig extends AlgorithmConfig>(
@@ -11,12 +11,12 @@ export class MockStore implements Store {
     algorithm: Algorithm<TConfig>,
     now: number,
     cost?: number,
-  ): Promise<RateLimitResult> {
+  ): Promise<RateLimitRuleResult> {
     return await Promise.resolve({
       allowed: true,
       limit: 1,
       remaining: 1,
-      reset: Date.now(),
+      resetAt: Date.now(),
     });
   }
 }
