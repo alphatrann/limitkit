@@ -1,6 +1,5 @@
 import {
-  BadArgumentsException,
-  RateLimitResult,
+  processTokenBucket,
   RateLimitRuleResult,
   TokenBucket,
 } from "@limitkit/core";
@@ -40,7 +39,8 @@ export class InMemoryTokenBucket
   /**
    * Processes a request using the token bucket algorithm.
    *
-   * Tokens are refilled based on elapsed time before evaluating the request.
+   * Delegates to the shared {@link processTokenBucket} reducer in
+   * `@limitkit/core`, which is also used by `@limitkit/postgres`.
    *
    * ## Complexity
    * - Time: **O(1)**
@@ -59,58 +59,6 @@ export class InMemoryTokenBucket
     now: number,
     cost: number = 1,
   ): { state: TokenBucketState; output: RateLimitRuleResult } {
-    if (cost > this.config.capacity)
-      throw new BadArgumentsException(
-        `Cost must never exceed config.capacity, (cost=${cost}, config.capacity=${this.config.capacity})`,
-      );
-    if (!state) state = { lastRefill: now, tokens: this.config.capacity };
-    const capacity = this.config.capacity;
-    const refillRate = this.config.refillRate;
-
-    let { tokens, lastRefill } = state;
-
-    if (lastRefill === null) {
-      lastRefill = now;
-      tokens = capacity;
-    }
-
-    // ----- refill -----
-    const elapsedSeconds = (now - lastRefill) / 1000;
-    tokens = Math.min(capacity, tokens + elapsedSeconds * refillRate);
-    lastRefill = now;
-
-    // ----- reject -----
-    if (tokens < cost) {
-      const tokensNeeded = cost - tokens;
-      const availableAt = now + Math.ceil((tokensNeeded / refillRate) * 1000);
-      const resetAt =
-        now + Math.ceil(((capacity - tokens) / refillRate) * 1000);
-
-      return {
-        state: { tokens, lastRefill },
-        output: {
-          allowed: false,
-          limit: capacity,
-          remaining: Math.floor(tokens),
-          availableAt,
-          resetAt,
-        },
-      };
-    }
-
-    // ----- accept -----
-    tokens -= cost;
-
-    const resetAt = now + ((capacity - tokens) / refillRate) * 1000;
-
-    return {
-      state: { tokens, lastRefill },
-      output: {
-        allowed: true,
-        limit: capacity,
-        remaining: Math.floor(tokens),
-        resetAt,
-      },
-    };
+    return processTokenBucket(this.config, state, now, cost);
   }
 }

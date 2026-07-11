@@ -1,0 +1,45 @@
+{
+  "name": "@limitkit/postgres",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@limitkit/core": "^1.1.0"
+  },
+  "peerDependencies": {
+    "pg": "^8.0.0"
+  },
+  "keywords": [
+    "rate-limiter",
+    "rate-limiting",
+    "postgres",
+    "postgresql",
+    "token-bucket",
+    "leaky-bucket",
+    "sliding-window",
+    "gcra",
+    "nodejs"
+  ],
+  "description": "PostgreSQL store for LimitKit",
+  "files": [
+    "dist",
+    "sql"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alphatrann/limitkit"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "test": "jest --runInBand"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "@types/pg": "^8.11.0",
+    "pg": "^8.13.0"
+  }
+}

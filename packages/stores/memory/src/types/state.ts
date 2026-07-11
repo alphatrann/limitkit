@@ -1,28 +1,19 @@
-export type TokenBucketState = {
-  /** Available tokens in the bucket */
-  tokens: number;
-  /** Timestamp of the last token refill (ms) */
-  lastRefill: number;
-};
-
-export type LeakyBucketState = {
-  /** Number of requests currently in the queue */
-  queueSize: number;
-  /** Timestamp of the last leak event (ms) */
-  lastLeak: number;
-};
-
-export type ShapingLeakyBucketState = {
-  /** The next timestamp when an item can leave the bucket */
-  nextFreeAt: number;
-};
-
-export type FixedWindowState = {
-  /** Number of requests in the current window */
-  count: number;
-  /** Timestamp when the current window started */
-  windowStart: number;
-};
+export type {
+  TokenBucketState,
+  FixedWindowState,
+  SlidingWindowCounterState,
+  ShapingLeakyBucketState,
+  LeakyBucketState,
+  GCRAState,
+} from "@limitkit/core";
+import type {
+  TokenBucketState,
+  FixedWindowState,
+  SlidingWindowCounterState,
+  ShapingLeakyBucketState,
+  LeakyBucketState,
+  GCRAState,
+} from "@limitkit/core";
 
 export type SlidingWindowState = {
   /** Fixed array of timestamps (ms) in **ascending** order */
@@ -33,22 +24,6 @@ export type SlidingWindowState = {
 
   /** Number of active timestamps */
   size: number;
-};
-
-export type SlidingWindowCounterState = {
-  /** Request count in the current window */
-  count: number;
-
-  /** Request count from the previous window */
-  prevCount: number;
-
-  /** Start timestamp of the current window (ms) */
-  windowStart: number;
-};
-
-export type GCRAState = {
-  /** Theoretical Arrival Time for the next eligible request */
-  tat: number;
 };
 
 export type CustomAlgorithmState = {

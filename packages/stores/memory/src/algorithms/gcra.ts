@@ -1,8 +1,4 @@
-import {
-  BadArgumentsException,
-  GCRA,
-  RateLimitRuleResult,
-} from "@limitkit/core";
+import { GCRA, processGCRA, RateLimitRuleResult } from "@limitkit/core";
 import { GCRAState, InMemoryCompatible } from "../types";
 
 /**
@@ -41,8 +37,8 @@ export class InMemoryGCRA
   /**
    * Processes a request using the GCRA algorithm.
    *
-   * Calculates whether the request arrives before the allowed
-   * theoretical arrival time (TAT).
+   * Delegates to the shared {@link processGCRA} reducer in
+   * `@limitkit/core`, which is also used by `@limitkit/postgres`.
    *
    * ## Complexity
    * - Time: **O(1)**
@@ -61,56 +57,6 @@ export class InMemoryGCRA
     now: number,
     cost: number = 1,
   ): { state: GCRAState; output: RateLimitRuleResult } {
-    if (cost > this.config.burst)
-      throw new BadArgumentsException(
-        `Cost must never exceed config.burst, (cost=${cost}, config.burst=${this.config.burst})`,
-      );
-    if (!state) state = { tat: now };
-
-    const burst = this.config.burst;
-    const interval = this.config.interval * 1000;
-
-    const burstTolerance = (burst - cost) * interval;
-
-    let { tat } = state;
-
-    if (tat === null) {
-      tat = now;
-    }
-
-    const allowAt = tat - burstTolerance;
-
-    // ----- reject -----
-    if (now < allowAt) {
-      return {
-        state,
-        output: {
-          allowed: false,
-          remaining: 0,
-          availableAt: allowAt,
-          limit: burst,
-          resetAt: tat,
-        },
-      };
-    }
-
-    // ----- accept -----
-    tat = Math.max(now, tat) + cost * interval;
-
-    const backlog = tat - now;
-    const remaining = Math.max(
-      0,
-      Math.floor((burstTolerance - backlog) / interval) + 1,
-    );
-
-    return {
-      state: { tat },
-      output: {
-        allowed: true,
-        remaining,
-        limit: burst,
-        resetAt: tat,
-      },
-    };
+    return processGCRA(this.config, state, now, cost);
   }
 }
