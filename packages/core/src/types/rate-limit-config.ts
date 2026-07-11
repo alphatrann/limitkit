@@ -1,5 +1,5 @@
-import { LimitRule } from "./limit-rule";
-import { Store } from "./store";
+import { LimitRule } from './limit-rule';
+import { Store } from './store';
 
 /**
  * Represents a configuration object for the rate limiter

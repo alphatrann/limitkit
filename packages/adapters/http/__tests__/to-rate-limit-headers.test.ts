@@ -1,26 +1,26 @@
-import { toRateLimitHeaders } from "../src";
+import { toRateLimitHeaders } from '../src';
 
-describe("toRateLimitHeaders", () => {
+describe('toRateLimitHeaders', () => {
   const now = 1000;
 
   beforeEach(() => {
-    jest.spyOn(Date, "now").mockReturnValue(now);
+    jest.spyOn(Date, 'now').mockReturnValue(now);
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  it("uses most restrictive rule when allowed", () => {
+  it('uses most restrictive rule when allowed', () => {
     const r1 = {
-      name: "r1",
+      name: 'r1',
       limit: 10,
       remaining: 5,
       resetAt: 2000,
       allowed: true,
     };
     const r2 = {
-      name: "r2",
+      name: 'r2',
       limit: 10,
       remaining: 1,
       resetAt: 1500,
@@ -35,14 +35,14 @@ describe("toRateLimitHeaders", () => {
 
     const headers = toRateLimitHeaders(result);
 
-    expect(headers["RateLimit-Limit"]).toBe(10);
-    expect(headers["RateLimit-Remaining"]).toBe(1);
-    expect(headers["Reset-After"]).toBe(Math.ceil((1500 - now) / 1000));
+    expect(headers['RateLimit-Limit']).toBe(10);
+    expect(headers['RateLimit-Remaining']).toBe(1);
+    expect(headers['Reset-After']).toBe(Math.ceil((1500 - now) / 1000));
   });
 
-  it("uses failed rule when rejected", () => {
+  it('uses failed rule when rejected', () => {
     const r1 = {
-      name: "r1",
+      name: 'r1',
       limit: 10,
       remaining: 0,
       resetAt: 2000,
@@ -51,19 +51,19 @@ describe("toRateLimitHeaders", () => {
 
     const result = {
       allowed: false,
-      failedRule: "r1",
+      failedRule: 'r1',
       rules: [r1],
     };
 
     const headers = toRateLimitHeaders(result);
 
-    expect(headers["RateLimit-Limit"]).toBe(10);
-    expect(headers["RateLimit-Remaining"]).toBe(0);
+    expect(headers['RateLimit-Limit']).toBe(10);
+    expect(headers['RateLimit-Remaining']).toBe(0);
   });
 
-  it("includes Retry-After when availableAt is present", () => {
+  it('includes Retry-After when availableAt is present', () => {
     const r1 = {
-      name: "r1",
+      name: 'r1',
       limit: 10,
       remaining: 0,
       resetAt: 2000,
@@ -73,18 +73,18 @@ describe("toRateLimitHeaders", () => {
 
     const result = {
       allowed: false,
-      failedRule: "r1",
+      failedRule: 'r1',
       rules: [r1],
     };
 
     const headers = toRateLimitHeaders(result);
 
-    expect(headers["Retry-After"]).toBe(Math.ceil((3000 - now) / 1000));
+    expect(headers['Retry-After']).toBe(Math.ceil((3000 - now) / 1000));
   });
 
-  it("does not include Retry-After when availableAt is absent", () => {
+  it('does not include Retry-After when availableAt is absent', () => {
     const r1 = {
-      name: "r1",
+      name: 'r1',
       limit: 10,
       remaining: 0,
       resetAt: 2000,
@@ -93,12 +93,12 @@ describe("toRateLimitHeaders", () => {
 
     const result = {
       allowed: false,
-      failedRule: "r1",
+      failedRule: 'r1',
       rules: [r1],
     };
 
     const headers = toRateLimitHeaders(result);
 
-    expect(headers["Retry-After"]).toBeUndefined();
+    expect(headers['Retry-After']).toBeUndefined();
   });
 });

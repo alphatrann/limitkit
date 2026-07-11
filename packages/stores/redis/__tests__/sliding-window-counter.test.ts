@@ -1,9 +1,9 @@
-import { createClient, RedisClientType } from "redis";
-import { RedisStore, RedisCompatible, slidingWindowCounter } from "../src";
+import { createClient, RedisClientType } from 'redis';
+import { RedisStore, RedisCompatible, slidingWindowCounter } from '../src';
 
-import { Algorithm, SlidingWindowCounterConfig } from "@limitkit/core";
+import { Algorithm, SlidingWindowCounterConfig } from '@limitkit/core';
 
-describe("RedisSlidingWindowCounter", () => {
+describe('RedisSlidingWindowCounter', () => {
   const WINDOW = 5;
   const LIMIT = 5;
 
@@ -33,8 +33,8 @@ describe("RedisSlidingWindowCounter", () => {
     await redis.quit();
   });
 
-  it("should allow requests until limit is reached", async () => {
-    const key = "swc-allow";
+  it('should allow requests until limit is reached', async () => {
+    const key = 'swc-allow';
     const now = 1_000_000;
 
     for (let i = 1; i <= LIMIT; i++) {
@@ -47,8 +47,8 @@ describe("RedisSlidingWindowCounter", () => {
     }
   });
 
-  it("should reject requests after limit is exceeded", async () => {
-    const key = "swc-exceed";
+  it('should reject requests after limit is exceeded', async () => {
+    const key = 'swc-exceed';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -65,8 +65,8 @@ describe("RedisSlidingWindowCounter", () => {
     expect(result.resetAt).toBe(WINDOW * 2000 + now);
   });
 
-  it("should reset after enough time passes", async () => {
-    const key = "swc-reset";
+  it('should reset after enough time passes', async () => {
+    const key = 'swc-reset';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -81,8 +81,8 @@ describe("RedisSlidingWindowCounter", () => {
     expect(result.remaining).toBe(LIMIT - 1);
   });
 
-  it("should partially decay previous window", async () => {
-    const key = "swc-decay";
+  it('should partially decay previous window', async () => {
+    const key = 'swc-decay';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -97,8 +97,8 @@ describe("RedisSlidingWindowCounter", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("availableAt should match next window boundary", async () => {
-    const key = "swc-retry-after";
+  it('availableAt should match next window boundary', async () => {
+    const key = 'swc-retry-after';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -112,8 +112,8 @@ describe("RedisSlidingWindowCounter", () => {
     expect(result.availableAt).toBeLessThanOrEqual(expectedRetry);
   });
 
-  it("cost should consume multiple tokens", async () => {
-    const key = "swc-cost";
+  it('cost should consume multiple tokens', async () => {
+    const key = 'swc-cost';
     const now = 1_000_000;
 
     const result = await store.consume(key, limiter, now, 3);
@@ -122,8 +122,8 @@ describe("RedisSlidingWindowCounter", () => {
     expect(result.remaining).toBe(LIMIT - 3);
   });
 
-  it("should reject when cost exceeds remaining tokens", async () => {
-    const key = "swc-cost-reject";
+  it('should reject when cost exceeds remaining tokens', async () => {
+    const key = 'swc-cost-reject';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, LIMIT - 1);
@@ -133,8 +133,8 @@ describe("RedisSlidingWindowCounter", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("should not exceed limit under concurrency", async () => {
-    const key = "swc-concurrency";
+  it('should not exceed limit under concurrency', async () => {
+    const key = 'swc-concurrency';
     const now = 1_000_000;
 
     const concurrency = 50;
@@ -150,8 +150,8 @@ describe("RedisSlidingWindowCounter", () => {
     expect(allowed).toBeLessThanOrEqual(LIMIT);
   });
 
-  it("should handle concurrent cost consumption", async () => {
-    const key = "swc-concurrency-cost";
+  it('should handle concurrent cost consumption', async () => {
+    const key = 'swc-concurrency-cost';
     const now = 1_000_000;
 
     const concurrency = 10;
@@ -167,8 +167,8 @@ describe("RedisSlidingWindowCounter", () => {
     expect(allowed).toBeLessThanOrEqual(Math.floor(LIMIT / 2));
   });
 
-  it("should smooth burst across window boundary", async () => {
-    const key = "swc-boundary";
+  it('should smooth burst across window boundary', async () => {
+    const key = 'swc-boundary';
     const base = 1_000_000;
 
     const endOfWindow = base + WINDOW * 1000 - 1;
@@ -184,8 +184,8 @@ describe("RedisSlidingWindowCounter", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("should handle multiple windows passing", async () => {
-    const key = "swc-multi-window";
+  it('should handle multiple windows passing', async () => {
+    const key = 'swc-multi-window';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now);

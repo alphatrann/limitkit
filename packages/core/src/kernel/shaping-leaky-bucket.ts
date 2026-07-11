@@ -1,5 +1,5 @@
-import { BadArgumentsException } from "../exceptions";
-import { LeakyBucketConfig, RateLimitRuleResult } from "../types";
+import { BadArgumentsException } from '../exceptions';
+import { LeakyBucketConfig, RateLimitRuleResult } from '../types';
 
 export type ShapingLeakyBucketState = {
   /** The next timestamp when an item can leave the bucket */

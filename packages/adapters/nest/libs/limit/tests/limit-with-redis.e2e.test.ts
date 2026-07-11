@@ -1,18 +1,18 @@
-import { Test } from "@nestjs/testing";
-import { Controller, Get, INestApplication } from "@nestjs/common";
-import * as request from "supertest";
-import { LimitModule } from "../src/limit.module";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { slidingWindow, RedisStore } from "@limitkit/redis";
-import { NoLimitController } from "./controllers";
-import { getUserTier } from "./utils";
-import { createClient, RedisClientType } from "redis";
-import { RateLimit, SkipRateLimit } from "../src";
+import { Test } from '@nestjs/testing';
+import { Controller, Get, INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
+import { LimitModule } from '../src/limit.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { slidingWindow, RedisStore } from '@limitkit/redis';
+import { NoLimitController } from './controllers';
+import { getUserTier } from './utils';
+import { createClient, RedisClientType } from 'redis';
+import { RateLimit, SkipRateLimit } from '../src';
 
 @RateLimit({
   rules: [
     {
-      name: "controller-limit",
+      name: 'controller-limit',
       key: (req: any) => req.ip,
       policy: slidingWindow({
         window: 60,
@@ -24,12 +24,12 @@ import { RateLimit, SkipRateLimit } from "../src";
 @Controller()
 export class TestController {
   @SkipRateLimit()
-  @Get("/open")
+  @Get('/open')
   open() {
     return { ok: true };
   }
 
-  @Get("/controller")
+  @Get('/controller')
   controllerLimit() {
     return { ok: true };
   }
@@ -37,7 +37,7 @@ export class TestController {
   @RateLimit({
     rules: [
       {
-        name: "route-limit",
+        name: 'route-limit',
         key: (req: any) => req.ip,
         policy: slidingWindow({
           window: 60,
@@ -46,21 +46,21 @@ export class TestController {
       },
     ],
   })
-  @Get("/route-limit")
+  @Get('/route-limit')
   routeLimit() {
     return { ok: true };
   }
 }
 
-describe("LimitModule + Redis (e2e)", () => {
+describe('LimitModule + Redis (e2e)', () => {
   let app: INestApplication;
 
-  describe("LimitModule forRoot", () => {
+  describe('LimitModule forRoot', () => {
     let redis: RedisClientType;
     let redisStore: RedisStore;
 
     beforeAll(async () => {
-      redis = createClient({ url: "redis://localhost:6379/14" });
+      redis = createClient({ url: 'redis://localhost:6379/14' });
       await redis.connect();
       redisStore = new RedisStore(redis);
     });
@@ -82,7 +82,7 @@ describe("LimitModule + Redis (e2e)", () => {
 
             rules: [
               {
-                name: "global-ip-limit",
+                name: 'global-ip-limit',
                 key: (req: any) => req.ip,
                 policy: slidingWindow({
                   window: 60,
@@ -101,72 +101,72 @@ describe("LimitModule + Redis (e2e)", () => {
 
     const server = () => app.getHttpServer();
 
-    it("should skip rate limit when @SkipRateLimit is used", async () => {
-      await request(server()).get("/open").expect(200);
-      await request(server()).get("/open").expect(200);
-      await request(server()).get("/open").expect(200);
-      await request(server()).get("/open").expect(200);
-      await request(server()).get("/open").expect(200);
-      await request(server()).get("/open").expect(200);
+    it('should skip rate limit when @SkipRateLimit is used', async () => {
+      await request(server()).get('/open').expect(200);
+      await request(server()).get('/open').expect(200);
+      await request(server()).get('/open').expect(200);
+      await request(server()).get('/open').expect(200);
+      await request(server()).get('/open').expect(200);
+      await request(server()).get('/open').expect(200);
     });
 
-    it("should enforce global rate limit and return headers", async () => {
-      const res1 = await request(server()).get("/limited").expect(200);
+    it('should enforce global rate limit and return headers', async () => {
+      const res1 = await request(server()).get('/limited').expect(200);
 
-      expect(res1.headers["ratelimit-limit"]).toBe("5");
-      expect(res1.headers["ratelimit-remaining"]).toBe("4");
-      expect(res1.headers["reset-after"]).toBeDefined();
+      expect(res1.headers['ratelimit-limit']).toBe('5');
+      expect(res1.headers['ratelimit-remaining']).toBe('4');
+      expect(res1.headers['reset-after']).toBeDefined();
 
-      const res2 = await request(server()).get("/limited").expect(200);
+      const res2 = await request(server()).get('/limited').expect(200);
 
-      expect(res2.headers["ratelimit-remaining"]).toBe("3");
+      expect(res2.headers['ratelimit-remaining']).toBe('3');
 
-      await request(server()).get("/limited").expect(200);
-      await request(server()).get("/limited").expect(200);
-      await request(server()).get("/limited").expect(200);
+      await request(server()).get('/limited').expect(200);
+      await request(server()).get('/limited').expect(200);
+      await request(server()).get('/limited').expect(200);
 
-      const res6 = await request(server()).get("/limited").expect(429);
+      const res6 = await request(server()).get('/limited').expect(429);
 
-      expect(res6.headers["retry-after"]).toBeDefined();
+      expect(res6.headers['retry-after']).toBeDefined();
     });
 
-    it("should override global rule with route rule and return headers", async () => {
-      const res1 = await request(server()).get("/route-limit").expect(200);
+    it('should override global rule with route rule and return headers', async () => {
+      const res1 = await request(server()).get('/route-limit').expect(200);
 
-      expect(res1.headers["ratelimit-limit"]).toBe("1");
-      expect(res1.headers["ratelimit-remaining"]).toBe("0");
+      expect(res1.headers['ratelimit-limit']).toBe('1');
+      expect(res1.headers['ratelimit-remaining']).toBe('0');
 
-      const res2 = await request(server()).get("/route-limit").expect(429);
+      const res2 = await request(server()).get('/route-limit').expect(429);
 
-      expect(res2.headers["retry-after"]).toBeDefined();
+      expect(res2.headers['retry-after']).toBeDefined();
     });
 
-    it("should enforce controller level rules and return headers", async () => {
-      const r1 = await request(server()).get("/controller").expect(200);
-      expect(r1.headers["ratelimit-limit"]).toBe("3");
-      expect(r1.headers["ratelimit-remaining"]).toBe("2");
+    it('should enforce controller level rules and return headers', async () => {
+      const r1 = await request(server()).get('/controller').expect(200);
+      expect(r1.headers['ratelimit-limit']).toBe('3');
+      expect(r1.headers['ratelimit-remaining']).toBe('2');
 
-      await request(server()).get("/controller").expect(200);
-      await request(server()).get("/controller").expect(200);
+      await request(server()).get('/controller').expect(200);
+      await request(server()).get('/controller').expect(200);
 
-      const r4 = await request(server()).get("/controller").expect(429);
-      expect(r4.headers["retry-after"]).toBeDefined();
+      const r4 = await request(server()).get('/controller').expect(429);
+      expect(r4.headers['retry-after']).toBeDefined();
     });
 
-    it("should not set rate limit headers when skipped", async () => {
-      const res = await request(server()).get("/open").expect(200);
+    it('should not set rate limit headers when skipped', async () => {
+      const res = await request(server()).get('/open').expect(200);
 
-      expect(res.headers["ratelimit-limit"]).toBeUndefined();
-      expect(res.headers["ratelimit-remaining"]).toBeUndefined();
-      expect(res.headers["reset-after"]).toBeUndefined();
+      expect(res.headers['ratelimit-limit']).toBeUndefined();
+      expect(res.headers['ratelimit-remaining']).toBeUndefined();
+      expect(res.headers['reset-after']).toBeUndefined();
     });
   });
 
-  describe("LimitModule forRootAsync", () => {
+  describe('LimitModule forRootAsync', () => {
     let redis: RedisClientType;
 
     beforeAll(async () => {
-      redis = createClient({ url: "redis://localhost:6379/15" });
+      redis = createClient({ url: 'redis://localhost:6379/15' });
       await redis.connect();
     });
 
@@ -188,21 +188,21 @@ describe("LimitModule + Redis (e2e)", () => {
                 rules: [
                   {
                     key: (req: any) =>
-                      "user:" +
+                      'user:' +
                       String(
-                        req.headers["user-id"] ? +req.headers["user-id"] : 1001,
+                        req.headers['user-id'] ? +req.headers['user-id'] : 1001,
                       ),
                     policy: async (req: any) => {
-                      const userId = req.headers["user-id"]
-                        ? +req.headers["user-id"]
+                      const userId = req.headers['user-id']
+                        ? +req.headers['user-id']
                         : 1001;
                       const tier = await getUserTier(userId);
-                      if (tier === "enterprise")
+                      if (tier === 'enterprise')
                         return slidingWindow({
                           window: 60,
                           limit: 5,
                         });
-                      if (tier === "pro")
+                      if (tier === 'pro')
                         return slidingWindow({
                           window: 60,
                           limit: 3,
@@ -212,7 +212,7 @@ describe("LimitModule + Redis (e2e)", () => {
                         limit: 1,
                       });
                     },
-                    name: "tier-limit",
+                    name: 'tier-limit',
                   },
                 ],
               };
@@ -233,25 +233,25 @@ describe("LimitModule + Redis (e2e)", () => {
 
     const server = () => app.getHttpServer();
 
-    it("enterprise tier should get higher limits", async () => {
-      await request(server()).get("/limited").set("user-id", "1").expect(200);
-      await request(server()).get("/limited").set("user-id", "1").expect(200);
-      await request(server()).get("/limited").set("user-id", "1").expect(200);
-      await request(server()).get("/limited").set("user-id", "1").expect(200);
-      await request(server()).get("/limited").set("user-id", "1").expect(200);
-      await request(server()).get("/limited").set("user-id", "1").expect(429);
+    it('enterprise tier should get higher limits', async () => {
+      await request(server()).get('/limited').set('user-id', '1').expect(200);
+      await request(server()).get('/limited').set('user-id', '1').expect(200);
+      await request(server()).get('/limited').set('user-id', '1').expect(200);
+      await request(server()).get('/limited').set('user-id', '1').expect(200);
+      await request(server()).get('/limited').set('user-id', '1').expect(200);
+      await request(server()).get('/limited').set('user-id', '1').expect(429);
     });
 
-    it("pro tier should get lower limits than enterprise", async () => {
-      await request(server()).get("/limited").set("user-id", "101").expect(200);
-      await request(server()).get("/limited").set("user-id", "101").expect(200);
-      await request(server()).get("/limited").set("user-id", "101").expect(200);
-      await request(server()).get("/limited").set("user-id", "101").expect(429);
+    it('pro tier should get lower limits than enterprise', async () => {
+      await request(server()).get('/limited').set('user-id', '101').expect(200);
+      await request(server()).get('/limited').set('user-id', '101').expect(200);
+      await request(server()).get('/limited').set('user-id', '101').expect(200);
+      await request(server()).get('/limited').set('user-id', '101').expect(429);
     });
 
-    it("basic tier should get lower limits than pro", async () => {
-      await request(server()).get("/limited").expect(200);
-      await request(server()).get("/limited").expect(429);
+    it('basic tier should get lower limits than pro', async () => {
+      await request(server()).get('/limited').expect(200);
+      await request(server()).get('/limited').expect(429);
     });
   });
 });

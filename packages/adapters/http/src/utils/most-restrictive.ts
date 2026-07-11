@@ -1,4 +1,4 @@
-import { RateLimitResult, IdentifiedRateLimitRuleResult } from "@limitkit/core";
+import { RateLimitResult, IdentifiedRateLimitRuleResult } from '@limitkit/core';
 
 /**
  * Select the most restrictive rule from a set of evaluated rules.

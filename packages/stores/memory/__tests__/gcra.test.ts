@@ -1,6 +1,6 @@
-import { gcra, InMemoryGCRA } from "../src";
+import { gcra, InMemoryGCRA } from '../src';
 
-describe("InMemoryGCRA", () => {
+describe('InMemoryGCRA', () => {
   const config = { burst: 3, interval: 1 };
   let limiter: InMemoryGCRA;
   const base = 1000000;
@@ -9,7 +9,7 @@ describe("InMemoryGCRA", () => {
     limiter = gcra(config);
   });
 
-  test("allows burst", () => {
+  test('allows burst', () => {
     let state;
 
     for (let i = 0; i < config.burst; i++) {
@@ -29,7 +29,7 @@ describe("InMemoryGCRA", () => {
     }
   });
 
-  test("rejects beyond burst", () => {
+  test('rejects beyond burst', () => {
     let state;
 
     for (let i = 0; i < config.burst; i++) {
@@ -42,7 +42,7 @@ describe("InMemoryGCRA", () => {
     expect(r.output.allowed).toBe(false);
   });
 
-  test("allows after interval", () => {
+  test('allows after interval', () => {
     let state;
 
     for (let i = 0; i < config.burst; i++) {
@@ -54,13 +54,13 @@ describe("InMemoryGCRA", () => {
     expect(r.output.allowed).toBe(true);
   });
 
-  test("remaining computed correctly", () => {
+  test('remaining computed correctly', () => {
     const r = limiter.process(undefined, base, 1);
 
     expect(r.output.remaining).toBe(2);
   });
 
-  test("large time jump resets schedule", () => {
+  test('large time jump resets schedule', () => {
     let state;
 
     const r1 = limiter.process(state, base, 1);
@@ -73,7 +73,7 @@ describe("InMemoryGCRA", () => {
     expect(r2.state.tat).toBe(base + 61000);
   });
 
-  test("cost exceeding burst throws", () => {
+  test('cost exceeding burst throws', () => {
     expect(() => limiter.process(undefined, base, 10)).toThrow();
   });
 });

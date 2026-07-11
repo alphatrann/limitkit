@@ -1,8 +1,8 @@
-import { createClient, RedisClientType } from "redis";
-import { RedisCompatible, RedisStore, shapingLeakyBucket } from "../src";
-import { Algorithm, LeakyBucketConfig } from "@limitkit/core";
+import { createClient, RedisClientType } from 'redis';
+import { RedisCompatible, RedisStore, shapingLeakyBucket } from '../src';
+import { Algorithm, LeakyBucketConfig } from '@limitkit/core';
 
-describe("RedisLeakyBucket", () => {
+describe('RedisLeakyBucket', () => {
   const CAPACITY = 5;
   const LEAK_RATE = 1; // per second
 
@@ -32,8 +32,8 @@ describe("RedisLeakyBucket", () => {
     await redis.quit();
   });
 
-  it("allows requests until capacity is reached", async () => {
-    const key = "slb-allow";
+  it('allows requests until capacity is reached', async () => {
+    const key = 'slb-allow';
     const now = 1_000_000;
 
     for (let i = 1; i <= CAPACITY; i++) {
@@ -44,8 +44,8 @@ describe("RedisLeakyBucket", () => {
     }
   });
 
-  it("rejects when queue is full", async () => {
-    const key = "slb-full";
+  it('rejects when queue is full', async () => {
+    const key = 'slb-full';
     const now = 1_000_000;
 
     for (let i = 0; i < CAPACITY; i++) {
@@ -59,8 +59,8 @@ describe("RedisLeakyBucket", () => {
     expect(r.availableAt).toBe(now + Math.ceil((CAPACITY / LEAK_RATE) * 1000));
   });
 
-  it("gradually frees capacity as time passes", async () => {
-    const key = "slb-leak";
+  it('gradually frees capacity as time passes', async () => {
+    const key = 'slb-leak';
     const now = 1_000_000;
 
     for (let i = 0; i < CAPACITY; i++) {
@@ -76,8 +76,8 @@ describe("RedisLeakyBucket", () => {
     expect(r.availableAt).toBeGreaterThan(later);
   });
 
-  it("supports multi-cost scheduling", async () => {
-    const key = "slb-cost";
+  it('supports multi-cost scheduling', async () => {
+    const key = 'slb-cost';
     const now = 1_000_000;
 
     const r1 = await store.consume(key, limiter, now, 2);
@@ -91,8 +91,8 @@ describe("RedisLeakyBucket", () => {
     expect(r2.availableAt).toBe(now + 4_000);
   });
 
-  it("rejects when cost exceeds capacity", async () => {
-    const key = "slb-cost-reject";
+  it('rejects when cost exceeds capacity', async () => {
+    const key = 'slb-cost-reject';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, CAPACITY - 1);
@@ -101,8 +101,8 @@ describe("RedisLeakyBucket", () => {
     expect(r.allowed).toBe(false);
   });
 
-  it("resetAt equals queue drain time", async () => {
-    const key = "slb-resetAt";
+  it('resetAt equals queue drain time', async () => {
+    const key = 'slb-resetAt';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, 2);
@@ -113,8 +113,8 @@ describe("RedisLeakyBucket", () => {
     expect(r.resetAt).toBeLessThanOrEqual(expectedReset);
   });
 
-  it("handles concurrency without exceeding capacity", async () => {
-    const key = "slb-concurrency";
+  it('handles concurrency without exceeding capacity', async () => {
+    const key = 'slb-concurrency';
     const now = 1_000_000;
 
     const results = await Promise.all(
@@ -125,8 +125,8 @@ describe("RedisLeakyBucket", () => {
     expect(allowedCount).toBe(CAPACITY);
   });
 
-  it("handles concurrent cost correctly", async () => {
-    const key = "slb-concurrency-cost";
+  it('handles concurrent cost correctly', async () => {
+    const key = 'slb-concurrency-cost';
     const now = 1_000_000;
 
     const results = await Promise.all(

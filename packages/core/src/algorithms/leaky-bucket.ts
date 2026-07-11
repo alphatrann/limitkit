@@ -1,5 +1,5 @@
-import { BadArgumentsException } from "../exceptions";
-import { Algorithm, LeakyBucketConfig } from "../types";
+import { BadArgumentsException } from '../exceptions';
+import { Algorithm, LeakyBucketConfig } from '../types';
 
 /**
  * Base implementation of the **Leaky Bucket** rate limiting algorithm.

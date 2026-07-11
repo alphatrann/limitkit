@@ -1,4 +1,4 @@
-import { createClient, RedisClientType } from "redis";
+import { createClient, RedisClientType } from 'redis';
 import {
   RedisStore,
   RedisCompatible,
@@ -10,11 +10,11 @@ import {
   gcra,
   shapingLeakyBucket,
   RedisShapingLeakyBucket,
-} from "../src";
+} from '../src';
 
-import { Algorithm } from "@limitkit/core";
+import { Algorithm } from '@limitkit/core';
 
-describe("RedisStore Integration", () => {
+describe('RedisStore Integration', () => {
   let redis: RedisClientType;
   let store: RedisStore;
 
@@ -76,8 +76,8 @@ describe("RedisStore Integration", () => {
    * ---------------------------------------------------------
    */
 
-  it.each(algorithms)("should execute algorithm %p", async (algo) => {
-    const key = "store-basic";
+  it.each(algorithms)('should execute algorithm %p', async (algo) => {
+    const key = 'store-basic';
     const now = 1_000_000;
 
     const result = await store.consume(key, algo, now);
@@ -85,11 +85,11 @@ describe("RedisStore Integration", () => {
     expect(result.allowed).toBe(true);
     expect(result.limit).toBe(algo.limit);
 
-    expect(typeof result.remaining).toBe("number");
-    expect(typeof result.resetAt).toBe("number");
+    expect(typeof result.remaining).toBe('number');
+    expect(typeof result.resetAt).toBe('number');
     if (algo instanceof RedisShapingLeakyBucket)
-      expect(typeof result.availableAt).toBe("number");
-    else expect(typeof result.availableAt).toBe("undefined");
+      expect(typeof result.availableAt).toBe('number');
+    else expect(typeof result.availableAt).toBe('undefined');
   });
 
   /**
@@ -98,15 +98,15 @@ describe("RedisStore Integration", () => {
    * ---------------------------------------------------------
    */
 
-  it("should cache Lua scripts locally", async () => {
+  it('should cache Lua scripts locally', async () => {
     const limiter = algorithms[0];
-    const key = "store-cache";
+    const key = 'store-cache';
     const now = 1_000_000;
 
     // start with a fresh store to avoid cached scripts
     const freshStore = new RedisStore(redis);
 
-    const spy = jest.spyOn(redis, "scriptLoad");
+    const spy = jest.spyOn(redis, 'scriptLoad');
 
     await freshStore.consume(key, limiter, now);
     await freshStore.consume(key, limiter, now);
@@ -120,9 +120,9 @@ describe("RedisStore Integration", () => {
    * ---------------------------------------------------------
    */
 
-  it("should reload script when Redis loses script cache", async () => {
+  it('should reload script when Redis loses script cache', async () => {
     const limiter = algorithms[0];
-    const key = "store-noscript";
+    const key = 'store-noscript';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now);
@@ -141,9 +141,9 @@ describe("RedisStore Integration", () => {
    */
 
   it.each(algorithms)(
-    "availableAt should be undefined when allowed, except shaping leaky bucket (%p)",
+    'availableAt should be undefined when allowed, except shaping leaky bucket (%p)',
     async (algo) => {
-      const key = "retry-contract";
+      const key = 'retry-contract';
       const now = 1_000_000;
 
       const result = await store.consume(key, algo, now);
@@ -162,9 +162,9 @@ describe("RedisStore Integration", () => {
    */
 
   it.each(algorithms)(
-    "should enforce limits under concurrency (%p)",
+    'should enforce limits under concurrency (%p)',
     async (algo) => {
-      const key = "store-concurrency";
+      const key = 'store-concurrency';
       const now = 1_000_000;
 
       const results = await Promise.all(
@@ -183,13 +183,13 @@ describe("RedisStore Integration", () => {
    * ---------------------------------------------------------
    */
 
-  it.each(algorithms)("should propagate cost correctly (%p)", async (algo) => {
-    const key = "store-cost";
+  it.each(algorithms)('should propagate cost correctly (%p)', async (algo) => {
+    const key = 'store-cost';
     const now = 1_000_000;
 
     const result = await store.consume(key, algo, now, 2);
 
-    expect(typeof result.allowed).toBe("boolean");
+    expect(typeof result.allowed).toBe('boolean');
   });
 
   /**
@@ -199,18 +199,18 @@ describe("RedisStore Integration", () => {
    */
 
   it.each(algorithms)(
-    "should return valid RateLimitResult (%p)",
+    'should return valid RateLimitResult (%p)',
     async (algo) => {
-      const key = "store-contract";
+      const key = 'store-contract';
       const now = 1_000_000;
 
       const result = await store.consume(key, algo, now);
 
-      expect(result).toHaveProperty("allowed");
-      expect(result).toHaveProperty("limit");
-      expect(result).toHaveProperty("remaining");
-      expect(result).toHaveProperty("resetAt");
-      expect(result).toHaveProperty("availableAt");
+      expect(result).toHaveProperty('allowed');
+      expect(result).toHaveProperty('limit');
+      expect(result).toHaveProperty('remaining');
+      expect(result).toHaveProperty('resetAt');
+      expect(result).toHaveProperty('availableAt');
     },
   );
 
@@ -221,9 +221,9 @@ describe("RedisStore Integration", () => {
    */
 
   it.each(algorithms)(
-    "fuzz test should maintain invariants (%p)",
+    'fuzz test should maintain invariants (%p)',
     async (algo) => {
-      const key = "store-fuzz";
+      const key = 'store-fuzz';
 
       let now = 1_000_000;
 

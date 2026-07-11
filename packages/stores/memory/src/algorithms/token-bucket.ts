@@ -2,8 +2,8 @@ import {
   processTokenBucket,
   RateLimitRuleResult,
   TokenBucket,
-} from "@limitkit/core";
-import { InMemoryCompatible, TokenBucketState } from "../types";
+} from '@limitkit/core';
+import { InMemoryCompatible, TokenBucketState } from '../types';
 
 /**
  * In-memory implementation of the **Token Bucket** rate limiting algorithm.

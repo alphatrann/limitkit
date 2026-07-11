@@ -1,13 +1,13 @@
-import { Pool } from "pg";
-import { Algorithm, SlidingWindowConfig } from "@limitkit/core";
+import { Pool } from 'pg';
+import { Algorithm, SlidingWindowConfig } from '@limitkit/core';
 import {
   initSchema,
   PostgresLogCompatible,
   PostgresStore,
   slidingWindow,
-} from "../src";
+} from '../src';
 
-describe("PostgresSlidingWindow", () => {
+describe('PostgresSlidingWindow', () => {
   const WINDOW = 5;
   const LIMIT = 5;
 
@@ -17,11 +17,11 @@ describe("PostgresSlidingWindow", () => {
 
   beforeAll(async () => {
     pool = new Pool({
-      host: process.env.POSTGRES_HOST ?? "localhost",
+      host: process.env.POSTGRES_HOST ?? 'localhost',
       port: Number(process.env.POSTGRES_PORT ?? 5432),
-      user: "limitkit",
-      password: "limitkit",
-      database: "limitkit",
+      user: 'limitkit',
+      password: 'limitkit',
+      database: 'limitkit',
     });
     await initSchema(pool);
 
@@ -31,15 +31,15 @@ describe("PostgresSlidingWindow", () => {
   });
 
   beforeEach(async () => {
-    await pool.query("TRUNCATE limitkit.rate_limit_state CASCADE");
+    await pool.query('TRUNCATE limitkit.rate_limit_state CASCADE');
   });
 
   afterAll(async () => {
     await pool.end();
   });
 
-  it("should allow requests until limit is reached", async () => {
-    const key = "sliding-allow";
+  it('should allow requests until limit is reached', async () => {
+    const key = 'sliding-allow';
     const now = 1_000_000;
 
     for (let i = 1; i <= LIMIT; i++) {
@@ -52,8 +52,8 @@ describe("PostgresSlidingWindow", () => {
     }
   });
 
-  it("should reject requests after limit is exceeded", async () => {
-    const key = "sliding-exceed";
+  it('should reject requests after limit is exceeded', async () => {
+    const key = 'sliding-exceed';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -70,8 +70,8 @@ describe("PostgresSlidingWindow", () => {
     expect(result.resetAt).toBe(now + (LIMIT - 1) * 500 + WINDOW * 1000);
   });
 
-  it("should allow requests again after window passes", async () => {
-    const key = "sliding-reset";
+  it('should allow requests again after window passes', async () => {
+    const key = 'sliding-reset';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -86,8 +86,8 @@ describe("PostgresSlidingWindow", () => {
     expect(result.remaining).toBe(LIMIT - 1);
   });
 
-  it("cost should consume multiple tokens", async () => {
-    const key = "sliding-cost";
+  it('cost should consume multiple tokens', async () => {
+    const key = 'sliding-cost';
     const now = 1_000_000;
 
     const result = await store.consume(key, limiter, now, 3);
@@ -96,8 +96,8 @@ describe("PostgresSlidingWindow", () => {
     expect(result.remaining).toBe(LIMIT - 3);
   });
 
-  it("should reject when cost exceeds remaining tokens", async () => {
-    const key = "sliding-cost-reject";
+  it('should reject when cost exceeds remaining tokens', async () => {
+    const key = 'sliding-cost-reject';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, LIMIT - 1);
@@ -107,8 +107,8 @@ describe("PostgresSlidingWindow", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("should allow requests as old entries expire", async () => {
-    const key = "sliding-partial-expire";
+  it('should allow requests as old entries expire', async () => {
+    const key = 'sliding-partial-expire';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -122,8 +122,8 @@ describe("PostgresSlidingWindow", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("should not exceed limit under concurrency", async () => {
-    const key = "sliding-concurrency";
+  it('should not exceed limit under concurrency', async () => {
+    const key = 'sliding-concurrency';
     const now = 1_000_000;
 
     const concurrency = 50;

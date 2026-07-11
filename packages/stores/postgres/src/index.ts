@@ -25,8 +25,8 @@
  * ```
  */
 
-export * from "./postgres-store";
-export * from "./schema";
-export * from "./types";
-export * from "./algorithms";
-export * from "./factory";
+export * from './postgres-store';
+export * from './schema';
+export * from './types';
+export * from './algorithms';
+export * from './factory';

@@ -1,5 +1,5 @@
-import { BadArgumentsException } from "../exceptions";
-import { RateLimitRuleResult, SlidingWindowCounterConfig } from "../types";
+import { BadArgumentsException } from '../exceptions';
+import { RateLimitRuleResult, SlidingWindowCounterConfig } from '../types';
 
 export type SlidingWindowCounterState = {
   /** Request count in the current window */

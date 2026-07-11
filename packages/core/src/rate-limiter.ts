@@ -2,7 +2,7 @@ import {
   BadArgumentsException,
   EmptyRulesException,
   UndefinedKeyException,
-} from "./exceptions";
+} from './exceptions';
 import {
   Algorithm,
   AlgorithmConfig,
@@ -12,8 +12,8 @@ import {
   RateLimitConfig,
   Store,
   IdentifiedRateLimitRuleResult,
-} from "./types";
-import { addConfigToKey } from "./utils";
+} from './types';
+import { addConfigToKey } from './utils';
 
 /**
  * Core rate limiter implementation that enforces rate limiting rules.
@@ -117,16 +117,16 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
     const evaluatedRules: IdentifiedRateLimitRuleResult[] = [];
     for (const rule of this.rules) {
       const algorithm: Algorithm<AlgorithmConfig> =
-        typeof rule.policy === "function"
+        typeof rule.policy === 'function'
           ? await rule.policy(ctx)
           : rule.policy;
       const key =
-        typeof rule.key === "function" ? await rule.key(ctx) : rule.key;
+        typeof rule.key === 'function' ? await rule.key(ctx) : rule.key;
 
       if (!key) throw new UndefinedKeyException(rule.name);
 
       const cost =
-        typeof rule.cost === "function" ? await rule.cost(ctx) : rule.cost;
+        typeof rule.cost === 'function' ? await rule.cost(ctx) : rule.cost;
 
       if (cost !== undefined && cost <= 0)
         throw new BadArgumentsException(

@@ -1,5 +1,5 @@
-import { LeakyBucket } from "@limitkit/core";
-import { RedisCompatible } from "../types";
+import { LeakyBucket } from '@limitkit/core';
+import { RedisCompatible } from '../types';
 
 /**
  * Redis implementation of the **Shaping Leaky Bucket** algorithm.

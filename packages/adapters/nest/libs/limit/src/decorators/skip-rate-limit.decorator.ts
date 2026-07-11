@@ -1,5 +1,5 @@
-import { SetMetadata } from "@nestjs/common";
-import { SKIP_RATE_LIMIT_METADATA_KEY } from "../limit.tokens";
+import { SetMetadata } from '@nestjs/common';
+import { SKIP_RATE_LIMIT_METADATA_KEY } from '../limit.tokens';
 
 /**
  * Disable rate limiting at the controller or route level.

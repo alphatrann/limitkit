@@ -1,4 +1,4 @@
-import { RateLimitConfig } from "@limitkit/core";
+import { RateLimitConfig } from '@limitkit/core';
 
 /**
  * Asynchronous configuration options for registering `LimitModule`.

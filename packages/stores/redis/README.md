@@ -29,9 +29,9 @@ npm install @limitkit/core @limitkit/redis ioredis
 ## ⚡ Quick Start
 
 ```ts
-import { RateLimiter } from "@limitkit/core";
-import { RedisStore, fixedWindow } from "@limitkit/redis";
-import { createClient } from "redis";
+import { RateLimiter } from '@limitkit/core';
+import { RedisStore, fixedWindow } from '@limitkit/redis';
+import { createClient } from 'redis';
 
 const client = createClient();
 await client.connect();
@@ -41,8 +41,8 @@ const limiter = new RateLimiter({
 
   rules: [
     {
-      name: "global",
-      key: "global",
+      name: 'global',
+      key: 'global',
       policy: fixedWindow({
         window: 60,
         limit: 100,
@@ -75,10 +75,10 @@ app instances → script → Redis → decision
 Create and pass a Redis client:
 
 ```ts
-import { createClient } from "redis";
+import { createClient } from 'redis';
 
 const client = createClient({
-  url: "redis://localhost:6379", // set this in a .env file
+  url: 'redis://localhost:6379', // set this in a .env file
 });
 
 await client.connect();
@@ -89,7 +89,7 @@ new RedisStore(client);
 TypeScript may complain about the type mismatch. If needed, explicitly set the type of `client` to `RedisClientType`:
 
 ```ts
-import { RedisClientType } from "redis";
+import { RedisClientType } from 'redis';
 
 const client: RedisClientType = createClient();
 ```
@@ -97,9 +97,9 @@ const client: RedisClientType = createClient();
 You can also pass an ioredis client:
 
 ```ts
-import Redis from "ioredis";
+import Redis from 'ioredis';
 
-const client = new Redis("redis://localhost:6379");
+const client = new Redis('redis://localhost:6379');
 
 new RedisStore(client);
 ```
@@ -113,13 +113,13 @@ new RedisStore(client);
 You have to ensure all the policies use the algorithm functions below from `@limitkit/redis`
 
 ```ts
-import { fixedWindow } from "@limitkit/redis";
+import { fixedWindow } from '@limitkit/redis';
 ```
 
 #### Fixed Window
 
 ```ts
-fixedWindow({ window: 60, limit: 100 })
+fixedWindow({ window: 60, limit: 100 });
 ```
 
 ---
@@ -127,7 +127,7 @@ fixedWindow({ window: 60, limit: 100 })
 #### Sliding Window
 
 ```ts
-slidingWindow({ window: 60, limit: 100 })
+slidingWindow({ window: 60, limit: 100 });
 ```
 
 ---
@@ -135,7 +135,7 @@ slidingWindow({ window: 60, limit: 100 })
 #### Sliding Window Counter
 
 ```ts
-slidingWindowCounter({ window: 60, limit: 100 })
+slidingWindowCounter({ window: 60, limit: 100 });
 ```
 
 ---
@@ -143,7 +143,7 @@ slidingWindowCounter({ window: 60, limit: 100 })
 #### Token Bucket
 
 ```ts
-tokenBucket({ capacity: 100, refillRate: 5 })
+tokenBucket({ capacity: 100, refillRate: 5 });
 ```
 
 ---
@@ -151,7 +151,7 @@ tokenBucket({ capacity: 100, refillRate: 5 })
 #### Leaky Bucket
 
 ```ts
-leakyBucket({ capacity: 100, leakRate: 5 })
+leakyBucket({ capacity: 100, leakRate: 5 });
 ```
 
 ---
@@ -165,21 +165,21 @@ Simply create a store, a traffic shaper and call `store.consume` with the shaper
 This reduces backpressure when producers enqueue too many tasks while consumers can't handle them fast enough.
 
 ```ts
-import { createClient } from "redis";
-import { RedisStore, shapingLeakyBucket } from "@limitkit/redis";
+import { createClient } from 'redis';
+import { RedisStore, shapingLeakyBucket } from '@limitkit/redis';
 
 const redis = createClient();
 await redis.connect();
 
 const shaper = shapingLeakyBucket({
-   capacity: 100,
-   leakRate: 2 // requests per second
-})
+  capacity: 100,
+  leakRate: 2, // requests per second
+});
 
 const redisStore = new RedisStore(redis);
 
 // somewhere in code
-const now = Date.now()
+const now = Date.now();
 const result = await redisStore.consume(key, shaper, now, 1);
 // schedule execution based on `availableAt`
 setTimeout(() => handleJob(), result.availableAt - now);
@@ -188,8 +188,8 @@ setTimeout(() => handleJob(), result.availableAt - now);
 Alternatively, you can still create a `limiter` and call `consume`:
 
 ```ts
-import { RateLimiter } from "@limitkit/core";
-import { InMemoryStore, shapingLeakyBucket } from "@limitkit/memory";
+import { RateLimiter } from '@limitkit/core';
+import { InMemoryStore, shapingLeakyBucket } from '@limitkit/memory';
 
 const redis = createClient();
 await redis.connect();
@@ -198,7 +198,7 @@ const limiter = new RateLimiter({
   store: new RedisStore(redis),
   rules: [
     {
-      name: "queue",
+      name: 'queue',
       key: (ctx) => ctx.queue.name, // handle backpressure for all the job queues
       policy: shapingLeakyBucket({
         capacity: 200,
@@ -218,5 +218,5 @@ setTimeout(() => handleJob(), result.rules[0].availableAt - now);
 #### GCRA
 
 ```ts
-gcra({ burst: 5, interval: 1 })
+gcra({ burst: 5, interval: 1 });
 ```

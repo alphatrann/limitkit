@@ -1,9 +1,9 @@
-import { BadArgumentsException, LeakyBucketConfig } from "@limitkit/core";
-import { InMemoryShapingLeakyBucket } from "../src";
+import { BadArgumentsException, LeakyBucketConfig } from '@limitkit/core';
+import { InMemoryShapingLeakyBucket } from '../src';
 
-describe("InMemoryShapingLeakyBucket (deterministic)", () => {
+describe('InMemoryShapingLeakyBucket (deterministic)', () => {
   const config: LeakyBucketConfig = {
-    name: "leaky-bucket",
+    name: 'leaky-bucket',
     capacity: 5,
     leakRate: 1, // tokens per second
   };
@@ -15,7 +15,7 @@ describe("InMemoryShapingLeakyBucket (deterministic)", () => {
     limiter = new InMemoryShapingLeakyBucket(config);
   });
 
-  test("initial empty bucket allows burst up to capacity", () => {
+  test('initial empty bucket allows burst up to capacity', () => {
     let state;
 
     for (let i = 0; i < config.capacity; i++) {
@@ -31,7 +31,7 @@ describe("InMemoryShapingLeakyBucket (deterministic)", () => {
     }
   });
 
-  test("rejects when adding beyond capacity", () => {
+  test('rejects when adding beyond capacity', () => {
     let state;
 
     // Fill bucket to capacity
@@ -52,7 +52,7 @@ describe("InMemoryShapingLeakyBucket (deterministic)", () => {
     expect(r.output.remaining).toBe(0);
   });
 
-  test("accepts after time has passed", () => {
+  test('accepts after time has passed', () => {
     let state;
 
     // Fill bucket to capacity
@@ -81,7 +81,7 @@ describe("InMemoryShapingLeakyBucket (deterministic)", () => {
     expect(r.output.resetAt).toBe(expectedResetAt);
   });
 
-  test("multiple costs schedule correctly", () => {
+  test('multiple costs schedule correctly', () => {
     let state;
 
     const r1 = limiter.process(undefined, base, 2);
@@ -100,7 +100,7 @@ describe("InMemoryShapingLeakyBucket (deterministic)", () => {
     expect(r2.output.remaining).toBe(1);
   });
 
-  test("large time jump empties bucket", () => {
+  test('large time jump empties bucket', () => {
     let state;
 
     const r1 = limiter.process(undefined, base, 3);
@@ -126,7 +126,7 @@ describe("InMemoryShapingLeakyBucket (deterministic)", () => {
     expect(r2.output.resetAt).toBe(expectedResetAt);
   });
 
-  test("cost > capacity throws", () => {
+  test('cost > capacity throws', () => {
     expect(() => limiter.process(undefined, base, config.capacity + 1)).toThrow(
       BadArgumentsException,
     );

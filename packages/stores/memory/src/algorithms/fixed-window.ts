@@ -1,9 +1,9 @@
-import { FixedWindowState, InMemoryCompatible } from "../types";
+import { FixedWindowState, InMemoryCompatible } from '../types';
 import {
   FixedWindow,
   processFixedWindow,
   RateLimitRuleResult,
-} from "@limitkit/core";
+} from '@limitkit/core';
 
 /**
  * In-memory implementation of the **Fixed Window** rate limiting algorithm.

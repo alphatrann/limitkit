@@ -25,7 +25,7 @@
  * @warning In production, dedicated storage backends such as Redis should be used over memory.
  * @packageDocumentation
  */
-export * from "./algorithms";
-export * from "./types";
-export * from "./in-memory-store";
-export * from "./factory";
+export * from './algorithms';
+export * from './types';
+export * from './in-memory-store';
+export * from './factory';

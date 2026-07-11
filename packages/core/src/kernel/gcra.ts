@@ -1,5 +1,5 @@
-import { BadArgumentsException } from "../exceptions";
-import { GCRAConfig, RateLimitRuleResult } from "../types";
+import { BadArgumentsException } from '../exceptions';
+import { GCRAConfig, RateLimitRuleResult } from '../types';
 
 export type GCRAState = {
   /** Theoretical Arrival Time for the next eligible request */

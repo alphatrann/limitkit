@@ -11,12 +11,12 @@
  * - **Custom**: User-defined rate limiting algorithm
  */
 export type AlgorithmName =
-  | "fixed-window"
-  | "sliding-window"
-  | "sliding-window-counter"
-  | "token-bucket"
-  | "leaky-bucket"
-  | "gcra"
+  | 'fixed-window'
+  | 'sliding-window'
+  | 'sliding-window-counter'
+  | 'token-bucket'
+  | 'leaky-bucket'
+  | 'gcra'
   | (string & {});
 
 export interface BaseConfig {
@@ -39,19 +39,19 @@ export interface WindowConfig {
 }
 
 export interface FixedWindowConfig extends BaseConfig, WindowConfig {
-  name: "fixed-window";
+  name: 'fixed-window';
 }
 
 export interface SlidingWindowConfig extends BaseConfig, WindowConfig {
-  name: "sliding-window";
+  name: 'sliding-window';
 }
 
 export interface SlidingWindowCounterConfig extends BaseConfig, WindowConfig {
-  name: "sliding-window-counter";
+  name: 'sliding-window-counter';
 }
 
 export interface TokenBucketConfig extends BaseConfig {
-  name: "token-bucket";
+  name: 'token-bucket';
   /**
    * Number of tokens to add back to the bucket per second.
    */
@@ -63,7 +63,7 @@ export interface TokenBucketConfig extends BaseConfig {
 }
 
 export interface LeakyBucketConfig extends BaseConfig {
-  name: "leaky-bucket";
+  name: 'leaky-bucket';
   /**
    * Number of requests to process and leak from the queue per second.
    */
@@ -75,7 +75,7 @@ export interface LeakyBucketConfig extends BaseConfig {
 }
 
 export interface GCRAConfig extends BaseConfig {
-  name: "gcra";
+  name: 'gcra';
   /**
    * Time interval between request allowances in seconds (1/max-rate bucket).
    */

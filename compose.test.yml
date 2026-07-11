@@ -6,6 +6,11 @@ services:
     container_name: limitkit-redis
     ports:
       - 6379:6379
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 2s
+      retries: 15
   postgres:
     image: postgres:16-alpine
     container_name: limitkit-postgres
@@ -15,3 +20,8 @@ services:
       POSTGRES_PASSWORD: limitkit
     ports:
       - 5432:5432
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U limitkit -d limitkit']
+      interval: 2s
+      timeout: 2s
+      retries: 15

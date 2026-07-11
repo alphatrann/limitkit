@@ -1,8 +1,8 @@
-import { Pool } from "pg";
-import { Algorithm, GCRAConfig } from "@limitkit/core";
-import { gcra, initSchema, PostgresCompatible, PostgresStore } from "../src";
+import { Pool } from 'pg';
+import { Algorithm, GCRAConfig } from '@limitkit/core';
+import { gcra, initSchema, PostgresCompatible, PostgresStore } from '../src';
 
-describe("PostgresGCRA", () => {
+describe('PostgresGCRA', () => {
   const BURST = 5;
   const INTERVAL = 1; // seconds between requests
 
@@ -12,11 +12,11 @@ describe("PostgresGCRA", () => {
 
   beforeAll(async () => {
     pool = new Pool({
-      host: process.env.POSTGRES_HOST ?? "localhost",
+      host: process.env.POSTGRES_HOST ?? 'localhost',
       port: Number(process.env.POSTGRES_PORT ?? 5432),
-      user: "limitkit",
-      password: "limitkit",
-      database: "limitkit",
+      user: 'limitkit',
+      password: 'limitkit',
+      database: 'limitkit',
     });
     await initSchema(pool);
 
@@ -26,15 +26,15 @@ describe("PostgresGCRA", () => {
   });
 
   beforeEach(async () => {
-    await pool.query("TRUNCATE limitkit.rate_limit_state CASCADE");
+    await pool.query('TRUNCATE limitkit.rate_limit_state CASCADE');
   });
 
   afterAll(async () => {
     await pool.end();
   });
 
-  it("should allow requests within burst", async () => {
-    const key = "gcra-allow";
+  it('should allow requests within burst', async () => {
+    const key = 'gcra-allow';
     const now = 1_000_000;
 
     for (let i = 0; i < BURST; i++) {
@@ -43,8 +43,8 @@ describe("PostgresGCRA", () => {
     }
   });
 
-  it("should reject requests beyond burst", async () => {
-    const key = "gcra-exceed";
+  it('should reject requests beyond burst', async () => {
+    const key = 'gcra-exceed';
     const now = 1_000_000;
 
     for (let i = 0; i < BURST; i++) {
@@ -56,8 +56,8 @@ describe("PostgresGCRA", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("should allow again after interval passes", async () => {
-    const key = "gcra-reset";
+  it('should allow again after interval passes', async () => {
+    const key = 'gcra-reset';
     const now = 1_000_000;
 
     for (let i = 0; i < BURST; i++) {
@@ -71,8 +71,8 @@ describe("PostgresGCRA", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("should not exceed burst under concurrency", async () => {
-    const key = "gcra-concurrency";
+  it('should not exceed burst under concurrency', async () => {
+    const key = 'gcra-concurrency';
     const now = 1_000_000;
 
     const concurrency = 50;

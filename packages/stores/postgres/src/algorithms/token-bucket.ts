@@ -3,8 +3,8 @@ import {
   RateLimitRuleResult,
   TokenBucket,
   TokenBucketState,
-} from "@limitkit/core";
-import { PostgresCompatible } from "../types";
+} from '@limitkit/core';
+import { PostgresCompatible } from '../types';
 
 /**
  * Postgres implementation of the **Token Bucket** rate limiting algorithm.
@@ -21,8 +21,8 @@ export class PostgresTokenBucket
   extends TokenBucket
   implements PostgresCompatible<TokenBucketState>
 {
-  readonly table = "token_bucket_state";
-  readonly selectColumns = "tokens, last_refill::float8 AS last_refill";
+  readonly table = 'token_bucket_state';
+  readonly selectColumns = 'tokens, last_refill::float8 AS last_refill';
 
   toRow(state: TokenBucketState): Record<string, number> {
     return { tokens: state.tokens, last_refill: state.lastRefill };

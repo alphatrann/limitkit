@@ -1,75 +1,75 @@
-import { addConfigToKey } from "../src/utils/add-config-to-key";
-import { Algorithm, AlgorithmConfig } from "../src/types";
+import { addConfigToKey } from '../src/utils/add-config-to-key';
+import { Algorithm, AlgorithmConfig } from '../src/types';
 
-describe("addConfigToKey", () => {
-  describe("basic functionality", () => {
-    it("should create a modified key with algorithm name, hash, and original key", () => {
+describe('addConfigToKey', () => {
+  describe('basic functionality', () => {
+    it('should create a modified key with algorithm name, hash, and original key', () => {
       const config: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       };
-      const key = "user-123";
+      const key = 'user-123';
 
       const result = addConfigToKey(config, key);
 
       expect(result).toMatch(/^ratelimit:fixed-window:[a-f0-9]{64}:user-123$/);
     });
 
-    it("should include the algorithm name in the modified key", () => {
+    it('should include the algorithm name in the modified key', () => {
       const config: AlgorithmConfig = {
-        name: "token-bucket",
+        name: 'token-bucket',
         capacity: 100,
         refillRate: 10,
       };
-      const key = "api-key";
+      const key = 'api-key';
 
       const result = addConfigToKey(config, key);
 
-      expect(result).toContain("token-bucket");
+      expect(result).toContain('token-bucket');
     });
 
-    it("should include the original key at the end", () => {
+    it('should include the original key at the end', () => {
       const config: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       };
-      const key = "original-key";
+      const key = 'original-key';
 
       const result = addConfigToKey(config, key);
 
       expect(result).toMatch(/:original-key$/);
     });
 
-    it("should produce a 64-character hex hash (SHA-256)", () => {
+    it('should produce a 64-character hex hash (SHA-256)', () => {
       const config: AlgorithmConfig = {
-        name: "sliding-window",
+        name: 'sliding-window',
         window: 120,
         limit: 500,
       };
-      const key = "test-key";
+      const key = 'test-key';
 
       const result = addConfigToKey(config, key);
-      const hashPart = result.split(":")[2];
+      const hashPart = result.split(':')[2];
 
       expect(hashPart).toMatch(/^[a-f0-9]{64}$/);
     });
   });
 
-  describe("config property ordering", () => {
-    it("should produce same hash regardless of property order", () => {
+  describe('config property ordering', () => {
+    it('should produce same hash regardless of property order', () => {
       const config1: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       };
       const config2: AlgorithmConfig = {
         limit: 100,
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
       };
-      const key = "test-key";
+      const key = 'test-key';
 
       const result1 = addConfigToKey(config1, key);
       const result2 = addConfigToKey(config2, key);
@@ -77,17 +77,17 @@ describe("addConfigToKey", () => {
       expect(result1).toBe(result2);
     });
 
-    it("should produce same hash when properties are added in different order", () => {
-      const key = "test-key";
+    it('should produce same hash when properties are added in different order', () => {
+      const key = 'test-key';
       const config1: AlgorithmConfig = {
-        name: "token-bucket",
+        name: 'token-bucket',
         capacity: 100,
         refillRate: 10,
       };
       const config2: AlgorithmConfig = {
         refillRate: 10,
         capacity: 100,
-        name: "token-bucket",
+        name: 'token-bucket',
       };
 
       const result1 = addConfigToKey(config1, key);
@@ -97,19 +97,19 @@ describe("addConfigToKey", () => {
     });
   });
 
-  describe("uniqueness for different configs", () => {
-    it("should produce different hashes for different config values", () => {
+  describe('uniqueness for different configs', () => {
+    it('should produce different hashes for different config values', () => {
       const config1: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       };
       const config2: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 200,
       };
-      const key = "same-key";
+      const key = 'same-key';
 
       const result1 = addConfigToKey(config1, key);
       const result2 = addConfigToKey(config2, key);
@@ -117,18 +117,18 @@ describe("addConfigToKey", () => {
       expect(result1).not.toBe(result2);
     });
 
-    it("should produce different hashes for different algorithms", () => {
+    it('should produce different hashes for different algorithms', () => {
       const config1: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       };
       const config2: AlgorithmConfig = {
-        name: "sliding-window",
+        name: 'sliding-window',
         window: 60,
         limit: 100,
       };
-      const key = "test-key";
+      const key = 'test-key';
 
       const result1 = addConfigToKey(config1, key);
       const result2 = addConfigToKey(config2, key);
@@ -136,18 +136,18 @@ describe("addConfigToKey", () => {
       expect(result1).not.toBe(result2);
     });
 
-    it("should produce different hashes for different window/capacity values", () => {
+    it('should produce different hashes for different window/capacity values', () => {
       const config1: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       };
       const config2: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 120,
         limit: 100,
       };
-      const key = "test-key";
+      const key = 'test-key';
 
       const result1 = addConfigToKey(config1, key);
       const result2 = addConfigToKey(config2, key);
@@ -156,29 +156,29 @@ describe("addConfigToKey", () => {
     });
   });
 
-  describe("uniqueness for different keys", () => {
-    it("should produce different modified keys for different original keys", () => {
+  describe('uniqueness for different keys', () => {
+    it('should produce different modified keys for different original keys', () => {
       const config: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       };
 
-      const result1 = addConfigToKey(config, "key1");
-      const result2 = addConfigToKey(config, "key2");
+      const result1 = addConfigToKey(config, 'key1');
+      const result2 = addConfigToKey(config, 'key2');
 
       expect(result1).not.toBe(result2);
-      expect(result1).toContain(":key1");
-      expect(result2).toContain(":key2");
+      expect(result1).toContain(':key1');
+      expect(result2).toContain(':key2');
     });
 
-    it("should preserve original key even with special characters", () => {
+    it('should preserve original key even with special characters', () => {
       const config: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       };
-      const key = "user:123:admin";
+      const key = 'user:123:admin';
 
       const result = addConfigToKey(config, key);
 
@@ -186,96 +186,96 @@ describe("addConfigToKey", () => {
     });
   });
 
-  describe("algorithm-specific configs", () => {
-    it("should handle FixedWindow config correctly", () => {
+  describe('algorithm-specific configs', () => {
+    it('should handle FixedWindow config correctly', () => {
       const config: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       };
 
-      const result = addConfigToKey(config, "key");
+      const result = addConfigToKey(config, 'key');
 
-      expect(result).toContain("fixed-window");
+      expect(result).toContain('fixed-window');
       expect(result).toMatch(/^ratelimit:fixed-window:[a-f0-9]{64}:key$/);
     });
 
-    it("should handle TokenBucket config correctly", () => {
+    it('should handle TokenBucket config correctly', () => {
       const config: AlgorithmConfig = {
-        name: "token-bucket",
+        name: 'token-bucket',
         capacity: 100,
         refillRate: 10,
       };
 
-      const result = addConfigToKey(config, "key");
+      const result = addConfigToKey(config, 'key');
 
-      expect(result).toContain("token-bucket");
+      expect(result).toContain('token-bucket');
       expect(result).toMatch(/^ratelimit:token-bucket:[a-f0-9]{64}:key$/);
     });
 
-    it("should handle LeakyBucket config correctly", () => {
+    it('should handle LeakyBucket config correctly', () => {
       const config: AlgorithmConfig = {
-        name: "leaky-bucket",
+        name: 'leaky-bucket',
         capacity: 100,
         leakRate: 10,
       };
 
-      const result = addConfigToKey(config, "key");
+      const result = addConfigToKey(config, 'key');
 
-      expect(result).toContain("leaky-bucket");
+      expect(result).toContain('leaky-bucket');
       expect(result).toMatch(/^ratelimit:leaky-bucket:[a-f0-9]{64}:key$/);
     });
 
-    it("should handle SlidingWindow config correctly", () => {
+    it('should handle SlidingWindow config correctly', () => {
       const config: AlgorithmConfig = {
-        name: "sliding-window",
+        name: 'sliding-window',
         window: 60,
         limit: 100,
       };
 
-      const result = addConfigToKey(config, "key");
+      const result = addConfigToKey(config, 'key');
 
-      expect(result).toContain("sliding-window");
+      expect(result).toContain('sliding-window');
       expect(result).toMatch(/^ratelimit:sliding-window:[a-f0-9]{64}:key$/);
     });
 
-    it("should handle SlidingWindowCounter config correctly", () => {
+    it('should handle SlidingWindowCounter config correctly', () => {
       const config: AlgorithmConfig = {
-        name: "sliding-window-counter",
+        name: 'sliding-window-counter',
         window: 60,
         limit: 100,
       };
 
-      const result = addConfigToKey(config, "key");
+      const result = addConfigToKey(config, 'key');
 
-      expect(result).toContain("sliding-window-counter");
+      expect(result).toContain('sliding-window-counter');
       expect(result).toMatch(
         /^ratelimit:sliding-window-counter:[a-f0-9]{64}:key$/,
       );
     });
 
-    it("should handle GCRA config correctly", () => {
+    it('should handle GCRA config correctly', () => {
       const config: AlgorithmConfig = {
-        name: "gcra",
+        name: 'gcra',
         burst: 100,
         interval: 60,
       };
 
-      const result = addConfigToKey(config, "key");
+      const result = addConfigToKey(config, 'key');
 
-      expect(result).toContain("gcra");
+      expect(result).toContain('gcra');
       expect(result).toMatch(/^ratelimit:gcra:[a-f0-9]{64}:key$/);
     });
   });
 
-  describe("consistency", () => {
-    it("should always produce the same result for same inputs", () => {
+  describe('consistency', () => {
+    it('should always produce the same result for same inputs', () => {
       const config: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       };
-      const key = "consistent-key";
+      const key = 'consistent-key';
 
       const result1 = addConfigToKey(config, key);
       const result2 = addConfigToKey(config, key);
@@ -286,41 +286,41 @@ describe("addConfigToKey", () => {
     });
   });
 
-  describe("edge cases", () => {
-    it("should handle keys with colons", () => {
+  describe('edge cases', () => {
+    it('should handle keys with colons', () => {
       const config: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       };
-      const key = "namespace:resource:id";
+      const key = 'namespace:resource:id';
 
       const result = addConfigToKey(config, key);
 
       expect(result).toMatch(/:namespace:resource:id$/);
     });
 
-    it("should handle empty string key", () => {
+    it('should handle empty string key', () => {
       const config: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       };
-      const key = "";
+      const key = '';
 
       const result = addConfigToKey(config, key);
 
       expect(result).toMatch(/^ratelimit:fixed-window:[a-f0-9]{64}:$/);
     });
 
-    it("should handle numeric values in config", () => {
+    it('should handle numeric values in config', () => {
       const config: AlgorithmConfig = {
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 3600,
         limit: 10000,
       };
 
-      const result = addConfigToKey(config, "key");
+      const result = addConfigToKey(config, 'key');
 
       expect(result).toMatch(/^ratelimit:fixed-window:[a-f0-9]{64}:key$/);
     });

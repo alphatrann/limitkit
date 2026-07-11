@@ -1,8 +1,8 @@
-import { createClient, RedisClientType } from "redis";
-import { RedisStore, RedisCompatible, slidingWindow } from "../src";
-import { Algorithm, SlidingWindowConfig } from "@limitkit/core";
+import { createClient, RedisClientType } from 'redis';
+import { RedisStore, RedisCompatible, slidingWindow } from '../src';
+import { Algorithm, SlidingWindowConfig } from '@limitkit/core';
 
-describe("RedisSlidingWindow", () => {
+describe('RedisSlidingWindow', () => {
   const WINDOW = 5;
   const LIMIT = 5;
 
@@ -32,8 +32,8 @@ describe("RedisSlidingWindow", () => {
     await redis.quit();
   });
 
-  it("should allow requests until limit is reached", async () => {
-    const key = "sliding-allow";
+  it('should allow requests until limit is reached', async () => {
+    const key = 'sliding-allow';
     const now = 1_000_000;
 
     for (let i = 1; i <= LIMIT; i++) {
@@ -46,8 +46,8 @@ describe("RedisSlidingWindow", () => {
     }
   });
 
-  it("should reject requests after limit is exceeded", async () => {
-    const key = "sliding-exceed";
+  it('should reject requests after limit is exceeded', async () => {
+    const key = 'sliding-exceed';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -64,8 +64,8 @@ describe("RedisSlidingWindow", () => {
     expect(result.resetAt).toBe(now + (LIMIT - 1) * 500 + WINDOW * 1000);
   });
 
-  it("should allow requests again after window passes", async () => {
-    const key = "sliding-reset";
+  it('should allow requests again after window passes', async () => {
+    const key = 'sliding-reset';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -80,8 +80,8 @@ describe("RedisSlidingWindow", () => {
     expect(result.remaining).toBe(LIMIT - 1);
   });
 
-  it("reset timestamp should match newest event expiration", async () => {
-    const key = "sliding-reset-timestamp";
+  it('reset timestamp should match newest event expiration', async () => {
+    const key = 'sliding-reset-timestamp';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now);
@@ -91,8 +91,8 @@ describe("RedisSlidingWindow", () => {
     expect(result.resetAt).toBe(now + 1000 + WINDOW * 1000);
   });
 
-  it("availableAt should match oldest timestamp + window ms", async () => {
-    const key = "sliding-retry-after";
+  it('availableAt should match oldest timestamp + window ms', async () => {
+    const key = 'sliding-retry-after';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -104,8 +104,8 @@ describe("RedisSlidingWindow", () => {
     expect(result.availableAt).toBe(now + WINDOW * 1000);
   });
 
-  it("cost should consume multiple tokens", async () => {
-    const key = "sliding-cost";
+  it('cost should consume multiple tokens', async () => {
+    const key = 'sliding-cost';
     const now = 1_000_000;
 
     const result = await store.consume(key, limiter, now, 3);
@@ -114,8 +114,8 @@ describe("RedisSlidingWindow", () => {
     expect(result.remaining).toBe(LIMIT - 3);
   });
 
-  it("should reject when cost exceeds remaining tokens", async () => {
-    const key = "sliding-cost-reject";
+  it('should reject when cost exceeds remaining tokens', async () => {
+    const key = 'sliding-cost-reject';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, LIMIT - 1);
@@ -125,8 +125,8 @@ describe("RedisSlidingWindow", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("should allow requests as old entries expire", async () => {
-    const key = "sliding-partial-expire";
+  it('should allow requests as old entries expire', async () => {
+    const key = 'sliding-partial-expire';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -140,8 +140,8 @@ describe("RedisSlidingWindow", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("should not exceed limit under concurrency", async () => {
-    const key = "sliding-concurrency";
+  it('should not exceed limit under concurrency', async () => {
+    const key = 'sliding-concurrency';
     const now = 1_000_000;
 
     const concurrency = 50;

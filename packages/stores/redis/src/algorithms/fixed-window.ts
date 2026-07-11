@@ -1,5 +1,5 @@
-import { FixedWindow } from "@limitkit/core";
-import { RedisCompatible } from "../types";
+import { FixedWindow } from '@limitkit/core';
+import { RedisCompatible } from '../types';
 
 /**
  * Redis implementation of the Fixed Window rate limiting algorithm.

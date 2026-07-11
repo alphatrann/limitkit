@@ -8,10 +8,10 @@
 
 This package:
 
-* ✅ integrates with NestJS seamlessly
-* ✅ allows you to override global rules for particular controllers or routes
-* ✅ returns 429 if the request is rejected
-* ✅ automatically sets standard IETF rate limit headers
+- ✅ integrates with NestJS seamlessly
+- ✅ allows you to override global rules for particular controllers or routes
+- ✅ returns 429 if the request is rejected
+- ✅ automatically sets standard IETF rate limit headers
 
 ---
 
@@ -30,9 +30,9 @@ Simply call `LimitModule.forRoot`, provide the store and the rules.
 All routes are now rate-limited globally.
 
 ```ts
-import { Module } from "@nestjs/common";
-import { LimitModule } from "@limitkit/nest";
-import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory";
+import { Module } from '@nestjs/common';
+import { LimitModule } from '@limitkit/nest';
+import { InMemoryStore, InMemoryFixedWindow } from '@limitkit/memory';
 
 @Module({
   imports: [
@@ -40,10 +40,10 @@ import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory";
       store: new InMemoryStore(),
       rules: [
         {
-          name: "global",
-          key: (req) => "ip:" + req.ip,
+          name: 'global',
+          key: (req) => 'ip:' + req.ip,
           policy: new InMemoryFixedWindow({
-            name: "fixed-window",
+            name: 'fixed-window',
             window: 60,
             limit: 100,
           }),
@@ -55,7 +55,6 @@ import { InMemoryStore, InMemoryFixedWindow } from "@limitkit/memory";
 export class AppModule {}
 ```
 
-
 ---
 
 ## 🎛 Route-Level Control
@@ -65,22 +64,22 @@ export class AppModule {}
 Use `@RateLimit()` to override or extend global rules on a controller or route:
 
 ```ts
-import { Controller, Get } from "@nestjs/common";
-import { RateLimit } from "@limitkit/nest";
-import { InMemoryFixedWindow } from "@limitkit/memory";
+import { Controller, Get } from '@nestjs/common';
+import { RateLimit } from '@limitkit/nest';
+import { InMemoryFixedWindow } from '@limitkit/memory';
 
-@Controller("api")
+@Controller('api')
 export class ApiController {
   @Get()
   @RateLimit({
     rules: [
       {
-        name: "api",
-        key: (req) => "acc:" + req.user.id,
+        name: 'api',
+        key: (req) => 'acc:' + req.user.id,
         policy: new InMemoryFixedWindow({
           window: 60,
           limit: 50,
-          name: "fixed-window",
+          name: 'fixed-window',
         }),
       },
     ],
@@ -97,8 +96,8 @@ export class ApiController {
 
 Route-level rules are merged with global rules by `name`:
 
-* If a rule with the **same `name` exists**, it is **overridden**
-* If the `name` is **new**, it is **appended**
+- If a rule with the **same `name` exists**, it is **overridden**
+- If the `name` is **new**, it is **appended**
 
 ---
 
@@ -141,11 +140,11 @@ Result:
 Simply add `@SkipRateLimit` decorator to a controller or route to bypass rate limits.
 
 ```ts
-import { SkipRateLimit } from "@limitkit/nest";
+import { SkipRateLimit } from '@limitkit/nest';
 
 @Controller()
 export class HealthController {
-  @Get("/health")
+  @Get('/health')
   @SkipRateLimit()
   health() {
     return { ok: true };
@@ -162,11 +161,11 @@ If `@SkipRateLimit` is applied to a controller, but `@RateLimit` is applied to a
 Use `forRootAsync` when config depends on other providers:
 
 ```ts
-import { Module } from "@nestjs/common";
-import { LimitModule } from "@limitkit/nest";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { RedisStore, RedisFixedWindow } from "@limitkit/redis";
-import { createClient } from "redis";
+import { Module } from '@nestjs/common';
+import { LimitModule } from '@limitkit/nest';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { RedisStore, RedisFixedWindow } from '@limitkit/redis';
+import { createClient } from 'redis';
 
 @Module({
   imports: [
@@ -176,7 +175,7 @@ import { createClient } from "redis";
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => {
         const redis = createClient({
-          url: config.get("REDIS_URL"),
+          url: config.get('REDIS_URL'),
         });
 
         await redis.connect();
@@ -185,12 +184,12 @@ import { createClient } from "redis";
           store: new RedisStore(redis),
           rules: [
             {
-              name: "global",
-              key: "global",
+              name: 'global',
+              key: 'global',
               policy: new RedisFixedWindow({
                 window: 60,
                 limit: 100,
-                name: "fixed-window",
+                name: 'fixed-window',
               }),
             },
           ],
@@ -209,8 +208,8 @@ export class AppModule {}
 You can inject the limiter directly in the module that imports `LimitModule` for custom contexts such as GraphQL, WebSockets, job queues:
 
 ```ts
-import { Injectable } from "@nestjs/common";
-import { RateLimiter } from "@limitkit/core";
+import { Injectable } from '@nestjs/common';
+import { RateLimiter } from '@limitkit/core';
 
 @Injectable()
 export class MyService {
@@ -220,7 +219,7 @@ export class MyService {
     const result = await this.limiter.consume(req);
 
     if (!result.allowed) {
-      throw new Error("Rate limit exceeded");
+      throw new Error('Rate limit exceeded');
     }
   }
 }
@@ -237,9 +236,11 @@ Retry-After (when 429)
 ```
 
 Along with that, the guard also sets a custom header:
+
 ```
 Reset-After
 ```
+
 which is the seconds after which the limit fully resets.
 
 Example:
