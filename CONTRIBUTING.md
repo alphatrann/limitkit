@@ -35,7 +35,7 @@ Clone the repository:
 ```bash
 git clone https://github.com/alphatrann/limitkit.git
 cd limitkit
-````
+```
 
 Install dependencies:
 
@@ -44,6 +44,7 @@ yarn install
 ```
 
 Build packages:
+
 ```bash
 yarn build
 ```
@@ -62,10 +63,9 @@ LimitKit is organized as a **modular monorepo**.
 
 Tech Stack:
 
-* Yarn Workspace
-* Turborepo
-* TypeScript
-
+- Yarn Workspace
+- Turborepo
+- TypeScript
 
 ```
 packages/
@@ -132,16 +132,16 @@ Please follow these conventions:
 
 ### TypeScript
 
-* Use **strict TypeScript types**
-* Avoid `any` where possible
-* Prefer **interfaces for public APIs**
+- Use **strict TypeScript types**
+- Avoid `any` where possible
+- Prefer **interfaces for public APIs**
 
 ### Code Style
 
-* Files and folders are named in **kebab case**
-* Use descriptive variable names
-* Keep functions small and focused
-* Write JSDoc comments for public APIs
+- Files and folders are named in **kebab case**
+- Use descriptive variable names
+- Keep functions small and focused
+- Write JSDoc comments for public APIs
 
 Example:
 
@@ -152,13 +152,18 @@ Example:
 consume(context: Request): Promise<ConsumeResult>
 ```
 
-### Formatting
+### Formatting and Linting
 
-To ensure consistent formatting, check that:
+Prettier and ESLint (`eslint.config.mjs`, `.prettierrc.json`) are configured at the repo root and cover every package:
 
-- Formatter: Prettier
-- Tab size: 2
-- Enable Format on save
+```bash
+yarn lint          # eslint . across the whole repo
+yarn lint:fix       # eslint . --fix
+yarn format         # prettier --write .
+yarn format:check    # prettier --check .
+```
+
+`yarn typecheck` (`tsc --noEmit` per package via turbo) and `yarn lint` both run in CI (`.github/workflows/ci.yml`) on every PR. `@typescript-eslint/no-explicit-any` is a warning, not an error — acceptable for generic store/client interfaces.
 
 ---
 
@@ -172,31 +177,35 @@ Example:
 
 ```ts
 export class MyAlgorithm implements Algorithm<MyConfig> {
-
   constructor(public readonly config: MyConfig) {}
 
   validate(): void {
     if (this.config.limit <= 0) {
-      throw new Error("limit must be positive")
+      throw new Error('limit must be positive');
     }
   }
-
 }
 ```
 
 If the algorithm supports in-memory execution, it may also implement the `InMemoryCompatible<TState>`.
 
 ```ts
-class MyInMemoryAlgorithm implements Algorithm<MyConfig>, InMemoryCompatible<MyState> {
-  process(state: MyState | undefined, now: number, cost: number=1): { state: MyState; output: RateLimitResult } {
+class MyInMemoryAlgorithm
+  implements Algorithm<MyConfig>, InMemoryCompatible<MyState>
+{
+  process(
+    state: MyState | undefined,
+    now: number,
+    cost: number = 1,
+  ): { state: MyState; output: RateLimitResult } {
     return {
       state,
       output: {
         allowed: true,
         remaining: 100,
-        reset: 1700000000
-      }
-    }
+        reset: 1700000000,
+      },
+    };
   }
 }
 ```
@@ -207,15 +216,13 @@ Example:
 
 ```ts
 class MyRedisAlgorithm implements RedisCompatible {
-
   luaScript = `
     -- Redis Lua script
-  `
+  `;
 
   getLuaArgs(now: number, cost: number) {
-    return [now.toString(), cost.toString()]
+    return [now.toString(), cost.toString()];
   }
-
 }
 ```
 
@@ -231,21 +238,19 @@ Example:
 
 ```ts
 export class MyStore implements Store {
-
   async consume(key, algorithm, now, cost) {
     // store-specific logic
   }
-
 }
 ```
 
 Stores can integrate with systems like:
 
-* Redis
-* DynamoDB
-* PostgreSQL
-* MongoDB
-* Cloudflare KV
+- Redis
+- DynamoDB
+- PostgreSQL
+- MongoDB
+- Cloudflare KV
 
 ---
 
@@ -261,15 +266,17 @@ yarn test
 
 Testing guidelines:
 
-* Test public APIs
-* Test edge cases
-* Mock external dependencies when possible
+- Test public APIs
+- Test edge cases
+- Mock external dependencies when possible
 
-A Redis container for testing is available at [compose.test.yml](./compose.test.yml). Feel free to add other databases if needed:
+Redis and Postgres containers for testing are available at [compose.test.yml](./compose.test.yml). Feel free to add other databases if needed. Both services define a healthcheck, so `--wait` blocks until they're actually ready to accept connections:
 
 ```bash
-docker compose -f compose.test.yml up -d
+docker compose -f compose.test.yml up -d --wait
 ```
+
+CI (`.github/workflows/ci.yml`) runs `yarn lint`, `yarn typecheck`, `yarn build`, and `yarn test` (with these containers up) on every pull request to `master`.
 
 Example test structure:
 
@@ -289,6 +296,7 @@ guards/
 ```
 
 whereas e2e tests are in a dedicated tests/ folder (in libs/limit/ directory)
+
 ```
 libs/limit/
   src/
@@ -326,10 +334,10 @@ git push origin feature/my-feature
 
 Please ensure:
 
-* Tests pass
-* Code follows project style
-* Documentation is updated if needed
-* Commits are clear and descriptive
+- Tests pass
+- Code follows project style
+- Documentation is updated if needed
+- Commits are clear and descriptive
 
 Example commit messages:
 
