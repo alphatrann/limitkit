@@ -1,4 +1,4 @@
-# Redis container for testing
+# Redis and Postgres containers for testing
 name: limitkit-test
 services:
   redis:
@@ -6,3 +6,12 @@ services:
     container_name: limitkit-redis
     ports:
       - 6379:6379
+  postgres:
+    image: postgres:16-alpine
+    container_name: limitkit-postgres
+    environment:
+      POSTGRES_DB: limitkit
+      POSTGRES_USER: limitkit
+      POSTGRES_PASSWORD: limitkit
+    ports:
+      - 5432:5432

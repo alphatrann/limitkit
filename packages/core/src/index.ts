@@ -40,3 +40,4 @@ export * from "./types";
 export * from "./exceptions";
 export * from "./utils";
 export * from "./algorithms";
+export * from "./kernel";
