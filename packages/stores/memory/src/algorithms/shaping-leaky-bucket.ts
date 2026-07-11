@@ -1,6 +1,6 @@
 import {
-  BadArgumentsException,
   LeakyBucket,
+  processShapingLeakyBucket,
   RateLimitRuleResult,
 } from "@limitkit/core";
 import { InMemoryCompatible, ShapingLeakyBucketState } from "../types";
@@ -53,9 +53,8 @@ export class InMemoryShapingLeakyBucket
   /**
    * Process a request using the leaky bucket scheduling algorithm.
    *
-   * - Calculates the earliest execution time (`availableAt`) based on
-   *   the bucket's current schedule and leak rate.
-   * - Rejects requests if adding them would exceed bucket capacity.
+   * Delegates to the shared {@link processShapingLeakyBucket} reducer in
+   * `@limitkit/core`, which is also used by `@limitkit/postgres`.
    *
    * ## Complexity
    * - Time: **O(1)**
@@ -73,49 +72,6 @@ export class InMemoryShapingLeakyBucket
     now: number,
     cost: number = 1,
   ): { state: ShapingLeakyBucketState; output: RateLimitRuleResult } {
-    if (cost > this.config.capacity)
-      throw new BadArgumentsException(
-        `Cost must never exceed config.capacity, (cost=${cost}, config.capacity=${this.config.capacity})`,
-      );
-    if (!state) state = { nextFreeAt: now };
-    const { capacity, leakRate } = this.config;
-
-    let { nextFreeAt } = state;
-    if (nextFreeAt < now) nextFreeAt = now;
-
-    const delay = nextFreeAt - now;
-    const queueSize = delay * (leakRate / 1000);
-
-    // ----- reject -----
-    if (queueSize + cost > capacity) {
-      const resetAt = now + (queueSize / leakRate) * 1000;
-      return {
-        state: { nextFreeAt },
-        output: {
-          allowed: false,
-          limit: capacity,
-          remaining: 0,
-          resetAt,
-          availableAt: nextFreeAt,
-        },
-      };
-    }
-
-    // ----- accept -----
-    nextFreeAt += (cost / leakRate) * 1000;
-
-    const resetAt = now + ((queueSize + cost) / leakRate) * 1000;
-    const remaining = Math.max(0, Math.floor(capacity - (queueSize + cost)));
-
-    return {
-      state: { nextFreeAt },
-      output: {
-        allowed: true,
-        limit: capacity,
-        remaining,
-        resetAt,
-        availableAt: nextFreeAt,
-      },
-    };
+    return processShapingLeakyBucket(this.config, state, now, cost);
   }
 }

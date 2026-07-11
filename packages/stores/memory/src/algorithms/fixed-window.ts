@@ -1,7 +1,7 @@
 import { FixedWindowState, InMemoryCompatible } from "../types";
 import {
-  BadArgumentsException,
   FixedWindow,
+  processFixedWindow,
   RateLimitRuleResult,
 } from "@limitkit/core";
 
@@ -41,8 +41,8 @@ export class InMemoryFixedWindow
   /**
    * Processes a request and updates the fixed window state.
    *
-   * Determines whether the request can be allowed based on the number of
-   * requests already consumed in the current window.
+   * Delegates to the shared {@link processFixedWindow} reducer in
+   * `@limitkit/core`, which is also used by `@limitkit/postgres`.
    *
    * ## Complexity
    * - Time: **O(1)**
@@ -61,40 +61,6 @@ export class InMemoryFixedWindow
     now: number,
     cost: number = 1,
   ): { state: FixedWindowState; output: RateLimitRuleResult } {
-    if (cost > this.config.limit)
-      throw new BadArgumentsException(
-        `Cost must never exceed config.limit, (cost=${cost}, config.limit=${this.config.limit})`,
-      );
-    const windowInMs = this.config.window * 1000;
-    if (!state) state = { windowStart: now - (now % windowInMs), count: 0 };
-
-    const isStillInCurrentWindow = now - state.windowStart < windowInMs;
-
-    const hasExceededLimit = state.count + cost > this.config.limit;
-    if (isStillInCurrentWindow && hasExceededLimit) {
-      const resetAt = state.windowStart + windowInMs;
-      return {
-        state,
-        output: {
-          allowed: false,
-          remaining: 0,
-          limit: this.config.limit,
-          resetAt,
-          availableAt: resetAt,
-        },
-      };
-    }
-    const newState = { ...state };
-    if (!isStillInCurrentWindow) {
-      newState.windowStart = now - (now % windowInMs);
-      newState.count = 0;
-    }
-    const resetAt = newState.windowStart + windowInMs;
-    newState.count += cost;
-    const remaining = this.config.limit - newState.count;
-    return {
-      state: newState,
-      output: { allowed: true, limit: this.config.limit, remaining, resetAt },
-    };
+    return processFixedWindow(this.config, state, now, cost);
   }
 }
