@@ -3,18 +3,18 @@ import {
   AlgorithmConfig,
   RateLimitRuleResult,
   Store,
-} from "@limitkit/core";
+} from '@limitkit/core';
 import {
   NodeRedisCompatibleClient,
   RedisClientLike,
   RedisCompatible,
   RedisScriptResult,
-} from "./types";
+} from './types';
 
 function isNodeRedisClient(
   redis: RedisClientLike,
 ): redis is NodeRedisCompatibleClient {
-  return "scriptLoad" in redis && "evalSha" in redis;
+  return 'scriptLoad' in redis && 'evalSha' in redis;
 }
 
 async function loadScript(
@@ -25,12 +25,12 @@ async function loadScript(
     return redis.scriptLoad(script);
   }
 
-  return String(await redis.call("SCRIPT", "LOAD", script));
+  return String(await redis.call('SCRIPT', 'LOAD', script));
 }
 
 function normalizeScriptResult(result: unknown): RedisScriptResult {
   if (!Array.isArray(result) || result.length !== 4) {
-    throw new Error("Redis script returned an invalid result");
+    throw new Error('Redis script returned an invalid result');
   }
 
   return result.map(Number) as RedisScriptResult;
@@ -246,7 +246,7 @@ export class RedisStore implements Store {
        * When this happens `EVALSHA` throws a `NOSCRIPT` error.
        * We recover by reloading the script and retrying the call.
        */
-      if (err?.message?.includes("NOSCRIPT")) {
+      if (err?.message?.includes('NOSCRIPT')) {
         sha = await loadScript(this.redis, algorithm.luaScript);
         this.scripts.set(algorithm.luaScript, sha);
 

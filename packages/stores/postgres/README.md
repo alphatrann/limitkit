@@ -23,9 +23,9 @@ npm install @limitkit/core @limitkit/postgres pg
 ## ⚡ Quick Start
 
 ```ts
-import { RateLimiter } from "@limitkit/core";
-import { PostgresStore, initSchema, fixedWindow } from "@limitkit/postgres";
-import { Pool } from "pg";
+import { RateLimiter } from '@limitkit/core';
+import { PostgresStore, initSchema, fixedWindow } from '@limitkit/postgres';
+import { Pool } from 'pg';
 
 const pool = new Pool();
 
@@ -38,8 +38,8 @@ const limiter = new RateLimiter({
 
   rules: [
     {
-      name: "global",
-      key: "global",
+      name: 'global',
+      key: 'global',
       policy: fixedWindow({
         window: 60,
         limit: 100,
@@ -84,7 +84,7 @@ A `FOR UPDATE` transaction holds a pooled connection for the full round-trip on 
 Postgres has no per-row TTL the way Redis does. Idle keys accumulate forever otherwise. Wire `pruneOlderThan` into your own cron / `pg_cron` / scheduled job -- it is **not** run automatically by the library:
 
 ```ts
-import { pruneOlderThan } from "@limitkit/postgres";
+import { pruneOlderThan } from '@limitkit/postgres';
 
 // delete anchor rows (and their child rows, via ON DELETE CASCADE)
 // that haven't been touched in the last 7 days
@@ -98,10 +98,10 @@ await pruneOlderThan(pool, 7 * 24 * 60 * 60 * 1000);
 `sql/001_init.sql` (shipped in the published package) is the canonical DDL and the source of truth. Point your own migration tool (Flyway, node-pg-migrate, Prisma migrate, ...) at it directly if you'd rather not use `initSchema()`.
 
 ```ts
-import { initSchema } from "@limitkit/postgres";
+import { initSchema } from '@limitkit/postgres';
 
 await initSchema(pool); // idempotent, safe to call on every boot
-await initSchema(pool, "my_custom_schema"); // custom schema name
+await initSchema(pool, 'my_custom_schema'); // custom schema name
 ```
 
 Schema names are validated against a strict identifier allowlist before being used, since Postgres doesn't support parameterized identifiers.
@@ -113,8 +113,8 @@ Schema names are validated against a strict identifier allowlist before being us
 ### 🗄 Store
 
 ```ts
-import { Pool } from "pg";
-import { PostgresStore } from "@limitkit/postgres";
+import { Pool } from 'pg';
+import { PostgresStore } from '@limitkit/postgres';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -132,13 +132,13 @@ new PostgresStore(pool);
 You have to ensure all the policies use the algorithm functions below from `@limitkit/postgres`
 
 ```ts
-import { fixedWindow } from "@limitkit/postgres";
+import { fixedWindow } from '@limitkit/postgres';
 ```
 
 #### Fixed Window
 
 ```ts
-fixedWindow({ window: 60, limit: 100 })
+fixedWindow({ window: 60, limit: 100 });
 ```
 
 ---
@@ -146,7 +146,7 @@ fixedWindow({ window: 60, limit: 100 })
 #### Sliding Window
 
 ```ts
-slidingWindow({ window: 60, limit: 100 })
+slidingWindow({ window: 60, limit: 100 });
 ```
 
 ---
@@ -154,7 +154,7 @@ slidingWindow({ window: 60, limit: 100 })
 #### Sliding Window Counter
 
 ```ts
-slidingWindowCounter({ window: 60, limit: 100 })
+slidingWindowCounter({ window: 60, limit: 100 });
 ```
 
 ---
@@ -162,7 +162,7 @@ slidingWindowCounter({ window: 60, limit: 100 })
 #### Token Bucket
 
 ```ts
-tokenBucket({ capacity: 100, refillRate: 5 })
+tokenBucket({ capacity: 100, refillRate: 5 });
 ```
 
 ---
@@ -170,7 +170,7 @@ tokenBucket({ capacity: 100, refillRate: 5 })
 #### Leaky Bucket
 
 ```ts
-leakyBucket({ capacity: 100, leakRate: 5 })
+leakyBucket({ capacity: 100, leakRate: 5 });
 ```
 
 ---
@@ -182,19 +182,19 @@ Shaping leaky bucket is a special algorithm that is typically used in worker que
 Simply create a store, a traffic shaper and call `store.consume` with the shaper. The result contains `availableAt`, which tells when to execute this job.
 
 ```ts
-import { Pool } from "pg";
-import { PostgresStore, shapingLeakyBucket } from "@limitkit/postgres";
+import { Pool } from 'pg';
+import { PostgresStore, shapingLeakyBucket } from '@limitkit/postgres';
 
 const pool = new Pool();
 const store = new PostgresStore(pool);
 
 const shaper = shapingLeakyBucket({
-   capacity: 100,
-   leakRate: 2 // requests per second
-})
+  capacity: 100,
+  leakRate: 2, // requests per second
+});
 
 // somewhere in code
-const now = Date.now()
+const now = Date.now();
 const result = await store.consume(key, shaper, now, 1);
 // schedule execution based on `availableAt`
 setTimeout(() => handleJob(), result.availableAt - now);
@@ -205,5 +205,5 @@ setTimeout(() => handleJob(), result.availableAt - now);
 #### GCRA
 
 ```ts
-gcra({ burst: 5, interval: 1 })
+gcra({ burst: 5, interval: 1 });
 ```

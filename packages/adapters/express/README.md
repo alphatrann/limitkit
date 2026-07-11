@@ -8,10 +8,10 @@
 
 This package provides a flexible middleware that:
 
-* ✅ integrates with Express.js seamlessly
-* ✅ allows you to override global rules for particular routes
-* ✅ returns 429 if the request is rejected
-* ✅ automatically sets standard IETF rate limit headers
+- ✅ integrates with Express.js seamlessly
+- ✅ allows you to override global rules for particular routes
+- ✅ returns 429 if the request is rejected
+- ✅ automatically sets standard IETF rate limit headers
 
 ---
 
@@ -30,10 +30,10 @@ npm install @limitkit/express
 To start, simply declare a global `limiter` instance and pass it into every `limit` middleware call.
 
 ```ts
-import express from "express";
-import { RateLimiter } from "@limitkit/core";
-import { limit } from "@limitkit/express";
-import { InMemoryStore, fixedWindow } from "@limitkit/memory";
+import express from 'express';
+import { RateLimiter } from '@limitkit/core';
+import { limit } from '@limitkit/express';
+import { InMemoryStore, fixedWindow } from '@limitkit/memory';
 
 const app = express();
 
@@ -41,8 +41,8 @@ const limiter = new RateLimiter({
   store: new InMemoryStore(),
   rules: [
     {
-      name: "global",
-      key: (req) => "ip:" + req.ip,
+      name: 'global',
+      key: (req) => 'ip:' + req.ip,
       policy: fixedWindow({
         window: 60,
         limit: 100,
@@ -51,30 +51,30 @@ const limiter = new RateLimiter({
   ],
 });
 
-app.get("/", limit(limiter), (req, res) => {
+app.get('/', limit(limiter), (req, res) => {
   res.json({ ok: true });
 });
 
 app.listen(3000);
 ```
+
 ## 🎛 Route-Level Overrides
 
 Optionally, you can provide an object in the second argument of the `limit` middleware that enables you to override or extend rules per route.
 
-
 Route-level rules are merged with global rules by `name`:
 
-* If a rule with the **same `name` exists**, it is **overridden**
-* If the `name` is **new**, it is **appended**
+- If a rule with the **same `name` exists**, it is **overridden**
+- If the `name` is **new**, it is **appended**
 
 ```ts
 app.get(
-  "/api",
+  '/api',
   limit(limiter, {
     rules: [
       {
-        name: "api",
-        key: (req) => "acc:" + req.user.id,
+        name: 'api',
+        key: (req) => 'acc:' + req.user.id,
         policy: fixedWindow({
           window: 60,
           limit: 50,
@@ -84,7 +84,7 @@ app.get(
   }),
   (req, res) => {
     res.json({ ok: true });
-  }
+  },
 );
 ```
 
@@ -136,9 +136,11 @@ Retry-After (when 429)
 ```
 
 Along with that, the middleware also sets a custom header:
+
 ```
 Reset-After
 ```
+
 which is the seconds after which the limit fully resets.
 
 Example:

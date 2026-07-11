@@ -1,4 +1,4 @@
-import { RateLimitResult } from "./rate-limit-result";
+import { RateLimitResult } from './rate-limit-result';
 
 /**
  * Interface for a rate limiter that enforces rate limit rules.

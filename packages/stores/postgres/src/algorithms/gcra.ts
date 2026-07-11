@@ -1,5 +1,10 @@
-import { GCRA, GCRAState, processGCRA, RateLimitRuleResult } from "@limitkit/core";
-import { PostgresCompatible } from "../types";
+import {
+  GCRA,
+  GCRAState,
+  processGCRA,
+  RateLimitRuleResult,
+} from '@limitkit/core';
+import { PostgresCompatible } from '../types';
 
 /**
  * Postgres implementation of the **GCRA (Generic Cell Rate Algorithm)**.
@@ -15,8 +20,8 @@ export class PostgresGCRA
   extends GCRA
   implements PostgresCompatible<GCRAState>
 {
-  readonly table = "gcra_state";
-  readonly selectColumns = "tat::float8 AS tat";
+  readonly table = 'gcra_state';
+  readonly selectColumns = 'tat::float8 AS tat';
 
   toRow(state: GCRAState): Record<string, number> {
     return { tat: state.tat };

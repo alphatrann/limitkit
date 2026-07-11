@@ -9,7 +9,7 @@ export interface NodeRedisCompatibleClient {
 }
 
 export interface IoRedisCompatibleClient {
-  call(command: "SCRIPT", subcommand: "LOAD", script: string): Promise<unknown>;
+  call(command: 'SCRIPT', subcommand: 'LOAD', script: string): Promise<unknown>;
   evalsha(
     sha: string,
     numberOfKeys: number,
@@ -18,5 +18,4 @@ export interface IoRedisCompatibleClient {
 }
 
 export type RedisClientLike =
-  | NodeRedisCompatibleClient
-  | IoRedisCompatibleClient;
+  NodeRedisCompatibleClient | IoRedisCompatibleClient;

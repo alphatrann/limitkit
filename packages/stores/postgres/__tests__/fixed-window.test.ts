@@ -1,8 +1,13 @@
-import { Pool } from "pg";
-import { Algorithm, FixedWindowConfig } from "@limitkit/core";
-import { fixedWindow, initSchema, PostgresCompatible, PostgresStore } from "../src";
+import { Pool } from 'pg';
+import { Algorithm, FixedWindowConfig } from '@limitkit/core';
+import {
+  fixedWindow,
+  initSchema,
+  PostgresCompatible,
+  PostgresStore,
+} from '../src';
 
-describe("PostgresFixedWindow", () => {
+describe('PostgresFixedWindow', () => {
   const WINDOW = 5;
   const LIMIT = 5;
 
@@ -12,11 +17,11 @@ describe("PostgresFixedWindow", () => {
 
   beforeAll(async () => {
     pool = new Pool({
-      host: process.env.POSTGRES_HOST ?? "localhost",
+      host: process.env.POSTGRES_HOST ?? 'localhost',
       port: Number(process.env.POSTGRES_PORT ?? 5432),
-      user: "limitkit",
-      password: "limitkit",
-      database: "limitkit",
+      user: 'limitkit',
+      password: 'limitkit',
+      database: 'limitkit',
     });
     await initSchema(pool);
 
@@ -26,15 +31,15 @@ describe("PostgresFixedWindow", () => {
   });
 
   beforeEach(async () => {
-    await pool.query("TRUNCATE limitkit.rate_limit_state CASCADE");
+    await pool.query('TRUNCATE limitkit.rate_limit_state CASCADE');
   });
 
   afterAll(async () => {
     await pool.end();
   });
 
-  it("should allow requests until limit is reached", async () => {
-    const key = "fixed-allow";
+  it('should allow requests until limit is reached', async () => {
+    const key = 'fixed-allow';
     const now = 1_000_000;
 
     for (let i = 1; i <= LIMIT; i++) {
@@ -47,8 +52,8 @@ describe("PostgresFixedWindow", () => {
     }
   });
 
-  it("should reject requests after limit is exceeded", async () => {
-    const key = "fixed-exceed";
+  it('should reject requests after limit is exceeded', async () => {
+    const key = 'fixed-exceed';
     const now = 1_000_000;
 
     for (let i = 1; i <= LIMIT; i++) {
@@ -65,8 +70,8 @@ describe("PostgresFixedWindow", () => {
     expect(result.resetAt).toBe(result.availableAt);
   });
 
-  it("should reset after window expires", async () => {
-    const key = "fixed-reset";
+  it('should reset after window expires', async () => {
+    const key = 'fixed-reset';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -82,8 +87,8 @@ describe("PostgresFixedWindow", () => {
     expect(result.limit).toBe(LIMIT);
   });
 
-  it("reset timestamp should represent next window start", async () => {
-    const key = "fixed-reset-timestamp";
+  it('reset timestamp should represent next window start', async () => {
+    const key = 'fixed-reset-timestamp';
     const now = 1_000_000;
 
     const result = await store.consume(key, limiter, now);
@@ -94,8 +99,8 @@ describe("PostgresFixedWindow", () => {
     expect(result.resetAt).toBe(expectedReset);
   });
 
-  it("cost should consume multiple tokens", async () => {
-    const key = "fixed-cost";
+  it('cost should consume multiple tokens', async () => {
+    const key = 'fixed-cost';
     const now = 1_000_000;
 
     const result = await store.consume(key, limiter, now, 3);
@@ -104,8 +109,8 @@ describe("PostgresFixedWindow", () => {
     expect(result.remaining).toBe(LIMIT - 3);
   });
 
-  it("should reject when cost exceeds remaining tokens", async () => {
-    const key = "fixed-cost-reject";
+  it('should reject when cost exceeds remaining tokens', async () => {
+    const key = 'fixed-cost-reject';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, LIMIT - 1);
@@ -115,8 +120,8 @@ describe("PostgresFixedWindow", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("should not allow more than limit under concurrency", async () => {
-    const key = "fixed-concurrency";
+  it('should not allow more than limit under concurrency', async () => {
+    const key = 'fixed-concurrency';
     const now = 1_000_000;
 
     const concurrency = 50;
@@ -134,8 +139,8 @@ describe("PostgresFixedWindow", () => {
     expect(rejected).toBe(concurrency - LIMIT);
   });
 
-  it("should handle concurrent cost consumption correctly", async () => {
-    const key = "fixed-concurrency-cost";
+  it('should handle concurrent cost consumption correctly', async () => {
+    const key = 'fixed-concurrency-cost';
     const now = 1_000_000;
 
     const concurrency = 10;

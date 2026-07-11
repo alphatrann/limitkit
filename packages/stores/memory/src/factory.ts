@@ -5,7 +5,7 @@ import {
   SlidingWindowConfig,
   SlidingWindowCounterConfig,
   TokenBucketConfig,
-} from "@limitkit/core";
+} from '@limitkit/core';
 import {
   InMemoryFixedWindow,
   InMemoryGCRA,
@@ -14,40 +14,40 @@ import {
   InMemorySlidingWindow,
   InMemorySlidingWindowCounter,
   InMemoryTokenBucket,
-} from "./algorithms";
+} from './algorithms';
 
-export function fixedWindow(config: Omit<FixedWindowConfig, "name">) {
-  return new InMemoryFixedWindow({ name: "fixed-window", ...config });
+export function fixedWindow(config: Omit<FixedWindowConfig, 'name'>) {
+  return new InMemoryFixedWindow({ name: 'fixed-window', ...config });
 }
 
-export function slidingWindow(config: Omit<SlidingWindowConfig, "name">) {
+export function slidingWindow(config: Omit<SlidingWindowConfig, 'name'>) {
   return new InMemorySlidingWindow({
-    name: "sliding-window",
+    name: 'sliding-window',
     ...config,
   });
 }
 
 export function slidingWindowCounter(
-  config: Omit<SlidingWindowCounterConfig, "name">,
+  config: Omit<SlidingWindowCounterConfig, 'name'>,
 ) {
   return new InMemorySlidingWindowCounter({
-    name: "sliding-window-counter",
+    name: 'sliding-window-counter',
     ...config,
   });
 }
 
-export function tokenBucket(config: Omit<TokenBucketConfig, "name">) {
-  return new InMemoryTokenBucket({ name: "token-bucket", ...config });
+export function tokenBucket(config: Omit<TokenBucketConfig, 'name'>) {
+  return new InMemoryTokenBucket({ name: 'token-bucket', ...config });
 }
 
-export function leakyBucket(config: Omit<LeakyBucketConfig, "name">) {
-  return new InMemoryLeakyBucket({ name: "leaky-bucket", ...config });
+export function leakyBucket(config: Omit<LeakyBucketConfig, 'name'>) {
+  return new InMemoryLeakyBucket({ name: 'leaky-bucket', ...config });
 }
 
-export function shapingLeakyBucket(config: Omit<LeakyBucketConfig, "name">) {
-  return new InMemoryShapingLeakyBucket({ name: "leaky-bucket", ...config });
+export function shapingLeakyBucket(config: Omit<LeakyBucketConfig, 'name'>) {
+  return new InMemoryShapingLeakyBucket({ name: 'leaky-bucket', ...config });
 }
 
-export function gcra(config: Omit<GCRAConfig, "name">) {
-  return new InMemoryGCRA({ name: "gcra", ...config });
+export function gcra(config: Omit<GCRAConfig, 'name'>) {
+  return new InMemoryGCRA({ name: 'gcra', ...config });
 }

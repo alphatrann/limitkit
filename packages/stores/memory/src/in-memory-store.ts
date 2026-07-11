@@ -3,8 +3,8 @@ import {
   AlgorithmConfig,
   RateLimitRuleResult,
   Store,
-} from "@limitkit/core";
-import { InMemoryCompatible, State } from "./types";
+} from '@limitkit/core';
+import { InMemoryCompatible, State } from './types';
 
 /**
  * In-memory implementation of the Store interface.

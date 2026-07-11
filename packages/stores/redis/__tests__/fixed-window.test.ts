@@ -1,8 +1,8 @@
-import { createClient, RedisClientType } from "redis";
-import { RedisStore, RedisCompatible, fixedWindow } from "../src";
-import { Algorithm, FixedWindowConfig } from "@limitkit/core";
+import { createClient, RedisClientType } from 'redis';
+import { RedisStore, RedisCompatible, fixedWindow } from '../src';
+import { Algorithm, FixedWindowConfig } from '@limitkit/core';
 
-describe("RedisFixedWindow", () => {
+describe('RedisFixedWindow', () => {
   const WINDOW = 5;
   const LIMIT = 5;
 
@@ -32,8 +32,8 @@ describe("RedisFixedWindow", () => {
     await redis.quit();
   });
 
-  it("should allow requests until limit is reached", async () => {
-    const key = "fixed-allow";
+  it('should allow requests until limit is reached', async () => {
+    const key = 'fixed-allow';
     const now = 1_000_000;
 
     for (let i = 1; i <= LIMIT; i++) {
@@ -46,8 +46,8 @@ describe("RedisFixedWindow", () => {
     }
   });
 
-  it("should reject requests after limit is exceeded", async () => {
-    const key = "fixed-exceed";
+  it('should reject requests after limit is exceeded', async () => {
+    const key = 'fixed-exceed';
     const now = 1_000_000;
 
     for (let i = 1; i <= LIMIT; i++) {
@@ -64,8 +64,8 @@ describe("RedisFixedWindow", () => {
     expect(result.resetAt).toBe(result.availableAt);
   });
 
-  it("should reset after window expires", async () => {
-    const key = "fixed-reset";
+  it('should reset after window expires', async () => {
+    const key = 'fixed-reset';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -81,8 +81,8 @@ describe("RedisFixedWindow", () => {
     expect(result.limit).toBe(LIMIT);
   });
 
-  it("reset timestamp should represent next window start", async () => {
-    const key = "fixed-reset-timestamp";
+  it('reset timestamp should represent next window start', async () => {
+    const key = 'fixed-reset-timestamp';
     const now = 1_000_000;
 
     const result = await store.consume(key, limiter, now);
@@ -93,8 +93,8 @@ describe("RedisFixedWindow", () => {
     expect(result.resetAt).toBe(expectedReset);
   });
 
-  it("availableAt should match reset timestamp", async () => {
-    const key = "fixed-retry-after";
+  it('availableAt should match reset timestamp', async () => {
+    const key = 'fixed-retry-after';
     const now = 1_000_000;
 
     for (let i = 0; i < LIMIT; i++) {
@@ -106,8 +106,8 @@ describe("RedisFixedWindow", () => {
     expect(result.availableAt).toBe(result.resetAt);
   });
 
-  it("cost should consume multiple tokens", async () => {
-    const key = "fixed-cost";
+  it('cost should consume multiple tokens', async () => {
+    const key = 'fixed-cost';
     const now = 1_000_000;
 
     const result = await store.consume(key, limiter, now, 3);
@@ -116,8 +116,8 @@ describe("RedisFixedWindow", () => {
     expect(result.remaining).toBe(LIMIT - 3);
   });
 
-  it("should reject when cost exceeds remaining tokens", async () => {
-    const key = "fixed-cost-reject";
+  it('should reject when cost exceeds remaining tokens', async () => {
+    const key = 'fixed-cost-reject';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, LIMIT - 1);
@@ -127,8 +127,8 @@ describe("RedisFixedWindow", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("should not allow more than limit under concurrency", async () => {
-    const key = "fixed-concurrency";
+  it('should not allow more than limit under concurrency', async () => {
+    const key = 'fixed-concurrency';
     const now = 1_000_000;
 
     const concurrency = 50;
@@ -146,8 +146,8 @@ describe("RedisFixedWindow", () => {
     expect(rejected).toBe(concurrency - LIMIT);
   });
 
-  it("should handle concurrent cost consumption correctly", async () => {
-    const key = "fixed-concurrency-cost";
+  it('should handle concurrent cost consumption correctly', async () => {
+    const key = 'fixed-concurrency-cost';
     const now = 1_000_000;
 
     const concurrency = 10;

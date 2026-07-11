@@ -1,1 +1,1 @@
-export * from "./add-config-to-key";
+export * from './add-config-to-key';

@@ -1,5 +1,5 @@
-import { BadArgumentsException } from "../exceptions";
-import { RateLimitRuleResult, TokenBucketConfig } from "../types";
+import { BadArgumentsException } from '../exceptions';
+import { RateLimitRuleResult, TokenBucketConfig } from '../types';
 
 export type TokenBucketState = {
   /** Available tokens in the bucket */
@@ -47,8 +47,7 @@ export function processTokenBucket(
   if (tokens < cost) {
     const tokensNeeded = cost - tokens;
     const availableAt = now + Math.ceil((tokensNeeded / refillRate) * 1000);
-    const resetAt =
-      now + Math.ceil(((capacity - tokens) / refillRate) * 1000);
+    const resetAt = now + Math.ceil(((capacity - tokens) / refillRate) * 1000);
 
     return {
       state: { tokens, lastRefill },

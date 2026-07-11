@@ -1,5 +1,5 @@
-import { RateLimitRuleResult } from "@limitkit/core";
-import { PostgresPoolClientLike } from "./postgres-client";
+import { RateLimitRuleResult } from '@limitkit/core';
+import { PostgresPoolClientLike } from './postgres-client';
 
 /**
  * Contract for algorithms whose state is a single row in a per-algorithm
@@ -88,6 +88,6 @@ export function isPostgresLogCompatible(
 ): algorithm is PostgresLogCompatible {
   return (
     !!algorithm &&
-    typeof (algorithm as PostgresLogCompatible).processLog === "function"
+    typeof (algorithm as PostgresLogCompatible).processLog === 'function'
   );
 }

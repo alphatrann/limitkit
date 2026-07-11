@@ -1,6 +1,6 @@
-import { Algorithm } from "./algorithm";
-import { AlgorithmConfig } from "./algorithm-config";
-import { RateLimitRuleResult } from "./rate-limit-result";
+import { Algorithm } from './algorithm';
+import { AlgorithmConfig } from './algorithm-config';
+import { RateLimitRuleResult } from './rate-limit-result';
 
 /**
  * Interface for a storage backend that tracks rate limiting state.

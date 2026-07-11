@@ -1,12 +1,12 @@
-import { RateLimiter } from "@limitkit/core";
-import { mergeRules, toRateLimitHeaders } from "@limitkit/http";
-import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
-import { TooManyRequestsException } from "../exceptions";
+import { RateLimiter } from '@limitkit/core';
+import { mergeRules, toRateLimitHeaders } from '@limitkit/http';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { TooManyRequestsException } from '../exceptions';
 import {
   RATE_LIMIT_CONFIG_METADATA_KEY,
   SKIP_RATE_LIMIT_METADATA_KEY,
-} from "../limit.tokens";
+} from '../limit.tokens';
 
 /**
  * NestJS Guard that enforces rate limiting using the `@limitkit/core` RateLimiter.
@@ -127,7 +127,10 @@ import {
  */
 @Injectable()
 export class LimitGuard implements CanActivate {
-  constructor(private limiter: RateLimiter, private reflector: Reflector) {}
+  constructor(
+    private limiter: RateLimiter,
+    private reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest();
@@ -183,7 +186,7 @@ export class LimitGuard implements CanActivate {
     });
 
     if (!result.allowed) {
-      throw new TooManyRequestsException("Too many requests");
+      throw new TooManyRequestsException('Too many requests');
     }
 
     return true;

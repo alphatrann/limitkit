@@ -1,10 +1,10 @@
-import { Module, DynamicModule } from "@nestjs/common";
-import { RateLimitConfig, RateLimiter } from "@limitkit/core";
-import { RATE_LIMIT_CONFIG } from "./limit.tokens";
-import { LimitGuard } from "./guards/limit.guard";
-import { APP_GUARD } from "@nestjs/core";
-import { LimitModuleAsyncOptions } from "./types";
-import { RateLimit, SkipRateLimit } from "./decorators";
+import { Module, DynamicModule } from '@nestjs/common';
+import { RateLimitConfig, RateLimiter } from '@limitkit/core';
+import { RATE_LIMIT_CONFIG } from './limit.tokens';
+import { LimitGuard } from './guards/limit.guard';
+import { APP_GUARD } from '@nestjs/core';
+import { LimitModuleAsyncOptions } from './types';
+import { RateLimit, SkipRateLimit } from './decorators';
 
 /**
  * NestJS integration module for **LimitKit rate limiting**.

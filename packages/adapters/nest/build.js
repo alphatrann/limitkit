@@ -1,7 +1,7 @@
-const fs = require("fs/promises");
-const path = require("path");
-const { exec } = require("child_process");
-const { promisify } = require("util");
+const fs = require('fs/promises');
+const path = require('path');
+const { exec } = require('child_process');
+const { promisify } = require('util');
 
 const execAsync = promisify(exec);
 
@@ -9,19 +9,19 @@ const execAsync = promisify(exec);
  * Root directory of the Nest package source.
  * This is where imports will be temporarily rewritten.
  */
-const NEST_SRC = path.resolve(__dirname, "libs/limit/src");
+const NEST_SRC = path.resolve(__dirname, 'libs/limit/src');
 
 /**
  * Root directory of the Nest package source.
  * This is where imports will be temporarily rewritten.
  */
-const HTTP_SRC = path.resolve(__dirname, "../http/src");
+const HTTP_SRC = path.resolve(__dirname, '../http/src');
 
 /**
  * Temporary destination inside the Nest package where HTTP utilities are copied.
  * This folder is created before build and removed afterward.
  */
-const DEST = path.join(NEST_SRC, "http");
+const DEST = path.join(NEST_SRC, 'http');
 
 /**
  * Recursively collect all file paths inside a directory.
@@ -90,11 +90,11 @@ async function rewriteNestImports(from, to) {
   const files = await getAllFiles(NEST_SRC);
 
   for (const file of files) {
-    if (!file.endsWith(".ts")) continue;
+    if (!file.endsWith('.ts')) continue;
 
-    let content = await fs.readFile(file, "utf-8");
+    let content = await fs.readFile(file, 'utf-8');
 
-    const replaced = content.replace(new RegExp(from, "g"), to);
+    const replaced = content.replace(new RegExp(from, 'g'), to);
 
     await fs.writeFile(file, replaced);
   }
@@ -115,7 +115,7 @@ async function cleanup() {
  * Uses Nest CLI (tsc-based build) to compile the package.
  */
 async function runBuild() {
-  const { stdout, stderr } = await execAsync("nest build limit");
+  const { stdout, stderr } = await execAsync('nest build limit');
   console.log(stdout);
   if (stderr) console.error(stderr);
 }
@@ -136,26 +136,26 @@ async function runBuild() {
  * While still allowing shared logic between adapters.
  */
 async function main() {
-  console.log("🔧 Copying HTTP source...");
+  console.log('🔧 Copying HTTP source...');
 
   try {
     await copyHttp();
 
-    console.log("✏️ Rewriting Nest imports...");
-    await rewriteNestImports("@limitkit/http", "@limitkit/nest/http");
+    console.log('✏️ Rewriting Nest imports...');
+    await rewriteNestImports('@limitkit/http', '@limitkit/nest/http');
 
-    console.log("🚀 Building...");
+    console.log('🚀 Building...');
     await runBuild();
 
-    console.log("🔄 Restoring imports...");
-    await rewriteNestImports("@limitkit/nest/http", "@limitkit/http");
+    console.log('🔄 Restoring imports...');
+    await rewriteNestImports('@limitkit/nest/http', '@limitkit/http');
 
-    console.log("✅ Done");
+    console.log('✅ Done');
   } catch (err) {
-    console.error("❌ Build failed:", err);
+    console.error('❌ Build failed:', err);
     process.exitCode = 1;
   } finally {
-    console.log("🧹 Cleaning up...");
+    console.log('🧹 Cleaning up...');
     await cleanup();
   }
 }

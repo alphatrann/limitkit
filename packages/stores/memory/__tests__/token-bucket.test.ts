@@ -1,7 +1,7 @@
-import { BadArgumentsException } from "@limitkit/core";
-import { InMemoryTokenBucket, tokenBucket } from "../src";
+import { BadArgumentsException } from '@limitkit/core';
+import { InMemoryTokenBucket, tokenBucket } from '../src';
 
-describe("InMemoryTokenBucket", () => {
+describe('InMemoryTokenBucket', () => {
   const config = {
     capacity: 5,
     refillRate: 1,
@@ -13,7 +13,7 @@ describe("InMemoryTokenBucket", () => {
     limiter = tokenBucket(config);
   });
 
-  test("initial capacity allows burst", () => {
+  test('initial capacity allows burst', () => {
     let state;
 
     for (let i = 0; i < config.capacity; i++) {
@@ -24,7 +24,7 @@ describe("InMemoryTokenBucket", () => {
     }
   });
 
-  test("rejects when empty", () => {
+  test('rejects when empty', () => {
     let state;
 
     for (let i = 0; i < config.capacity; i++) {
@@ -42,7 +42,7 @@ describe("InMemoryTokenBucket", () => {
     );
   });
 
-  test("refill works over time", () => {
+  test('refill works over time', () => {
     let state;
 
     for (let i = 0; i < 5; i++) {
@@ -54,13 +54,13 @@ describe("InMemoryTokenBucket", () => {
     expect(r.output.allowed).toBe(true);
   });
 
-  test("remaining tokens computed correctly", () => {
+  test('remaining tokens computed correctly', () => {
     const r = limiter.process(undefined, base, 2);
     expect(r.output.remaining).toBe(3);
     expect(r.state.tokens).toBe(r.output.remaining);
   });
 
-  test("large time jump refills bucket", () => {
+  test('large time jump refills bucket', () => {
     let state;
 
     const r1 = limiter.process(state, base);
@@ -71,7 +71,7 @@ describe("InMemoryTokenBucket", () => {
     expect(r2.state.tokens).toBe(r2.output.remaining);
   });
 
-  test("cost > capacity throws", () => {
+  test('cost > capacity throws', () => {
     expect(() => limiter.process(undefined, base, 10)).toThrow(
       BadArgumentsException,
     );

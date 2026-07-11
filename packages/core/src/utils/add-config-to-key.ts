@@ -1,5 +1,5 @@
-import { createHash } from "crypto";
-import { AlgorithmConfig } from "../types";
+import { createHash } from 'crypto';
+import { AlgorithmConfig } from '../types';
 
 /**
  * Prepend additional data to user-defined rate limiting keys, which include:
@@ -23,7 +23,7 @@ export function addConfigToKey(config: AlgorithmConfig, key: string): string {
     return acc;
   }, {} as any);
   const configJson = JSON.stringify(sortedConfig);
-  const hashedConfig = createHash("sha256").update(configJson).digest("hex");
+  const hashedConfig = createHash('sha256').update(configJson).digest('hex');
   const modifiedKey = `ratelimit:${config.name}:${hashedConfig}:${key}`;
   return modifiedKey;
 }

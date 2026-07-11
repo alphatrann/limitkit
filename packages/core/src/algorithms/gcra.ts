@@ -1,5 +1,5 @@
-import { BadArgumentsException } from "../exceptions";
-import { Algorithm, GCRAConfig } from "../types";
+import { BadArgumentsException } from '../exceptions';
+import { Algorithm, GCRAConfig } from '../types';
 
 /**
  * Base implementation of the **GCRA** rate limiting algorithm.

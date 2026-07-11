@@ -1,8 +1,8 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get } from '@nestjs/common';
 
 @Controller()
 export class NoLimitController {
-  @Get("/limited")
+  @Get('/limited')
   limited() {
     return { ok: true };
   }

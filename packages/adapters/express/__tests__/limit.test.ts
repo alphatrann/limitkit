@@ -1,12 +1,12 @@
-import { limit } from "../src";
-import * as http from "@limitkit/http";
-import * as core from "@limitkit/core";
-import { Request, Response, NextFunction } from "express";
+import { limit } from '../src';
+import * as http from '@limitkit/http';
+import * as core from '@limitkit/core';
+import { Request, Response, NextFunction } from 'express';
 
 class MockFixedWindow extends core.FixedWindow {}
 
-jest.mock("@limitkit/http", () => {
-  const actual = jest.requireActual("@limitkit/http");
+jest.mock('@limitkit/http', () => {
+  const actual = jest.requireActual('@limitkit/http');
 
   return {
     ...actual,
@@ -14,7 +14,7 @@ jest.mock("@limitkit/http", () => {
   };
 });
 
-describe("limit middleware", () => {
+describe('limit middleware', () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
   let next: NextFunction;
@@ -48,16 +48,16 @@ describe("limit middleware", () => {
     });
 
   const baseRule = (): core.LimitRule<Request> => ({
-    name: "test",
-    key: "global",
+    name: 'test',
+    key: 'global',
     policy: new MockFixedWindow({
-      name: "fixed-window",
+      name: 'fixed-window',
       window: 60,
       limit: 10,
     }),
   });
 
-  it("calls store.consume through limiter", async () => {
+  it('calls store.consume through limiter', async () => {
     mockStore.consume.mockResolvedValue({
       allowed: true,
       limit: 10,
@@ -73,7 +73,7 @@ describe("limit middleware", () => {
     expect(mockStore.consume).toHaveBeenCalled();
   });
 
-  it("sets rate limit headers", async () => {
+  it('sets rate limit headers', async () => {
     mockStore.consume.mockResolvedValue({
       allowed: true,
       limit: 100,
@@ -87,17 +87,17 @@ describe("limit middleware", () => {
     await middleware(req as Request, res as Response, next);
 
     expect(res.setHeader).toHaveBeenCalledWith(
-      "RateLimit-Limit",
+      'RateLimit-Limit',
       expect.any(Number),
     );
 
     expect(res.setHeader).toHaveBeenCalledWith(
-      "RateLimit-Remaining",
+      'RateLimit-Remaining',
       expect.any(Number),
     );
   });
 
-  it("returns 429 when limit exceeded", async () => {
+  it('returns 429 when limit exceeded', async () => {
     mockStore.consume.mockResolvedValue({
       allowed: false,
       limit: 10,
@@ -114,13 +114,13 @@ describe("limit middleware", () => {
     expect(res.json).toHaveBeenCalled();
   });
 
-  it("calls mergeRules with global and route rules", () => {
+  it('calls mergeRules with global and route rules', () => {
     const globalRule = baseRule();
     const routeRule: core.LimitRule<Request> = {
-      name: "route",
-      key: "route",
+      name: 'route',
+      key: 'route',
       policy: new MockFixedWindow({
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 10,
       }),
@@ -133,13 +133,13 @@ describe("limit middleware", () => {
     expect(http.mergeRules).toHaveBeenCalledWith([globalRule], [routeRule]);
   });
 
-  it("creates new limiter with merged rules", async () => {
+  it('creates new limiter with merged rules', async () => {
     const globalRule = baseRule();
     const routeRule: core.LimitRule<Request> = {
-      name: "route",
-      key: "route",
+      name: 'route',
+      key: 'route',
       policy: new MockFixedWindow({
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 10,
       }),
@@ -161,7 +161,7 @@ describe("limit middleware", () => {
     expect(mockStore.consume).toHaveBeenCalled();
   });
 
-  it("does not call mergeRules when no route rules", () => {
+  it('does not call mergeRules when no route rules', () => {
     const limiter = createLimiter([baseRule()]);
 
     limit(limiter);

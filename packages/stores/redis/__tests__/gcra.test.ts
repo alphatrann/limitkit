@@ -1,8 +1,8 @@
-import { createClient, RedisClientType } from "redis";
-import { RedisStore, RedisCompatible, gcra } from "../src";
-import { Algorithm, GCRAConfig } from "@limitkit/core";
+import { createClient, RedisClientType } from 'redis';
+import { RedisStore, RedisCompatible, gcra } from '../src';
+import { Algorithm, GCRAConfig } from '@limitkit/core';
 
-describe("RedisGCRA", () => {
+describe('RedisGCRA', () => {
   const BURST = 5;
   const INTERVAL = 1; // seconds
 
@@ -32,8 +32,8 @@ describe("RedisGCRA", () => {
     await redis.quit();
   });
 
-  it("should allow requests up to burst capacity", async () => {
-    const key = "gcra-burst";
+  it('should allow requests up to burst capacity', async () => {
+    const key = 'gcra-burst';
     const now = 1_000_000;
 
     for (let i = 1; i <= BURST; i++) {
@@ -45,8 +45,8 @@ describe("RedisGCRA", () => {
     }
   });
 
-  it("should reject requests exceeding burst", async () => {
-    const key = "gcra-exceed";
+  it('should reject requests exceeding burst', async () => {
+    const key = 'gcra-exceed';
     const now = 1_000_000;
 
     for (let i = 0; i < BURST; i++) {
@@ -60,8 +60,8 @@ describe("RedisGCRA", () => {
     expect(result.availableAt).toBe(now + INTERVAL * 1000);
   });
 
-  it("should allow request after interval passes", async () => {
-    const key = "gcra-refill";
+  it('should allow request after interval passes', async () => {
+    const key = 'gcra-refill';
     const now = 1_000_000;
 
     for (let i = 0; i < BURST; i++) {
@@ -75,8 +75,8 @@ describe("RedisGCRA", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("cost should consume multiple slots", async () => {
-    const key = "gcra-cost";
+  it('cost should consume multiple slots', async () => {
+    const key = 'gcra-cost';
     const now = 1_000_000;
 
     const result = await store.consume(key, limiter, now, 3);
@@ -86,8 +86,8 @@ describe("RedisGCRA", () => {
     expect(result.resetAt).toBe(now + 3000);
   });
 
-  it("should reject when cost exceeds burst allowance", async () => {
-    const key = "gcra-cost-reject";
+  it('should reject when cost exceeds burst allowance', async () => {
+    const key = 'gcra-cost-reject';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, BURST - 1);
@@ -97,8 +97,8 @@ describe("RedisGCRA", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("availableAt should exist only when rejected", async () => {
-    const key = "gcra-retry";
+  it('availableAt should exist only when rejected', async () => {
+    const key = 'gcra-retry';
     const now = 1_000_000;
 
     for (let i = 0; i < BURST; i++) {
@@ -111,8 +111,8 @@ describe("RedisGCRA", () => {
     expect(result.availableAt).toBeGreaterThan(0);
   });
 
-  it("availableAt should decrease as time passes", async () => {
-    const key = "gcra-retry-decrease";
+  it('availableAt should decrease as time passes', async () => {
+    const key = 'gcra-retry-decrease';
     const now = 1_000_000;
 
     for (let i = 0; i < BURST; i++) {
@@ -125,8 +125,8 @@ describe("RedisGCRA", () => {
     expect(later.availableAt).toBeLessThanOrEqual(first.availableAt!);
   });
 
-  it("should not exceed burst under concurrency", async () => {
-    const key = "gcra-concurrency";
+  it('should not exceed burst under concurrency', async () => {
+    const key = 'gcra-concurrency';
     const now = 1_000_000;
 
     const concurrency = 50;
@@ -142,8 +142,8 @@ describe("RedisGCRA", () => {
     expect(allowed).toBe(BURST);
   });
 
-  it("should handle concurrent cost correctly", async () => {
-    const key = "gcra-concurrency-cost";
+  it('should handle concurrent cost correctly', async () => {
+    const key = 'gcra-concurrency-cost';
     const now = 1_000_000;
 
     const results = await Promise.all(
@@ -155,8 +155,8 @@ describe("RedisGCRA", () => {
     expect(allowed).toBeLessThanOrEqual(Math.floor(BURST / 2));
   });
 
-  it("should smooth bursts across time boundaries", async () => {
-    const key = "gcra-smooth";
+  it('should smooth bursts across time boundaries', async () => {
+    const key = 'gcra-smooth';
     const base = 1_000_000;
 
     for (let i = 0; i < BURST; i++) {
@@ -170,8 +170,8 @@ describe("RedisGCRA", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("should fully reset after long idle", async () => {
-    const key = "gcra-idle";
+  it('should fully reset after long idle', async () => {
+    const key = 'gcra-idle';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now);

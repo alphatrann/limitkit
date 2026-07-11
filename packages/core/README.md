@@ -17,12 +17,12 @@ Apart from traditional REST APIs, it can also be adopted in any context such as 
 
 The core engine integrates seamlessly with other LimitKit packages:
 
-| Package             | Purpose                         |
-| ------------------- | ------------------------------- |
-| [`@limitkit/memory`](https://www.npmjs.com/package/@limitkit/memory)  | In-memory store for development |
-| [`@limitkit/redis`](https://www.npmjs.com/package/@limitkit/redis)   | Distributed rate limiting with Redis      |
-| [`@limitkit/express`](https://www.npmjs.com/package/@limitkit/express) | Express.js middleware           |
-| [`@limitkit/nest`](https://www.npmjs.com/package/@limitkit/nest)    | NestJS guards & decorators      |
+| Package                                                                | Purpose                              |
+| ---------------------------------------------------------------------- | ------------------------------------ |
+| [`@limitkit/memory`](https://www.npmjs.com/package/@limitkit/memory)   | In-memory store for development      |
+| [`@limitkit/redis`](https://www.npmjs.com/package/@limitkit/redis)     | Distributed rate limiting with Redis |
+| [`@limitkit/express`](https://www.npmjs.com/package/@limitkit/express) | Express.js middleware                |
+| [`@limitkit/nest`](https://www.npmjs.com/package/@limitkit/nest)       | NestJS guards & decorators           |
 
 ---
 
@@ -41,16 +41,16 @@ Simply have a `limiter` instance where you define all the rules, configure store
 Then, call `limiter.consume`, which returns an object containing `allowed` that indicates whether the request is allowed or rejected.
 
 ```ts
-import { RateLimiter } from "@limitkit/core";
-import { InMemoryStore, fixedWindow } from "@limitkit/memory";
+import { RateLimiter } from '@limitkit/core';
+import { InMemoryStore, fixedWindow } from '@limitkit/memory';
 
 const limiter = new RateLimiter({
   store: new InMemoryStore(),
 
   rules: [
     {
-      name: "global",
-      key: "global",
+      name: 'global',
+      key: 'global',
       policy: fixedWindow({ window: 60, limit: 100 }),
     },
   ],
@@ -59,10 +59,9 @@ const limiter = new RateLimiter({
 const result = await limiter.consume(ctx);
 
 if (!result.allowed) {
-  console.log("Rate limited");
+  console.log('Rate limited');
 }
 ```
-
 
 The `rules` array in the `limiter` object are evaluated in order **from first to last**.
 
@@ -110,12 +109,12 @@ A rule in LimitKit consists of these main properties:
 }
 ```
 
-| Field    | Description                                           |
-| -------- | ----------------------------------------------------- |
-| `name`   | rule identifier (ensure it is unique in a set of layers)     |
-| `key`    | groups requests (string, function, or async function) |
-| `policy` | rate limiting algorithm (can be resolved dynamically) |
-| `cost`   | weight per request (default `1`)                      |
+| Field    | Description                                              |
+| -------- | -------------------------------------------------------- |
+| `name`   | rule identifier (ensure it is unique in a set of layers) |
+| `key`    | groups requests (string, function, or async function)    |
+| `policy` | rate limiting algorithm (can be resolved dynamically)    |
+| `cost`   | weight per request (default `1`)                         |
 
 ---
 
@@ -125,17 +124,15 @@ Policies can be resolved dynamically per request:
 
 ```ts
 policy: (ctx) => {
-  return ctx.user.plan === "pro"
-    ? proPolicy
-    : freePolicy;
-}
+  return ctx.user.plan === 'pro' ? proPolicy : freePolicy;
+};
 ```
 
 This is particularly useful when you want to enforce:
 
-* SaaS plan limits
-* per-endpoint limits
-* feature-based quotas
+- SaaS plan limits
+- per-endpoint limits
+- feature-based quotas
 
 ---
 
@@ -151,10 +148,10 @@ If any rule fails, the evaluation stops and the request is rejected.
 
 ```ts
 rules: [
-  { name: "global", key: "global", policy: globalPolicy },
-  { name: "ip", key: (ctx) => "ip:" + ctx.ip, policy: ipPolicy },
-  { name: "user", key: (ctx) => "acc:" + ctx.user.id, policy: userPolicy },
-]
+  { name: 'global', key: 'global', policy: globalPolicy },
+  { name: 'ip', key: (ctx) => 'ip:' + ctx.ip, policy: ipPolicy },
+  { name: 'user', key: (ctx) => 'acc:' + ctx.user.id, policy: userPolicy },
+];
 ```
 
 ---
@@ -202,15 +199,15 @@ In the snippet below, assuming the `/report` endpoint performs expensive computa
 interface RateLimitResult {
   allowed: boolean;
   failedAt: string | null;
-  rules: IdentifiedRateLimitRuleResult[]
+  rules: IdentifiedRateLimitRuleResult[];
 }
 ```
 
-| Field        | Meaning                            |
-| ------------ | ---------------------------------- |
-| `allowed`    | request permitted or blocked       |
-| `failedAt`   | the name of the rule failed, `null` if every rule passes |
-| `rules`      | an array containing the results of all evaluated rules |
+| Field      | Meaning                                                  |
+| ---------- | -------------------------------------------------------- |
+| `allowed`  | request permitted or blocked                             |
+| `failedAt` | the name of the rule failed, `null` if every rule passes |
+| `rules`    | an array containing the results of all evaluated rules   |
 
 The result of each evaluated rule is represented as `IdentifiedRateLimitRuleResult` interface:
 
@@ -224,10 +221,10 @@ interface IdentifiedRateLimitRuleResult {
 }
 ```
 
-| Field        | Meaning                            |
-| ------------ | ---------------------------------- |
-| `allowed`    | request permitted or blocked by the rule      |
-| `limit`   | the maximum number of requests allowed by the rule |
-| `remaining`      | the remaining number of requests allowed by the rule |
-| `resetAt`      | the Unix timestamp (ms) after which the limit for the rule fully resets |
-| `availableAt`      | the Unix timestamp (ms) after which the request is allowed by the rule. |
+| Field         | Meaning                                                                 |
+| ------------- | ----------------------------------------------------------------------- |
+| `allowed`     | request permitted or blocked by the rule                                |
+| `limit`       | the maximum number of requests allowed by the rule                      |
+| `remaining`   | the remaining number of requests allowed by the rule                    |
+| `resetAt`     | the Unix timestamp (ms) after which the limit for the rule fully resets |
+| `availableAt` | the Unix timestamp (ms) after which the request is allowed by the rule. |

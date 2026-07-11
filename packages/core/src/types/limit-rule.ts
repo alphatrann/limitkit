@@ -1,5 +1,5 @@
-import { Algorithm } from "./algorithm";
-import { AlgorithmConfig } from "./algorithm-config";
+import { Algorithm } from './algorithm';
+import { AlgorithmConfig } from './algorithm-config';
 
 /**
  * Defines a single rate limiting rule with its associated algorithm and constraints.

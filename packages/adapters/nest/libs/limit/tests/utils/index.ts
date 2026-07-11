@@ -1,1 +1,1 @@
-export * from "./get-user-tier";
+export * from './get-user-tier';

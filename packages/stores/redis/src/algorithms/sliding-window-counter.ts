@@ -1,5 +1,5 @@
-import { SlidingWindowCounter } from "@limitkit/core";
-import { RedisCompatible } from "../types";
+import { SlidingWindowCounter } from '@limitkit/core';
+import { RedisCompatible } from '../types';
 
 /**
  * Redis implementation of the Sliding Window Counter rate limiting algorithm.
