@@ -1,6 +1,6 @@
 import {
-  BadArgumentsException,
   LeakyBucket,
+  processLeakyBucket,
   RateLimitRuleResult,
 } from "@limitkit/core";
 import { InMemoryCompatible, LeakyBucketState } from "../types";
@@ -40,7 +40,8 @@ export class InMemoryLeakyBucket
   /**
    * Processes a request using the leaky bucket algorithm.
    *
-   * The bucket leaks requests over time based on the configured leak rate.
+   * Delegates to the shared {@link processLeakyBucket} reducer in
+   * `@limitkit/core`, which is also used by `@limitkit/postgres`.
    *
    * ## Complexity
    * - Time: **O(1)**
@@ -59,53 +60,6 @@ export class InMemoryLeakyBucket
     now: number,
     cost: number = 1,
   ): { state: LeakyBucketState; output: RateLimitRuleResult } {
-    if (cost > this.config.capacity)
-      throw new BadArgumentsException(
-        `Cost must never exceed config.capacity, (cost=${cost}, config.capacity=${this.config.capacity})`,
-      );
-    if (!state) state = { queueSize: 0, lastLeak: now };
-    const capacity = this.config.capacity;
-    const leakRate = this.config.leakRate;
-
-    let { queueSize, lastLeak } = state;
-    if (lastLeak === null) lastLeak = now;
-
-    // ----- leak -----
-    const elapsedSeconds = (now - lastLeak) / 1000;
-    queueSize = Math.max(0, queueSize - elapsedSeconds * leakRate);
-    lastLeak = now;
-
-    // ----- reject -----
-    if (queueSize + cost > capacity) {
-      const overflow = queueSize + cost - capacity;
-      const availableAt = now + (overflow / leakRate) * 1000;
-      const resetAt = now + (queueSize / leakRate) * 1000;
-      return {
-        state: { lastLeak, queueSize },
-        output: {
-          allowed: false,
-          limit: capacity,
-          remaining: 0,
-          resetAt,
-          availableAt,
-        },
-      };
-    }
-
-    // ----- accept -----
-    queueSize += cost;
-
-    const resetAt = now + (queueSize / leakRate) * 1000;
-    const remaining = Math.max(0, Math.floor(capacity - queueSize));
-
-    return {
-      state: { queueSize, lastLeak },
-      output: {
-        allowed: true,
-        limit: capacity,
-        remaining,
-        resetAt,
-      },
-    };
+    return processLeakyBucket(this.config, state, now, cost);
   }
 }

@@ -244,6 +244,7 @@ const authedLimiter = new RateLimiter({ store, rules: [...globalRules, ...authen
 |---|---|---|
 | [`@limitkit/core`](./packages/core/README.md) | Orchestration engine | Required |
 | [`@limitkit/redis`](./packages/stores/redis/README.md) | Redis-backed atomic policies | Production |
+| [`@limitkit/postgres`](./packages/stores/postgres/README.md) | Postgres-backed durable policies | Production |
 | [`@limitkit/memory`](./packages/stores/memory/README.md) | In-memory policies | Development / testing |
 | [`@limitkit/express`](./packages/adapters/express/README.md) | Express middleware | Optional |
 | [`@limitkit/nest`](./packages/adapters/nest/README.md) | NestJS guard and decorators | Optional |
