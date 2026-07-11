@@ -7,6 +7,7 @@ This is an internal package containing shared code logic with LimitKit adapters 
 > Note: This package should not be published to `npm` or any other package registries.
 
 ## Structure
+
 ```
 http/
 ├───src/
@@ -22,9 +23,9 @@ http/
 
 `@limitkit/http` contains utils functions:
 
-* [`mergeRules`](./src/utils/merge-rules.ts) function merges global rules and local rules, which is used to override global rules in a route or controller.
-* [`mostRestrictive`](./src/utils/most-restrictive.ts) function selects the most restrictive rule, whose result is set in the rate limit headers.
-* [`toRateLimitHeaders`](./src/utils/to-rate-limit-headers.ts) function returns an object representing the rate limit response headers, whose values are from `mostRestrictive`.
+- [`mergeRules`](./src/utils/merge-rules.ts) function merges global rules and local rules, which is used to override global rules in a route or controller.
+- [`mostRestrictive`](./src/utils/most-restrictive.ts) function selects the most restrictive rule, whose result is set in the rate limit headers.
+- [`toRateLimitHeaders`](./src/utils/to-rate-limit-headers.ts) function returns an object representing the rate limit response headers, whose values are from `mostRestrictive`.
 
 ## Build
 
@@ -33,8 +34,10 @@ Since this is an internal package, its source code is built **inline** with publ
 For Express.js, this behavior is specified in [`tsup.config.ts`](../express/tsup.config.ts).
 
 For NestJS, `tsup` build will break the DI behavior. Therefore, the script [`build.js`](../nest/build.js) is added to:
+
 1. Copy the `http/src` to `nest/libs/limits/src/http`
 2. Resolve all the imports in NestJS source code from `@limitkit/http` to `@limitkit/nest/http`. This is made possible by including this in `tsconfig.json`
+
 ```json
 {
   "compilerOptions": {
@@ -43,7 +46,7 @@ For NestJS, `tsup` build will break the DI behavior. Therefore, the script [`bui
       "@limitkit/nest/*": ["libs/limit/src/*"]
     }
     // other configuration
-  },
+  }
 }
 ```
 

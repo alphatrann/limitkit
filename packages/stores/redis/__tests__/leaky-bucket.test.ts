@@ -1,8 +1,8 @@
-import { createClient, RedisClientType } from "redis";
-import { leakyBucket, RedisCompatible, RedisStore } from "../src";
-import { Algorithm, LeakyBucketConfig } from "@limitkit/core";
+import { createClient, RedisClientType } from 'redis';
+import { leakyBucket, RedisCompatible, RedisStore } from '../src';
+import { Algorithm, LeakyBucketConfig } from '@limitkit/core';
 
-describe("RedisLeakyBucket", () => {
+describe('RedisLeakyBucket', () => {
   const CAPACITY = 5;
   const LEAK_RATE = 1; // per second
 
@@ -32,8 +32,8 @@ describe("RedisLeakyBucket", () => {
     await redis.quit();
   });
 
-  it("should allow requests until capacity is reached", async () => {
-    const key = "lb-allow";
+  it('should allow requests until capacity is reached', async () => {
+    const key = 'lb-allow';
     const now = 1_000_000;
 
     for (let i = 1; i <= CAPACITY; i++) {
@@ -45,8 +45,8 @@ describe("RedisLeakyBucket", () => {
     }
   });
 
-  it("should reject when queue is full", async () => {
-    const key = "lb-full";
+  it('should reject when queue is full', async () => {
+    const key = 'lb-full';
     const now = 1_000_000;
 
     for (let i = 0; i < CAPACITY; i++) {
@@ -60,8 +60,8 @@ describe("RedisLeakyBucket", () => {
     expect(result.availableAt).toBe(now + Math.ceil((1 / LEAK_RATE) * 1000));
   });
 
-  it("should leak requests over time", async () => {
-    const key = "lb-leak";
+  it('should leak requests over time', async () => {
+    const key = 'lb-leak';
     const now = 1_000_000;
 
     for (let i = 0; i < CAPACITY; i++) {
@@ -76,8 +76,8 @@ describe("RedisLeakyBucket", () => {
     expect(result.remaining).toBe(1);
   });
 
-  it("cost should add multiple items to queue", async () => {
-    const key = "lb-cost";
+  it('cost should add multiple items to queue', async () => {
+    const key = 'lb-cost';
     const now = 1_000_000;
 
     const result = await store.consume(key, limiter, now, 3);
@@ -86,8 +86,8 @@ describe("RedisLeakyBucket", () => {
     expect(result.remaining).toBe(CAPACITY - 3);
   });
 
-  it("should reject when cost exceeds capacity", async () => {
-    const key = "lb-cost-reject";
+  it('should reject when cost exceeds capacity', async () => {
+    const key = 'lb-cost-reject';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, CAPACITY - 1);
@@ -97,8 +97,8 @@ describe("RedisLeakyBucket", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("resetAt should equal queue drain time", async () => {
-    const key = "lb-resetAt-exact";
+  it('resetAt should equal queue drain time', async () => {
+    const key = 'lb-resetAt-exact';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, 2);
@@ -110,8 +110,8 @@ describe("RedisLeakyBucket", () => {
     expect(result.resetAt).toBeLessThanOrEqual(expectedReset);
   });
 
-  it("should not exceed capacity under concurrency", async () => {
-    const key = "lb-concurrency";
+  it('should not exceed capacity under concurrency', async () => {
+    const key = 'lb-concurrency';
     const now = 1_000_000;
 
     const concurrency = 50;
@@ -127,8 +127,8 @@ describe("RedisLeakyBucket", () => {
     expect(allowed).toBe(CAPACITY);
   });
 
-  it("should handle concurrent cost correctly", async () => {
-    const key = "lb-concurrency-cost";
+  it('should handle concurrent cost correctly', async () => {
+    const key = 'lb-concurrency-cost';
     const now = 1_000_000;
 
     const results = await Promise.all(
@@ -140,8 +140,8 @@ describe("RedisLeakyBucket", () => {
     expect(allowed).toBeLessThanOrEqual(Math.floor(CAPACITY / 2));
   });
 
-  it("should gradually free capacity as queue leaks", async () => {
-    const key = "lb-gradual";
+  it('should gradually free capacity as queue leaks', async () => {
+    const key = 'lb-gradual';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, CAPACITY);
@@ -154,8 +154,8 @@ describe("RedisLeakyBucket", () => {
     expect(result.remaining).toBe(1);
   });
 
-  it("should empty queue after long idle", async () => {
-    const key = "lb-idle";
+  it('should empty queue after long idle', async () => {
+    const key = 'lb-idle';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, CAPACITY);

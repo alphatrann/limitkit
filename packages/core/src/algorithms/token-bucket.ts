@@ -1,5 +1,5 @@
-import { BadArgumentsException } from "../exceptions";
-import { Algorithm, TokenBucketConfig } from "../types";
+import { BadArgumentsException } from '../exceptions';
+import { Algorithm, TokenBucketConfig } from '../types';
 
 /**
  * Base implementation of the **Token Bucket** rate limiting algorithm.

@@ -1,5 +1,5 @@
-import { BadArgumentsException } from "../exceptions";
-import { LeakyBucketConfig, RateLimitRuleResult } from "../types";
+import { BadArgumentsException } from '../exceptions';
+import { LeakyBucketConfig, RateLimitRuleResult } from '../types';
 
 export type LeakyBucketState = {
   /** Number of requests currently in the queue */

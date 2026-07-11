@@ -1,5 +1,5 @@
-import { TokenBucket } from "@limitkit/core";
-import { RedisCompatible } from "../types";
+import { TokenBucket } from '@limitkit/core';
+import { RedisCompatible } from '../types';
 
 /**
  * Redis implementation of the Token Bucket rate limiting algorithm.

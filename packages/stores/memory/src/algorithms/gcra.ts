@@ -1,5 +1,5 @@
-import { GCRA, processGCRA, RateLimitRuleResult } from "@limitkit/core";
-import { GCRAState, InMemoryCompatible } from "../types";
+import { GCRA, processGCRA, RateLimitRuleResult } from '@limitkit/core';
+import { GCRAState, InMemoryCompatible } from '../types';
 
 /**
  * In-memory implementation of the **GCRA (Generic Cell Rate Algorithm)**.

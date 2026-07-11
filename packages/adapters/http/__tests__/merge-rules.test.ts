@@ -1,31 +1,31 @@
-import { FixedWindow, TokenBucket } from "@limitkit/core";
-import { mergeRules } from "../src";
+import { FixedWindow, TokenBucket } from '@limitkit/core';
+import { mergeRules } from '../src';
 
 class MockFixedWindow extends FixedWindow {}
 class MockTokenBucket extends TokenBucket {}
-describe("mergeRules", () => {
+describe('mergeRules', () => {
   const baseRule = {
-    name: "api",
-    key: "api",
+    name: 'api',
+    key: 'api',
     policy: new MockFixedWindow({
-      name: "fixed-window",
+      name: 'fixed-window',
       window: 60,
       limit: 100,
     }),
   };
 
-  it("returns global rules when route rules empty", () => {
+  it('returns global rules when route rules empty', () => {
     const result = mergeRules([baseRule], []);
 
     expect(result).toEqual([baseRule]);
   });
 
-  it("adds new route rule", () => {
+  it('adds new route rule', () => {
     const routeRule = {
-      name: "login",
-      key: "login",
+      name: 'login',
+      key: 'login',
       policy: new MockTokenBucket({
-        name: "token-bucket",
+        name: 'token-bucket',
         capacity: 5,
         refillRate: 1,
       }),
@@ -36,12 +36,12 @@ describe("mergeRules", () => {
     expect(result).toHaveLength(2);
   });
 
-  it("overrides rule with same name", () => {
+  it('overrides rule with same name', () => {
     const routeRule = {
-      name: "api",
-      key: "api",
+      name: 'api',
+      key: 'api',
       policy: new MockFixedWindow({
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 10,
       }),
@@ -52,23 +52,23 @@ describe("mergeRules", () => {
     expect(result).toEqual([routeRule]);
   });
 
-  it("merges rule properties when overriding", () => {
+  it('merges rule properties when overriding', () => {
     const globalRule = {
-      name: "api",
-      key: "api",
+      name: 'api',
+      key: 'api',
       cost: 1,
       policy: new MockFixedWindow({
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 100,
       }),
     };
 
     const routeRule = {
-      name: "api",
-      key: "api",
+      name: 'api',
+      key: 'api',
       policy: new MockFixedWindow({
-        name: "fixed-window",
+        name: 'fixed-window',
         window: 60,
         limit: 10,
       }),

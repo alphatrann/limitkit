@@ -1,8 +1,13 @@
-import { Pool } from "pg";
-import { Algorithm, TokenBucketConfig } from "@limitkit/core";
-import { initSchema, PostgresCompatible, PostgresStore, tokenBucket } from "../src";
+import { Pool } from 'pg';
+import { Algorithm, TokenBucketConfig } from '@limitkit/core';
+import {
+  initSchema,
+  PostgresCompatible,
+  PostgresStore,
+  tokenBucket,
+} from '../src';
 
-describe("PostgresTokenBucket", () => {
+describe('PostgresTokenBucket', () => {
   const CAPACITY = 5;
   const REFILL = 1; // tokens per second
 
@@ -12,11 +17,11 @@ describe("PostgresTokenBucket", () => {
 
   beforeAll(async () => {
     pool = new Pool({
-      host: process.env.POSTGRES_HOST ?? "localhost",
+      host: process.env.POSTGRES_HOST ?? 'localhost',
       port: Number(process.env.POSTGRES_PORT ?? 5432),
-      user: "limitkit",
-      password: "limitkit",
-      database: "limitkit",
+      user: 'limitkit',
+      password: 'limitkit',
+      database: 'limitkit',
     });
     await initSchema(pool);
 
@@ -26,15 +31,15 @@ describe("PostgresTokenBucket", () => {
   });
 
   beforeEach(async () => {
-    await pool.query("TRUNCATE limitkit.rate_limit_state CASCADE");
+    await pool.query('TRUNCATE limitkit.rate_limit_state CASCADE');
   });
 
   afterAll(async () => {
     await pool.end();
   });
 
-  it("should allow requests until capacity is reached", async () => {
-    const key = "tb-allow";
+  it('should allow requests until capacity is reached', async () => {
+    const key = 'tb-allow';
     const now = 1_000_000;
 
     for (let i = 1; i <= CAPACITY; i++) {
@@ -47,8 +52,8 @@ describe("PostgresTokenBucket", () => {
     }
   });
 
-  it("should reject when bucket is empty", async () => {
-    const key = "tb-empty";
+  it('should reject when bucket is empty', async () => {
+    const key = 'tb-empty';
     const now = 1_000_000;
 
     for (let i = 0; i < CAPACITY; i++) {
@@ -62,8 +67,8 @@ describe("PostgresTokenBucket", () => {
     expect(result.availableAt).toBe(now + Math.ceil((1 / REFILL) * 1000));
   });
 
-  it("should refill tokens over time", async () => {
-    const key = "tb-refill";
+  it('should refill tokens over time', async () => {
+    const key = 'tb-refill';
     const now = 1_000_000;
 
     for (let i = 0; i < CAPACITY; i++) {
@@ -78,8 +83,8 @@ describe("PostgresTokenBucket", () => {
     expect(result.remaining).toBe(2);
   });
 
-  it("should not exceed capacity when refilling", async () => {
-    const key = "tb-cap";
+  it('should not exceed capacity when refilling', async () => {
+    const key = 'tb-cap';
     const now = 1_000_000;
 
     const later = now + 60_000;
@@ -90,8 +95,8 @@ describe("PostgresTokenBucket", () => {
     expect(result.remaining).toBe(CAPACITY - 1);
   });
 
-  it("cost should consume multiple tokens", async () => {
-    const key = "tb-cost";
+  it('cost should consume multiple tokens', async () => {
+    const key = 'tb-cost';
     const now = 1_000_000;
 
     const result = await store.consume(key, limiter, now, 3);
@@ -100,8 +105,8 @@ describe("PostgresTokenBucket", () => {
     expect(result.remaining).toBe(CAPACITY - 3);
   });
 
-  it("should reject when cost exceeds tokens", async () => {
-    const key = "tb-cost-reject";
+  it('should reject when cost exceeds tokens', async () => {
+    const key = 'tb-cost-reject';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, CAPACITY - 1);
@@ -111,8 +116,8 @@ describe("PostgresTokenBucket", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("should not exceed capacity under concurrency", async () => {
-    const key = "tb-concurrency";
+  it('should not exceed capacity under concurrency', async () => {
+    const key = 'tb-concurrency';
     const now = 1_000_000;
 
     const concurrency = 50;
@@ -128,8 +133,8 @@ describe("PostgresTokenBucket", () => {
     expect(allowed).toBe(CAPACITY);
   });
 
-  it("availableAt should match token refill time", async () => {
-    const key = "tb-retry-after";
+  it('availableAt should match token refill time', async () => {
+    const key = 'tb-retry-after';
     const now = 1_000_000;
 
     await store.consume(key, limiter, now, CAPACITY);

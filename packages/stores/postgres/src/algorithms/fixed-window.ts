@@ -3,8 +3,8 @@ import {
   FixedWindowState,
   processFixedWindow,
   RateLimitRuleResult,
-} from "@limitkit/core";
-import { PostgresCompatible } from "../types";
+} from '@limitkit/core';
+import { PostgresCompatible } from '../types';
 
 /**
  * Postgres implementation of the **Fixed Window** rate limiting algorithm.
@@ -21,8 +21,8 @@ export class PostgresFixedWindow
   extends FixedWindow
   implements PostgresCompatible<FixedWindowState>
 {
-  readonly table = "fixed_window_state";
-  readonly selectColumns = "count, window_start::float8 AS window_start";
+  readonly table = 'fixed_window_state';
+  readonly selectColumns = 'count, window_start::float8 AS window_start';
 
   toRow(state: FixedWindowState): Record<string, number> {
     return { count: state.count, window_start: state.windowStart };

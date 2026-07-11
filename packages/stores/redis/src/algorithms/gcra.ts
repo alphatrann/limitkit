@@ -1,5 +1,5 @@
-import { GCRA } from "@limitkit/core";
-import { RedisCompatible } from "../types";
+import { GCRA } from '@limitkit/core';
+import { RedisCompatible } from '../types';
 
 /**
  * Redis implementation of the GCRA (Generic Cell Rate Algorithm).

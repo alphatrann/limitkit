@@ -1,11 +1,11 @@
-import { mergeRules, toRateLimitHeaders } from "@limitkit/http";
-import { RateLimiter } from "@limitkit/core";
-import { NextFunction, Request, Response } from "express";
-import { RouteRateLimitConfig } from "../types";
+import { mergeRules, toRateLimitHeaders } from '@limitkit/http';
+import { RateLimiter } from '@limitkit/core';
+import { NextFunction, Request, Response } from 'express';
+import { RouteRateLimitConfig } from '../types';
 
 const defaultRateLimitResponse = {
   status: 429,
-  error: "Too many requests",
+  error: 'Too many requests',
 };
 
 /**

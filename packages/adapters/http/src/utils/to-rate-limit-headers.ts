@@ -1,6 +1,6 @@
-import { RateLimitHeaders } from "../types";
-import { mostRestrictive } from "./most-restrictive";
-import { RateLimitResult } from "@limitkit/core";
+import { RateLimitHeaders } from '../types';
+import { mostRestrictive } from './most-restrictive';
+import { RateLimitResult } from '@limitkit/core';
 
 /**
  * Derive HTTP rate limit headers from a {@link RateLimitResult}.
@@ -25,9 +25,9 @@ export function toRateLimitHeaders(result: RateLimitResult): RateLimitHeaders {
     : undefined;
 
   return {
-    "RateLimit-Limit": rule.limit,
-    "RateLimit-Remaining": rule.remaining,
-    "Reset-After": resetSeconds,
-    ...(retrySeconds ? { "Retry-After": retrySeconds } : {}),
+    'RateLimit-Limit': rule.limit,
+    'RateLimit-Remaining': rule.remaining,
+    'Reset-After': resetSeconds,
+    ...(retrySeconds ? { 'Retry-After': retrySeconds } : {}),
   };
 }

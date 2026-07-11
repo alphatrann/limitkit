@@ -6,18 +6,18 @@ Most rate limiters give you primitives. LimitKit gives you a system — define y
 
 ## Table of Contents
 
-* [Why LimitKit?](#why-limitkit)
-* [Installation](#installation)
-* [Quick Example](#quick-example)
-* [How it works](#how-it-works)
-* [Core Concepts](#core-concepts)
-* [Policies](#policies)
-* [Real-World Example](#real-world-example)
-* [Packages](#packages)
-* [Common Recipes](#common-recipes)
-* [Comparisons](#comparisons)
-* [Contributing](#contributing)
-* [License](#license)
+- [Why LimitKit?](#why-limitkit)
+- [Installation](#installation)
+- [Quick Example](#quick-example)
+- [How it works](#how-it-works)
+- [Core Concepts](#core-concepts)
+- [Policies](#policies)
+- [Real-World Example](#real-world-example)
+- [Packages](#packages)
+- [Common Recipes](#common-recipes)
+- [Comparisons](#comparisons)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -28,26 +28,26 @@ Rate limiting grows messy as your app grows. Here's what that looks like:
 ```ts
 app.use(async (req, res, next) => {
   try {
-    await globalLimiter.consume("global");
-    await ipLimiter.consume("ip:" + req.ip);
+    await globalLimiter.consume('global');
+    await ipLimiter.consume('ip:' + req.ip);
 
     if (req.user) {
-      if (req.user.plan === "pro") {
-        await proLimiter.consume("acc:" + req.user.id);
+      if (req.user.plan === 'pro') {
+        await proLimiter.consume('acc:' + req.user.id);
       } else {
-        await freeLimiter.consume("acc:" + req.user.id);
+        await freeLimiter.consume('acc:' + req.user.id);
       }
 
-      if (req.path.includes("export")) {
-        if (req.user.plan === "pro") {
-          await exportLimiter.consume("acc:" + req.user.id, 1);
+      if (req.path.includes('export')) {
+        if (req.user.plan === 'pro') {
+          await exportLimiter.consume('acc:' + req.user.id, 1);
         } else {
-          await exportLimiter.consume("acc:" + req.user.id, 10);
+          await exportLimiter.consume('acc:' + req.user.id, 10);
         }
       }
     }
   } catch {
-    return res.status(429).json({ message: "Too many requests" });
+    return res.status(429).json({ message: 'Too many requests' });
   }
   next();
 });
@@ -62,29 +62,28 @@ const limiter = new RateLimiter({
   store,
   rules: [
     {
-      name: "global",
-      key: "global",
+      name: 'global',
+      key: 'global',
       policy: fixedWindow({ window: 1, limit: 1000 }),
     },
     {
-      name: "ip",
-      key: (req) => "ip:" + req.ip,
+      name: 'ip',
+      key: (req) => 'ip:' + req.ip,
       policy: fixedWindow({ window: 1, limit: 500 }),
     },
     {
-      name: "user-plan",
-      key: (req) => "acc:" + req.user.id,
+      name: 'user-plan',
+      key: (req) => 'acc:' + req.user.id,
       policy: (req) =>
-        req.user.plan === "pro"
+        req.user.plan === 'pro'
           ? slidingWindow({ window: 60, limit: 1000 })
           : slidingWindow({ window: 60, limit: 100 }),
     },
     {
-      name: "costly",
-      key: (req) => "acc:" + req.user.id,
-      cost: (req) => req.path.includes("export")
-        ? req.user.plan === "pro" ? 1 : 10
-        : 1,
+      name: 'costly',
+      key: (req) => 'acc:' + req.user.id,
+      cost: (req) =>
+        req.path.includes('export') ? (req.user.plan === 'pro' ? 1 : 10) : 1,
       policy: tokenBucket({ capacity: 100, refillRate: 5 }),
     },
   ],
@@ -94,7 +93,8 @@ const limiter = new RateLimiter({
 ```ts
 app.use(async (req, res, next) => {
   const result = await limiter.consume(req);
-  if (!result.allowed) return res.status(429).json({ message: "Too many requests" });
+  if (!result.allowed)
+    return res.status(429).json({ message: 'Too many requests' });
   next();
 });
 ```
@@ -116,30 +116,32 @@ See [Packages](#packages) for all available packages.
 ## Quick Example
 
 ```ts
-import { RateLimiter } from "@limitkit/core";
-import { slidingWindow, InMemoryStore } from "@limitkit/memory";
+import { RateLimiter } from '@limitkit/core';
+import { slidingWindow, InMemoryStore } from '@limitkit/memory';
 
 const limiter = new RateLimiter({
   store: new InMemoryStore(),
   rules: [
     {
-      name: "global",
-      key: "global",
+      name: 'global',
+      key: 'global',
       policy: slidingWindow({ window: 10, limit: 1000 }),
     },
     {
-      name: "per-ip",
-      key: (ctx) => "ip:" + ctx.ip,
-      cost: (ctx) => ctx.isPriority ? 5 : 1,
+      name: 'per-ip',
+      key: (ctx) => 'ip:' + ctx.ip,
+      cost: (ctx) => (ctx.isPriority ? 5 : 1),
       policy: slidingWindow({ window: 60, limit: 60 }),
     },
   ],
 });
 
-const result = await limiter.consume({ ip: "127.0.0.1", isPriority: false });
+const result = await limiter.consume({ ip: '127.0.0.1', isPriority: false });
 
 if (!result.allowed) {
-  console.log(`Blocked by "${result.failedRule}". Retry after ${result.rules[0].availableAt}`);
+  console.log(
+    `Blocked by "${result.failedRule}". Retry after ${result.rules[0].availableAt}`,
+  );
 }
 ```
 
@@ -165,12 +167,12 @@ A rule has four fields:
 { name, key, policy, cost? }
 ```
 
-| Field | Type | Description |
-|---|---|---|
-| `name` | `string` | Unique identifier. Appears in `result.failedRule` when this rule is exceeded. |
-| `key` | `string \| (ctx) => string` | Who to limit — IP, user ID, a global constant, anything. Can be async. |
-| `policy` | `Algorithm \| (ctx) => Algorithm` | Which algorithm to apply. Can be dynamic (e.g., different limits per plan). |
-| `cost` | `number \| (ctx) => number` | Weight per request (default: `1`). Use for operations that should consume more than one unit. |
+| Field    | Type                              | Description                                                                                   |
+| -------- | --------------------------------- | --------------------------------------------------------------------------------------------- |
+| `name`   | `string`                          | Unique identifier. Appears in `result.failedRule` when this rule is exceeded.                 |
+| `key`    | `string \| (ctx) => string`       | Who to limit — IP, user ID, a global constant, anything. Can be async.                        |
+| `policy` | `Algorithm \| (ctx) => Algorithm` | Which algorithm to apply. Can be dynamic (e.g., different limits per plan).                   |
+| `cost`   | `number \| (ctx) => number`       | Weight per request (default: `1`). Use for operations that should consume more than one unit. |
 
 ---
 
@@ -178,19 +180,19 @@ A rule has four fields:
 
 Algorithms are imported from the store package (`@limitkit/memory` or `@limitkit/redis`), not from `@limitkit/core`. The algorithm and the store must come from the same package.
 
-| Algorithm | Signature | Best for |
-|---|---|---|
-| Fixed Window | `fixedWindow({ window, limit })` | Simplest option. Fast, O(1) state. Allows boundary bursts. |
-| Sliding Window | `slidingWindow({ window, limit })` | Accurate per-request tracking. No boundary bursts. |
-| Sliding Window Counter | `slidingWindowCounter({ window, limit })` | Approximation of sliding window with lower memory overhead. |
-| Token Bucket | `tokenBucket({ capacity, refillRate })` | Smooth limiting that tolerates short bursts. |
-| Leaky Bucket | `leakyBucket({ capacity, leakRate })` | Drops requests above the leak rate. Inverse of token bucket. |
+| Algorithm              | Signature                                    | Best for                                                          |
+| ---------------------- | -------------------------------------------- | ----------------------------------------------------------------- |
+| Fixed Window           | `fixedWindow({ window, limit })`             | Simplest option. Fast, O(1) state. Allows boundary bursts.        |
+| Sliding Window         | `slidingWindow({ window, limit })`           | Accurate per-request tracking. No boundary bursts.                |
+| Sliding Window Counter | `slidingWindowCounter({ window, limit })`    | Approximation of sliding window with lower memory overhead.       |
+| Token Bucket           | `tokenBucket({ capacity, refillRate })`      | Smooth limiting that tolerates short bursts.                      |
+| Leaky Bucket           | `leakyBucket({ capacity, leakRate })`        | Drops requests above the leak rate. Inverse of token bucket.      |
 | Leaky Bucket (shaping) | `shapingLeakyBucket({ capacity, leakRate })` | Delays instead of dropping. Returns `availableAt` for scheduling. |
-| GCRA | `gcra({ burst, interval })` | Precise, low-memory rate limiting derived from telecom standards. |
+| GCRA                   | `gcra({ burst, interval })`                  | Precise, low-memory rate limiting derived from telecom standards. |
 
 ### Traffic shaping
 
-`shapingLeakyBucket` never rejects — it tells you *when* a request can safely run. Use it for job queues to absorb backpressure without dropping work:
+`shapingLeakyBucket` never rejects — it tells you _when_ a request can safely run. Use it for job queues to absorb backpressure without dropping work:
 
 ```ts
 const result = await limiter.consume(ctx);
@@ -205,33 +207,45 @@ Public and authenticated routes have different contexts — `req.user` is undefi
 
 ```ts
 const globalRules = [
-  { name: "global", key: "global", policy: fixedWindow({ window: 1, limit: 1000 }) },
-  { name: "ip", key: (req) => "ip:" + req.ip, policy: fixedWindow({ window: 5, limit: 500 }) },
+  {
+    name: 'global',
+    key: 'global',
+    policy: fixedWindow({ window: 1, limit: 1000 }),
+  },
+  {
+    name: 'ip',
+    key: (req) => 'ip:' + req.ip,
+    policy: fixedWindow({ window: 5, limit: 500 }),
+  },
 ];
 
 const authenticatedRules = [
   {
-    name: "user",
-    key: (req) => "acc:" + req.user.id,
+    name: 'user',
+    key: (req) => 'acc:' + req.user.id,
     policy: slidingWindow({ window: 60, limit: 100 }),
   },
   {
-    name: "costly",
-    key: (req) => "acc:" + req.user.id,
-    cost: (req) => req.path.includes("export") ? 10 : 1,
+    name: 'costly',
+    key: (req) => 'acc:' + req.user.id,
+    cost: (req) => (req.path.includes('export') ? 10 : 1),
     policy: tokenBucket({ refillRate: 5, capacity: 100 }),
   },
   {
-    name: "plan",
-    key: (req) => "acc:" + req.user.id,
-    policy: (req) => req.user.plan === "pro"
-      ? gcra({ burst: 1000, interval: 30 })
-      : gcra({ burst: 100, interval: 60 }),
+    name: 'plan',
+    key: (req) => 'acc:' + req.user.id,
+    policy: (req) =>
+      req.user.plan === 'pro'
+        ? gcra({ burst: 1000, interval: 30 })
+        : gcra({ burst: 100, interval: 60 }),
   },
 ];
 
 const publicLimiter = new RateLimiter({ store, rules: globalRules });
-const authedLimiter = new RateLimiter({ store, rules: [...globalRules, ...authenticatedRules] });
+const authedLimiter = new RateLimiter({
+  store,
+  rules: [...globalRules, ...authenticatedRules],
+});
 ```
 
 `globalRules` is reused without duplication. Each limiter is a transparent description of exactly what applies.
@@ -240,14 +254,14 @@ const authedLimiter = new RateLimiter({ store, rules: [...globalRules, ...authen
 
 ## Packages
 
-| Package | Role | Status |
-|---|---|---|
-| [`@limitkit/core`](./packages/core/README.md) | Orchestration engine | Required |
-| [`@limitkit/redis`](./packages/stores/redis/README.md) | Redis-backed atomic policies | Production |
-| [`@limitkit/postgres`](./packages/stores/postgres/README.md) | Postgres-backed durable policies | Production |
-| [`@limitkit/memory`](./packages/stores/memory/README.md) | In-memory policies | Development / testing |
-| [`@limitkit/express`](./packages/adapters/express/README.md) | Express middleware | Optional |
-| [`@limitkit/nest`](./packages/adapters/nest/README.md) | NestJS guard and decorators | Optional |
+| Package                                                      | Role                             | Status                |
+| ------------------------------------------------------------ | -------------------------------- | --------------------- |
+| [`@limitkit/core`](./packages/core/README.md)                | Orchestration engine             | Required              |
+| [`@limitkit/redis`](./packages/stores/redis/README.md)       | Redis-backed atomic policies     | Production            |
+| [`@limitkit/postgres`](./packages/stores/postgres/README.md) | Postgres-backed durable policies | Production            |
+| [`@limitkit/memory`](./packages/stores/memory/README.md)     | In-memory policies               | Development / testing |
+| [`@limitkit/express`](./packages/adapters/express/README.md) | Express middleware               | Optional              |
+| [`@limitkit/nest`](./packages/adapters/nest/README.md)       | NestJS guard and decorators      | Optional              |
 
 ---
 

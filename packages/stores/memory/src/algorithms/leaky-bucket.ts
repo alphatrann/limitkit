@@ -2,8 +2,8 @@ import {
   LeakyBucket,
   processLeakyBucket,
   RateLimitRuleResult,
-} from "@limitkit/core";
-import { InMemoryCompatible, LeakyBucketState } from "../types";
+} from '@limitkit/core';
+import { InMemoryCompatible, LeakyBucketState } from '../types';
 
 /**
  * In-memory implementation of the **Policing Leaky Bucket** rate limiting algorithm.

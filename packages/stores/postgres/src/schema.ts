@@ -1,5 +1,5 @@
-import { BadArgumentsException } from "@limitkit/core";
-import { PostgresPoolLike } from "./types";
+import { BadArgumentsException } from '@limitkit/core';
+import { PostgresPoolLike } from './types';
 
 /**
  * Identifiers cannot be parameterized in Postgres, so any schema name that
@@ -97,7 +97,7 @@ function buildInitSql(schema: string): string {
  */
 export async function initSchema(
   pool: PostgresPoolLike,
-  schema: string = "limitkit",
+  schema: string = 'limitkit',
 ): Promise<void> {
   assertValidSchemaName(schema);
   await pool.query(buildInitSql(schema));
@@ -118,7 +118,7 @@ export async function initSchema(
 export async function pruneOlderThan(
   pool: PostgresPoolLike,
   olderThanMs: number,
-  schema: string = "limitkit",
+  schema: string = 'limitkit',
 ): Promise<number> {
   assertValidSchemaName(schema);
   const cutoff = Date.now() - olderThanMs;

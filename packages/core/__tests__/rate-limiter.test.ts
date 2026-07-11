@@ -5,21 +5,21 @@ import {
   FixedWindow,
   RateLimiter,
   UndefinedKeyException,
-} from "../src";
+} from '../src';
 
 class TestFixedWindow extends FixedWindow {}
 
-jest.mock("../src/utils/add-config-to-key", () => ({
+jest.mock('../src/utils/add-config-to-key', () => ({
   addConfigToKey: jest.fn(),
 }));
 
-describe("RateLimiter", () => {
+describe('RateLimiter', () => {
   const mockStore = {
     consume: jest.fn(),
   };
 
   const mockAlgorithm = new TestFixedWindow({
-    name: "fixed-window",
+    name: 'fixed-window',
     window: 60,
     limit: 10,
   });
@@ -34,7 +34,7 @@ describe("RateLimiter", () => {
   // -------------------------
   // constructor
   // -------------------------
-  it("throws if rules are empty", () => {
+  it('throws if rules are empty', () => {
     expect(() => {
       new RateLimiter({ rules: [], store: mockStore as any });
     }).toThrow(EmptyRulesException);
@@ -43,11 +43,11 @@ describe("RateLimiter", () => {
   // -------------------------
   // key + cost validation
   // -------------------------
-  it("throws if key is undefined", async () => {
+  it('throws if key is undefined', async () => {
     const limiter = new RateLimiter({
       rules: [
         {
-          name: "rule",
+          name: 'rule',
           key: () => undefined as any,
           policy: mockAlgorithm,
         },
@@ -58,12 +58,12 @@ describe("RateLimiter", () => {
     await expect(limiter.consume({})).rejects.toThrow(UndefinedKeyException);
   });
 
-  it("throws if cost is invalid", async () => {
+  it('throws if cost is invalid', async () => {
     const limiter = new RateLimiter({
       rules: [
         {
-          name: "rule",
-          key: "key",
+          name: 'rule',
+          key: 'key',
           cost: () => 0,
           policy: mockAlgorithm,
         },
@@ -77,11 +77,11 @@ describe("RateLimiter", () => {
   // -------------------------
   // static + dynamic evaluation
   // -------------------------
-  it("evaluates static and dynamic key, cost, and policy", async () => {
+  it('evaluates static and dynamic key, cost, and policy', async () => {
     const limiter = new RateLimiter({
       rules: [
         {
-          name: "rule",
+          name: 'rule',
           key: (ctx: any) => ctx.key,
           cost: (ctx: any) => ctx.cost,
           policy: async () => mockAlgorithm,
@@ -97,7 +97,7 @@ describe("RateLimiter", () => {
       resetAt: 123,
     });
 
-    await limiter.consume({ key: "user", cost: 2 });
+    await limiter.consume({ key: 'user', cost: 2 });
 
     expect(mockStore.consume).toHaveBeenCalledWith(
       expect.any(String),
@@ -110,12 +110,12 @@ describe("RateLimiter", () => {
   // -------------------------
   // addConfigToKey
   // -------------------------
-  it("calls addConfigToKey with correct arguments", async () => {
+  it('calls addConfigToKey with correct arguments', async () => {
     const limiter = new RateLimiter({
       rules: [
         {
-          name: "rule",
-          key: "user",
+          name: 'rule',
+          key: 'user',
           policy: mockAlgorithm,
         },
       ],
@@ -131,18 +131,18 @@ describe("RateLimiter", () => {
 
     await limiter.consume({});
 
-    expect(addConfigToKey).toHaveBeenCalledWith(mockAlgorithm.config, "user");
+    expect(addConfigToKey).toHaveBeenCalledWith(mockAlgorithm.config, 'user');
   });
 
   // -------------------------
   // store.consume
   // -------------------------
-  it("calls store.consume with correct arguments", async () => {
+  it('calls store.consume with correct arguments', async () => {
     const limiter = new RateLimiter({
       rules: [
         {
-          name: "rule",
-          key: "user",
+          name: 'rule',
+          key: 'user',
           cost: 3,
           policy: mockAlgorithm,
         },
@@ -160,7 +160,7 @@ describe("RateLimiter", () => {
     await limiter.consume({});
 
     expect(mockStore.consume).toHaveBeenCalledWith(
-      "user:60",
+      'user:60',
       mockAlgorithm,
       expect.any(Number),
       3,
@@ -170,11 +170,11 @@ describe("RateLimiter", () => {
   // -------------------------
   // evaluated rules
   // -------------------------
-  it("appends evaluated rules correctly", async () => {
+  it('appends evaluated rules correctly', async () => {
     const limiter = new RateLimiter({
       rules: [
-        { name: "r1", key: "a", policy: mockAlgorithm },
-        { name: "r2", key: "b", policy: mockAlgorithm },
+        { name: 'r1', key: 'a', policy: mockAlgorithm },
+        { name: 'r2', key: 'b', policy: mockAlgorithm },
       ],
       store: mockStore as any,
     });
@@ -196,18 +196,18 @@ describe("RateLimiter", () => {
     const result = await limiter.consume({});
 
     expect(result.rules).toHaveLength(2);
-    expect(result.rules[0].name).toBe("r1");
-    expect(result.rules[1].name).toBe("r2");
+    expect(result.rules[0].name).toBe('r1');
+    expect(result.rules[1].name).toBe('r2');
   });
 
   // -------------------------
   // stop on failure
   // -------------------------
-  it("stops evaluating rules when one fails", async () => {
+  it('stops evaluating rules when one fails', async () => {
     const limiter = new RateLimiter({
       rules: [
-        { name: "r1", key: "a", policy: mockAlgorithm },
-        { name: "r2", key: "b", policy: mockAlgorithm },
+        { name: 'r1', key: 'a', policy: mockAlgorithm },
+        { name: 'r2', key: 'b', policy: mockAlgorithm },
       ],
       store: mockStore as any,
     });
@@ -229,7 +229,7 @@ describe("RateLimiter", () => {
     const result = await limiter.consume({});
 
     expect(result.allowed).toBe(false);
-    expect(result.failedRule).toBe("r1");
+    expect(result.failedRule).toBe('r1');
     expect(result.rules).toHaveLength(1);
 
     expect(mockStore.consume).toHaveBeenCalledTimes(1);
@@ -238,9 +238,9 @@ describe("RateLimiter", () => {
   // -------------------------
   // final result (allowed)
   // -------------------------
-  it("returns correct result when all rules pass", async () => {
+  it('returns correct result when all rules pass', async () => {
     const limiter = new RateLimiter({
-      rules: [{ name: "r1", key: "a", policy: mockAlgorithm }],
+      rules: [{ name: 'r1', key: 'a', policy: mockAlgorithm }],
       store: mockStore as any,
     });
 
@@ -258,7 +258,7 @@ describe("RateLimiter", () => {
       failedRule: null,
       rules: [
         expect.objectContaining({
-          name: "r1",
+          name: 'r1',
           allowed: true,
         }),
       ],
@@ -268,9 +268,9 @@ describe("RateLimiter", () => {
   // -------------------------
   // final result (rejected)
   // -------------------------
-  it("returns correct result when a rule fails", async () => {
+  it('returns correct result when a rule fails', async () => {
     const limiter = new RateLimiter({
-      rules: [{ name: "r1", key: "a", policy: mockAlgorithm }],
+      rules: [{ name: 'r1', key: 'a', policy: mockAlgorithm }],
       store: mockStore as any,
     });
 
@@ -285,10 +285,10 @@ describe("RateLimiter", () => {
 
     expect(result).toEqual({
       allowed: false,
-      failedRule: "r1",
+      failedRule: 'r1',
       rules: [
         expect.objectContaining({
-          name: "r1",
+          name: 'r1',
           allowed: false,
         }),
       ],
