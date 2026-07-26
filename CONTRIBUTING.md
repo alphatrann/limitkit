@@ -99,6 +99,15 @@ packages/
 │   │   └───utils/
 │   ├───__mocks__/
 │   └───__tests__/
+├───integrations/
+│   └───ai/
+│       ├───src/
+│       │   ├───budgets/
+│       │   ├───cost/
+│       │   ├───extractors/
+│       │   ├───types/
+│       │   └───utils/
+│       └───__tests__/
 └───stores/
     ├───memory/
     │   ├───src/
@@ -110,7 +119,24 @@ packages/
         │   ├───algorithms/
         │   └───types/
         └───__tests__/
+
+examples/
+└───llm-gateway/          # private, not published
+    └───src/
 ```
+
+There are three package categories, and a new package belongs to exactly one:
+
+- **`stores/`** — persist rate limit state. Implement `Store`.
+- **`adapters/`** — bind LimitKit to a web framework.
+- **`integrations/`** — everything else that makes LimitKit easier to use with a
+  specific ecosystem without being a store or an adapter. `@limitkit/ai` is the
+  first: it turns LLM provider responses into rule costs. An integration depends
+  on `@limitkit/core` and **not** on a store package, so it stays usable with
+  any backend.
+
+`examples/` holds runnable, private workspaces. They are never published and
+never take a changeset.
 
 Core design layers:
 
