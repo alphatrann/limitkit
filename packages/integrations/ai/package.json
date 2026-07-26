@@ -1,0 +1,43 @@
+{
+  "name": "@limitkit/ai",
+  "version": "0.0.0",
+  "description": "LLM token usage extraction and token-budget policies for LimitKit",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "keywords": [
+    "rate-limiter",
+    "rate-limiting",
+    "llm",
+    "ai",
+    "tokens",
+    "token-budget",
+    "openai",
+    "anthropic",
+    "ollama",
+    "nodejs"
+  ],
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alphatrann/limitkit"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@limitkit/core": "^1.2.0"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "test": "jest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@limitkit/memory": "workspace:^",
+    "@types/node": "^25.4.0"
+  }
+}
