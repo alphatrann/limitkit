@@ -1,29 +1,29 @@
-# 📦 `@limitkit/memory`
+# `@limitkit/memory`
 
 [![npm version](https://img.shields.io/npm/v/@limitkit/memory)](https://www.npmjs.com/package/@limitkit/memory)
 [![downloads](https://img.shields.io/npm/dw/@limitkit/memory)](https://www.npmjs.com/package/@limitkit/memory)
 [![license](https://img.shields.io/npm/l/@limitkit/memory)](https://github.com/alphatrann/limitkit/blob/main/LICENSE)
 
-**In-memory store and built-in rate limiting policies for LimitKit.**
+In-memory store and built-in rate limiting policies for LimitKit.
 
-⚠ `@limitkit/memory` is only best suited for:
+`@limitkit/memory` is best suited for:
 
-- ✅ Local development
-- ✅ Testing environments
-- ✅ Single-instance applications
-- ✅ Prototyping and evaluation
+- Local development
+- Testing environments
+- Single-instance applications
+- Prototyping and evaluation
 
-Because all state is stored **in-process**, it does **not scale across multiple instances**.
+Because all state is stored in-process, it does not scale across multiple instances.
 
 > For production and distributed systems, consider using Redis via [`@limitkit/redis`](https://www.npmjs.com/package/@limitkit/redis).
 
-## ⚡ Installation
+## Installation
 
 ```bash
 npm install @limitkit/core @limitkit/memory
 ```
 
-## ⚡ Quick Start
+## Quick Start
 
 Set `store: new InMemoryStore()`
 
@@ -49,16 +49,16 @@ const limiter = new RateLimiter({
 await limiter.consume(ctx);
 ```
 
-- All rate limiting data is stored **in memory**.
-- Each process maintains its own counters, so there are no shared states across processes.
-- There are no network calls, thus the latency is **very low (sub-ms)**
-- The states are cleared if the application restarts.
+- All rate limiting data is stored in memory.
+- Each process maintains its own counters, so there is no shared state across processes.
+- There are no network calls, so latency is low (sub-ms).
+- State is cleared if the application restarts.
 
 ```
 process memory → policy → decision
 ```
 
-## ⚙️ Algorithms
+## Algorithms
 
 `@limitkit/memory` includes optimized implementations of common rate limiting strategies.
 
@@ -102,7 +102,7 @@ leakyBucket({ capacity: 100, leakRate: 5 });
 
 Shaping leaky bucket is a special algorithm that is typically used in worker queues to handle backpressure by delaying operations.
 
-Simply create a store, a traffic shaper and call `store.consume` with the shaper. The result contains `availableAt`, which tells when to execute this job.
+Create a store, a traffic shaper, and call `store.consume` with the shaper. The result contains `availableAt`, which tells when to execute this job.
 
 This reduces backpressure when producers enqueue too many tasks while consumers can't handle them fast enough.
 

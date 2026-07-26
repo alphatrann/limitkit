@@ -4,18 +4,18 @@
 [![downloads](https://img.shields.io/npm/dw/@limitkit/nest)](https://www.npmjs.com/package/@limitkit/nest)
 [![license](https://img.shields.io/npm/l/@limitkit/nest)](https://github.com/alphatrann/limitkit/blob/main/LICENSE)
 
-**Rate limiting for NestJS using LimitKit’s policy-driven engine.**
+Rate limiting for NestJS using LimitKit's policy-driven engine.
 
 This package:
 
-- ✅ integrates with NestJS seamlessly
-- ✅ allows you to override global rules for particular controllers or routes
-- ✅ returns 429 if the request is rejected
-- ✅ automatically sets standard IETF rate limit headers
+- integrates with NestJS
+- allows you to override global rules for particular controllers or routes
+- returns 429 if the request is rejected
+- automatically sets standard IETF rate limit headers
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ```bash
 npm install @limitkit/nest
@@ -25,7 +25,7 @@ npm install @limitkit/nest
 
 ## Basic Setup
 
-Simply call `LimitModule.forRoot`, provide the store and the rules.
+Call `LimitModule.forRoot`, provide the store and the rules.
 
 All routes are now rate-limited globally.
 
@@ -57,7 +57,7 @@ export class AppModule {}
 
 ---
 
-## 🎛 Route-Level Control
+## Route-Level Control
 
 ### Override rules
 
@@ -92,12 +92,12 @@ export class ApiController {
 
 ---
 
-#### 🧠 Merge Behavior
+#### Merge Behavior
 
 Route-level rules are merged with global rules by `name`:
 
-- If a rule with the **same `name` exists**, it is **overridden**
-- If the `name` is **new**, it is **appended**
+- If a rule with the same `name` exists, it is overridden
+- If the `name` is new, it is appended
 
 ---
 
@@ -137,7 +137,7 @@ Result:
 
 ### Skip rate limiting
 
-Simply add `@SkipRateLimit` decorator to a controller or route to bypass rate limits.
+Add the `@SkipRateLimit` decorator to a controller or route to bypass rate limits.
 
 ```ts
 import { SkipRateLimit } from '@limitkit/nest';
@@ -203,7 +203,7 @@ export class AppModule {}
 
 ---
 
-## 💉 Using RateLimiter in Services
+## Using RateLimiter in Services
 
 You can inject the limiter directly in the module that imports `LimitModule` for custom contexts such as GraphQL, WebSockets, job queues:
 
@@ -225,9 +225,9 @@ export class MyService {
 }
 ```
 
-## 📡 Headers
+## Headers
 
-The guard provided by `@limitkit/nest` also automatically sets standard IETF rate limit headers for you:
+The guard provided by `@limitkit/nest` also automatically sets standard IETF rate limit headers:
 
 ```
 RateLimit-Limit
