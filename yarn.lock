@@ -85,6 +85,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@anthropic-ai/sdk@npm:^0.115.0":
+  version: 0.115.0
+  resolution: "@anthropic-ai/sdk@npm:0.115.0"
+  dependencies:
+    json-schema-to-ts: "npm:^3.1.1"
+    standardwebhooks: "npm:^1.0.0"
+  peerDependencies:
+    zod: ^3.25.0 || ^4.0.0
+  peerDependenciesMeta:
+    zod:
+      optional: true
+  bin:
+    anthropic-ai-sdk: bin/cli
+  checksum: 10c0/5e3a43257be0079975cc9a1816748e07e3b16f3e0af4c78e483978c61be47a76e24409327e0fd3c3d7d35e0505d673df51bd60b205aa0a50ae8ac8370525484c
+  languageName: node
+  linkType: hard
+
 "@babel/code-frame@npm:^7.0.0, @babel/code-frame@npm:^7.12.13, @babel/code-frame@npm:^7.16.7, @babel/code-frame@npm:^7.27.1, @babel/code-frame@npm:^7.28.6, @babel/code-frame@npm:^7.29.0":
   version: 7.29.0
   resolution: "@babel/code-frame@npm:7.29.0"
@@ -415,6 +432,13 @@ __metadata:
   peerDependencies:
     "@babel/core": ^7.0.0-0
   checksum: 10c0/b0c392a35624883ac480277401ac7d92d8646b66e33639f5d350de7a6723924265985ae11ab9ebd551740ded261c443eaa9a87ea19def9763ca1e0d78c97dea8
+  languageName: node
+  linkType: hard
+
+"@babel/runtime@npm:^7.18.3":
+  version: 7.29.7
+  resolution: "@babel/runtime@npm:7.29.7"
+  checksum: 10c0/ca11572f7146b21e0bde6a9ed4bb6a89eafbee5f0944c7eb54d0d8a2dac962c33638a1d611e14faa71dfbb92b4b5f9236232208568a6b7d5c6f3f39ddb91771e
   languageName: node
   linkType: hard
 
@@ -1007,6 +1031,30 @@ __metadata:
   dependencies:
     retry: "npm:^0.13.1"
   checksum: 10c0/748a84fb0ab962f7867966f21dc24d1872c53c1656dd3352320fe69ad3b2043f2dfdb3be024c7636ce4904c5ba1da22d0f3558e489c3de578f5bb520f062d0fd
+  languageName: node
+  linkType: hard
+
+"@huggingface/inference@npm:^4.13.23":
+  version: 4.13.23
+  resolution: "@huggingface/inference@npm:4.13.23"
+  dependencies:
+    "@huggingface/jinja": "npm:^0.5.9"
+    "@huggingface/tasks": "npm:^0.21.25"
+  checksum: 10c0/422a74cc64a810a916006121cfc8f0f174878cb7991261860b98245297a5548c6098f492c86187e57b78ba8cbc078e00551fce731963922955283356e40e759a
+  languageName: node
+  linkType: hard
+
+"@huggingface/jinja@npm:^0.5.9":
+  version: 0.5.9
+  resolution: "@huggingface/jinja@npm:0.5.9"
+  checksum: 10c0/dab021c4c94ac931983682a66de2558b4ee6ffded45495bed403b3909b934f2a09129cd4274a6f75622d89ea9af8e95fd5957ecee6445c6e2bf983181df09aa5
+  languageName: node
+  linkType: hard
+
+"@huggingface/tasks@npm:^0.21.25":
+  version: 0.21.28
+  resolution: "@huggingface/tasks@npm:0.21.28"
+  checksum: 10c0/16dbfdd604b84f0840bb2ac5c2597f769d2f088046a00bd8fb57a7b4f0425113e5160b380131ec04683ed60b2aa08b0c6580b0f3e2ab1f76af10be5cbd4f0a84
   languageName: node
   linkType: hard
 
@@ -1919,11 +1967,39 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@limitkit/core@npm:^1.0.2, @limitkit/core@npm:^1.1.0, @limitkit/core@npm:^1.2.0, @limitkit/core@workspace:packages/core":
+"@limitkit/ai@workspace:^, @limitkit/ai@workspace:packages/integrations/ai":
+  version: 0.0.0-use.local
+  resolution: "@limitkit/ai@workspace:packages/integrations/ai"
+  dependencies:
+    "@limitkit/core": "npm:^1.2.0"
+    "@limitkit/memory": "workspace:^"
+    "@types/node": "npm:^25.4.0"
+  languageName: unknown
+  linkType: soft
+
+"@limitkit/core@npm:^1.0.2, @limitkit/core@npm:^1.1.0, @limitkit/core@npm:^1.2.0, @limitkit/core@workspace:^, @limitkit/core@workspace:packages/core":
   version: 0.0.0-use.local
   resolution: "@limitkit/core@workspace:packages/core"
   dependencies:
     "@types/node": "npm:^25.4.0"
+  languageName: unknown
+  linkType: soft
+
+"@limitkit/example-llm-gateway@workspace:examples/llm-gateway":
+  version: 0.0.0-use.local
+  resolution: "@limitkit/example-llm-gateway@workspace:examples/llm-gateway"
+  dependencies:
+    "@anthropic-ai/sdk": "npm:^0.115.0"
+    "@huggingface/inference": "npm:^4.13.23"
+    "@limitkit/ai": "workspace:^"
+    "@limitkit/core": "workspace:^"
+    "@limitkit/memory": "workspace:^"
+    "@types/express": "npm:^5.0.6"
+    "@types/node": "npm:^25.4.0"
+    dotenv: "npm:^17.4.2"
+    express: "npm:^5.2.1"
+    ollama: "npm:^0.6.3"
+    openai: "npm:^6.49.0"
   languageName: unknown
   linkType: soft
 
@@ -2574,6 +2650,13 @@ __metadata:
   dependencies:
     "@sinonjs/commons": "npm:^3.0.1"
   checksum: 10c0/8eaaa1c9db91256dfe31f3503cdd844ea031ffd16276b3bcd95457432d666d6d027453af5f884e010dba4ebe264b50ac0aac049e192c5f370158da9b291206b9
+  languageName: node
+  linkType: hard
+
+"@stablelib/base64@npm:^1.0.0":
+  version: 1.0.1
+  resolution: "@stablelib/base64@npm:1.0.1"
+  checksum: 10c0/6330720f021819d19cecfe274111b79a256caa81df478d6b0ae7effc8842b96915b6aeed85926ff05b4d48ec1fc78ad043d928b730ee4e6cc6e8cba6aa097bed
   languageName: node
   linkType: hard
 
@@ -4521,6 +4604,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dotenv@npm:^17.4.2":
+  version: 17.4.2
+  resolution: "dotenv@npm:17.4.2"
+  checksum: 10c0/164f8e77a646c8446867d5b588d26ea6005c8ea7c5eb41cf926f6113d23f2191355f6e0cfd95ea9bab98394a5b0a3f1e51a8399711b666fe55cc7b0bd745f942
+  languageName: node
+  linkType: hard
+
 "dunder-proto@npm:^1.0.1":
   version: 1.0.1
   resolution: "dunder-proto@npm:1.0.1"
@@ -5088,6 +5178,13 @@ __metadata:
   version: 2.1.1
   resolution: "fast-safe-stringify@npm:2.1.1"
   checksum: 10c0/d90ec1c963394919828872f21edaa3ad6f1dddd288d2bd4e977027afff09f5db40f94e39536d4646f7e01761d704d72d51dce5af1b93717f3489ef808f5f4e4d
+  languageName: node
+  linkType: hard
+
+"fast-sha256@npm:^1.3.0":
+  version: 1.3.0
+  resolution: "fast-sha256@npm:1.3.0"
+  checksum: 10c0/87f9e4baa7639576cf60a2b6235c9f436e1a1c52323abbd8a705b5bea8355500acf176f2aed0c14f2ecd6d6007e26151461bab2f27b8953bcca8d9d6b76a86e4
   languageName: node
   linkType: hard
 
@@ -6904,6 +7001,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"json-schema-to-ts@npm:^3.1.1":
+  version: 3.1.1
+  resolution: "json-schema-to-ts@npm:3.1.1"
+  dependencies:
+    "@babel/runtime": "npm:^7.18.3"
+    ts-algebra: "npm:^2.0.0"
+  checksum: 10c0/609bae04aa5e860a11b6d30ccf41445fae1c7f66fb600c1d170257cf33aa468aa9d03aa046428c3688aff0ff450c2b0c76584b66fa4a5d0da8e33799e4c439a6
+  languageName: node
+  linkType: hard
+
 "json-schema-traverse@npm:^0.4.1":
   version: 0.4.1
   resolution: "json-schema-traverse@npm:0.4.1"
@@ -7599,6 +7706,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ollama@npm:^0.6.3":
+  version: 0.6.3
+  resolution: "ollama@npm:0.6.3"
+  dependencies:
+    whatwg-fetch: "npm:^3.6.20"
+  checksum: 10c0/040742dd1f96ad06d5508e387d8d953b3cfab527427f5dd463be7ccd589877eccfbf13ccea0bcb4d6b044a90a327c82c3089834fd3c0ea7243bb830a9c07295d
+  languageName: node
+  linkType: hard
+
 "on-finished@npm:^2.4.1":
   version: 2.4.1
   resolution: "on-finished@npm:2.4.1"
@@ -7623,6 +7739,30 @@ __metadata:
   dependencies:
     mimic-fn: "npm:^2.1.0"
   checksum: 10c0/ffcef6fbb2692c3c40749f31ea2e22677a876daea92959b8a80b521d95cca7a668c884d8b2045d1d8ee7d56796aa405c405462af112a1477594cc63531baeb8f
+  languageName: node
+  linkType: hard
+
+"openai@npm:^6.49.0":
+  version: 6.49.0
+  resolution: "openai@npm:6.49.0"
+  peerDependencies:
+    "@aws-sdk/credential-provider-node": ">=3.972.0 <4"
+    "@smithy/hash-node": ">=4.3.0 <5"
+    "@smithy/signature-v4": ">=5.4.0 <6"
+    ws: ^8.18.0
+    zod: ^3.25 || ^4.0
+  peerDependenciesMeta:
+    "@aws-sdk/credential-provider-node":
+      optional: true
+    "@smithy/hash-node":
+      optional: true
+    "@smithy/signature-v4":
+      optional: true
+    ws:
+      optional: true
+    zod:
+      optional: true
+  checksum: 10c0/c9e748e8a813f948ed925949e857d758505d246d7ec7e939f79cc2ab3383083ccdefff953479afb9dcb0f634cfddb0d442fcf02b6203cc9d6b7c95d3ddbc20ef
   languageName: node
   linkType: hard
 
@@ -8790,6 +8930,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"standardwebhooks@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "standardwebhooks@npm:1.0.0"
+  dependencies:
+    "@stablelib/base64": "npm:^1.0.0"
+    fast-sha256: "npm:^1.3.0"
+  checksum: 10c0/aee097d0f3c05172c19b80df1ed9596a2ce92f8956957650d0bbe47c2ca6d36515796b51d523333cb4a48c889b2ab130d789e7879e14975c4381bc7a61274327
+  languageName: node
+  linkType: hard
+
 "statuses@npm:^2.0.1, statuses@npm:^2.0.2, statuses@npm:~2.0.2":
   version: 2.0.2
   resolution: "statuses@npm:2.0.2"
@@ -9145,6 +9295,13 @@ __metadata:
   bin:
     tree-kill: cli.js
   checksum: 10c0/7b1b7c7f17608a8f8d20a162e7957ac1ef6cd1636db1aba92f4e072dc31818c2ff0efac1e3d91064ede67ed5dc57c565420531a8134090a12ac10cf792ab14d2
+  languageName: node
+  linkType: hard
+
+"ts-algebra@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "ts-algebra@npm:2.0.0"
+  checksum: 10c0/4ae93bec1bada635bba425854eec323dad50b6ffe86bc04ad2d7f9ce3fb129d673dcf483e19a6e70d07a3a9083e6a0a7f4e004bb8d2164cddc60cc9540ba187f
   languageName: node
   linkType: hard
 
@@ -9726,6 +9883,13 @@ __metadata:
   bin:
     webpack: bin/webpack.js
   checksum: 10c0/ea78c57f80bbd7684f4f1bb38a18408ab0ef4c5b962e25ad382c595d10b9e9701e077f5248a8cef5f127a55902698664c18837e64243bb972fbecf4e5d9aaab0
+  languageName: node
+  linkType: hard
+
+"whatwg-fetch@npm:^3.6.20":
+  version: 3.6.20
+  resolution: "whatwg-fetch@npm:3.6.20"
+  checksum: 10c0/fa972dd14091321d38f36a4d062298df58c2248393ef9e8b154493c347c62e2756e25be29c16277396046d6eaa4b11bd174f34e6403fff6aaca9fb30fa1ff46d
   languageName: node
   linkType: hard
 

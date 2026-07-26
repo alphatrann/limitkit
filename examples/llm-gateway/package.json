@@ -1,0 +1,28 @@
+{
+  "name": "@limitkit/example-llm-gateway",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Example LLM gateway with layered LimitKit rules and per-user token budgets",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs --out-dir dist",
+    "start": "node dist/index.js",
+    "dev": "tsup src/index.ts --format cjs --out-dir dist && node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "@huggingface/inference": "^4.13.23",
+    "@limitkit/ai": "workspace:^",
+    "@limitkit/core": "workspace:^",
+    "@limitkit/memory": "workspace:^",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "ollama": "^0.6.3",
+    "openai": "^6.49.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.4.0"
+  }
+}
