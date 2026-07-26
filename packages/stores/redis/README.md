@@ -1,18 +1,18 @@
-# 📦 `@limitkit/redis`
+# `@limitkit/redis`
 
 [![npm version](https://img.shields.io/npm/v/@limitkit/redis)](https://www.npmjs.com/package/@limitkit/redis)
 [![downloads](https://img.shields.io/npm/dw/@limitkit/redis)](https://www.npmjs.com/package/@limitkit/redis)
 [![license](https://img.shields.io/npm/l/@limitkit/redis)](https://github.com/alphatrann/limitkit/blob/main/LICENSE)
 
-**Redis-backed store and atomic rate limiting policies for LimitKit.**
+Redis-backed store and atomic rate limiting policies for LimitKit.
 
-Designed for **distributed systems**, where multiple instances must share consistent rate limiting state.
+Designed for distributed systems, where multiple instances must share consistent rate limiting state.
 
-Each request executes **atomic Lua scripts**, which avoids race conditions and ensures correctness even under high concurrency.
+Each request executes atomic Lua scripts, which avoids race conditions and ensures correctness under high concurrency.
 
 ---
 
-## ⚡ Installation
+## Installation
 
 ```bash
 npm install @limitkit/core @limitkit/redis redis
@@ -26,7 +26,7 @@ npm install @limitkit/core @limitkit/redis ioredis
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ```ts
 import { RateLimiter } from '@limitkit/core';
@@ -56,7 +56,7 @@ await limiter.consume(ctx);
 
 ---
 
-## 🧠 How it works
+## How it works
 
 Node.js applications send Lua scripts to Redis, which executes them atomically.
 
@@ -68,9 +68,9 @@ app instances → script → Redis → decision
 
 ---
 
-## 🧩 What’s Included
+## What's Included
 
-### 🗄 Store
+### Store
 
 Create and pass a Redis client:
 
@@ -106,9 +106,9 @@ new RedisStore(client);
 
 ---
 
-### ⚙️ Policies
+### Policies
 
-`@limitkit/redis` includes optimized implementations of common rate limiting strategies.
+`@limitkit/redis` includes implementations of common rate limiting strategies.
 
 You have to ensure all the policies use the algorithm functions below from `@limitkit/redis`
 
@@ -160,7 +160,7 @@ leakyBucket({ capacity: 100, leakRate: 5 });
 
 Shaping leaky bucket is a special algorithm that is typically used in worker queues to handle backpressure by delaying operations.
 
-Simply create a store, a traffic shaper and call `store.consume` with the shaper. The result contains `availableAt`, which tells when to execute this job.
+Create a store, a traffic shaper, and call `store.consume` with the shaper. The result contains `availableAt`, which tells when to execute this job.
 
 This reduces backpressure when producers enqueue too many tasks while consumers can't handle them fast enough.
 

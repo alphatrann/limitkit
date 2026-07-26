@@ -1,21 +1,21 @@
-# 📦 `@limitkit/core`
+# `@limitkit/core`
 
 [![npm version](https://img.shields.io/npm/v/@limitkit/core)](https://www.npmjs.com/package/@limitkit/core)
 [![downloads](https://img.shields.io/npm/dw/@limitkit/core)](https://www.npmjs.com/package/@limitkit/core)
 [![license](https://img.shields.io/npm/l/@limitkit/core)](https://github.com/alphatrann/limitkit/blob/main/LICENSE)
 
-**The core rate limiting engine for LimitKit.**
+The core rate limiting engine for LimitKit.
 
-`@limitkit/core` evaluates **rules and policies** to decide whether a request should be allowed or rejected.
-It is **store-agnostic** and works with multiple storage backends in any context.
+`@limitkit/core` evaluates rules and policies to decide whether a request should be allowed or rejected.
+It is store-agnostic and works with multiple storage backends in any context.
 
 Apart from traditional REST APIs, it can also be adopted in any context such as GraphQL, WebSockets, job queues.
 
 ---
 
-## 🔌 Integrations
+## Integrations
 
-The core engine integrates seamlessly with other LimitKit packages:
+The core engine integrates with other LimitKit packages:
 
 | Package                                                                | Purpose                              |
 | ---------------------------------------------------------------------- | ------------------------------------ |
@@ -26,7 +26,7 @@ The core engine integrates seamlessly with other LimitKit packages:
 
 ---
 
-## ⚡ Installation
+## Installation
 
 ```bash
 npm install @limitkit/core
@@ -34,9 +34,9 @@ npm install @limitkit/core
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
-Simply have a `limiter` instance where you define all the rules, configure store and debug (optional).
+Create a `limiter` instance where you define all the rules, configure the store, and enable debug (optional).
 
 Then, call `limiter.consume`, which returns an object containing `allowed` that indicates whether the request is allowed or rejected.
 
@@ -63,13 +63,13 @@ if (!result.allowed) {
 }
 ```
 
-The `rules` array in the `limiter` object are evaluated in order **from first to last**.
+The `rules` array in the `limiter` object is evaluated in order from first to last.
 
-Once the **first failure** is found, the remaining rules are not evaluated.
+Once the first failure is found, the remaining rules are not evaluated.
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 The engine follows a simple pipeline:
 
@@ -89,14 +89,14 @@ decision
 
 Each rule:
 
-1. resolves a **key** (who is being limited)
-2. selects a **policy** (how to limit)
-3. consumes quota from the **store**
+1. resolves a key (who is being limited)
+2. selects a policy (how to limit)
+3. consumes quota from the store
 4. returns allow / reject
 
 ---
 
-## 🧩 Rule Definition
+## Rule Definition
 
 A rule in LimitKit consists of these main properties:
 
@@ -118,7 +118,7 @@ A rule in LimitKit consists of these main properties:
 
 ---
 
-## 🧠 Dynamic Policies
+## Dynamic Policies
 
 Policies can be resolved dynamically per request:
 
@@ -136,7 +136,7 @@ This is particularly useful when you want to enforce:
 
 ---
 
-## 🎯 Examples
+## Examples
 
 Here are some common examples in LimitKit:
 
@@ -191,7 +191,7 @@ In the snippet below, assuming the `/report` endpoint performs expensive computa
 
 ---
 
-## 📊 Result
+## Result
 
 `consume(context)` returns a normalized result represented as `RateLimitResult` interface:
 

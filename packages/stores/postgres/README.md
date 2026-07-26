@@ -1,10 +1,10 @@
-# 📦 `@limitkit/postgres`
+# `@limitkit/postgres`
 
 [![npm version](https://img.shields.io/npm/v/@limitkit/postgres)](https://www.npmjs.com/package/@limitkit/postgres)
 [![downloads](https://img.shields.io/npm/dw/@limitkit/postgres)](https://www.npmjs.com/package/@limitkit/postgres)
 [![license](https://img.shields.io/npm/l/@limitkit/postgres)](https://github.com/alphatrann/limitkit/blob/main/LICENSE)
 
-**Postgres-backed store and durable rate limiting policies for LimitKit.**
+Postgres-backed store and durable rate limiting policies for LimitKit.
 
 Designed for teams that already run Postgres and don't want to run Redis just for rate limiting. State survives restarts and is queryable with plain SQL.
 
@@ -12,7 +12,7 @@ Each request runs inside a SQL transaction using `SELECT ... FOR UPDATE`, which 
 
 ---
 
-## ⚡ Installation
+## Installation
 
 ```bash
 npm install @limitkit/core @limitkit/postgres pg
@@ -20,7 +20,7 @@ npm install @limitkit/core @limitkit/postgres pg
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ```ts
 import { RateLimiter } from '@limitkit/core';
@@ -53,7 +53,7 @@ await limiter.consume(ctx);
 
 ---
 
-## 🧠 How it works
+## How it works
 
 Every algorithm's state lives in one anchor row (`rate_limit_state`) plus a per-algorithm child row it foreign-keys into. A `consume()` call runs, in a single transaction at Postgres's default `READ COMMITTED` isolation level:
 
@@ -73,13 +73,13 @@ app instances → transaction (SELECT ... FOR UPDATE) → Postgres → decision
 
 ---
 
-## ⚠️ Pool-sizing caveat
+## Pool-sizing caveat
 
 A `FOR UPDATE` transaction holds a pooled connection for the full round-trip on that key. For a very hot single key (e.g. a global rate limit under heavy traffic), this can serialize requests through pool-connection contention in a way Redis's single Lua round-trip doesn't. Size your `pg.Pool` accordingly -- this is inherent to the transactional approach, not a bug to fix.
 
 ---
 
-## 🧹 Pruning
+## Pruning
 
 Postgres has no per-row TTL the way Redis does. Idle keys accumulate forever otherwise. Wire `pruneOlderThan` into your own cron / `pg_cron` / scheduled job -- it is **not** run automatically by the library:
 
@@ -93,7 +93,7 @@ await pruneOlderThan(pool, 7 * 24 * 60 * 60 * 1000);
 
 ---
 
-## 🗄 Schema provisioning
+## Schema provisioning
 
 `sql/001_init.sql` (shipped in the published package) is the canonical DDL and the source of truth. Point your own migration tool (Flyway, node-pg-migrate, Prisma migrate, ...) at it directly if you'd rather not use `initSchema()`.
 
@@ -108,9 +108,9 @@ Schema names are validated against a strict identifier allowlist before being us
 
 ---
 
-## 🧩 What's Included
+## What's Included
 
-### 🗄 Store
+### Store
 
 ```ts
 import { Pool } from 'pg';
@@ -125,9 +125,9 @@ new PostgresStore(pool);
 
 ---
 
-### ⚙️ Policies
+### Policies
 
-`@limitkit/postgres` includes optimized implementations of common rate limiting strategies.
+`@limitkit/postgres` includes implementations of common rate limiting strategies.
 
 You have to ensure all the policies use the algorithm functions below from `@limitkit/postgres`
 
@@ -179,7 +179,7 @@ leakyBucket({ capacity: 100, leakRate: 5 });
 
 Shaping leaky bucket is a special algorithm that is typically used in worker queues to handle backpressure by delaying operations.
 
-Simply create a store, a traffic shaper and call `store.consume` with the shaper. The result contains `availableAt`, which tells when to execute this job.
+Create a store, a traffic shaper, and call `store.consume` with the shaper. The result contains `availableAt`, which tells when to execute this job.
 
 ```ts
 import { Pool } from 'pg';
