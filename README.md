@@ -15,6 +15,7 @@ Most rate limiters give you primitives. LimitKit gives you a system — define y
 - [Real-World Example](#real-world-example)
 - [Packages](#packages)
 - [Common Recipes](#common-recipes)
+- [AI / LLM rate limiting](#ai--llm-rate-limiting)
 - [Comparisons](#comparisons)
 - [Contributing](#contributing)
 - [License](#license)
@@ -254,14 +255,15 @@ const authedLimiter = new RateLimiter({
 
 ## Packages
 
-| Package                                                      | Role                             | Status                |
-| ------------------------------------------------------------ | -------------------------------- | --------------------- |
-| [`@limitkit/core`](./packages/core/README.md)                | Orchestration engine             | Required              |
-| [`@limitkit/redis`](./packages/stores/redis/README.md)       | Redis-backed atomic policies     | Production            |
-| [`@limitkit/postgres`](./packages/stores/postgres/README.md) | Postgres-backed durable policies | Production            |
-| [`@limitkit/memory`](./packages/stores/memory/README.md)     | In-memory policies               | Development / testing |
-| [`@limitkit/express`](./packages/adapters/express/README.md) | Express middleware               | Optional              |
-| [`@limitkit/nest`](./packages/adapters/nest/README.md)       | NestJS guard and decorators      | Optional              |
+| Package                                                      | Role                                   | Status                |
+| ------------------------------------------------------------ | -------------------------------------- | --------------------- |
+| [`@limitkit/core`](./packages/core/README.md)                | Orchestration engine                   | Required              |
+| [`@limitkit/redis`](./packages/stores/redis/README.md)       | Redis-backed atomic policies           | Production            |
+| [`@limitkit/postgres`](./packages/stores/postgres/README.md) | Postgres-backed durable policies       | Production            |
+| [`@limitkit/memory`](./packages/stores/memory/README.md)     | In-memory policies                     | Development / testing |
+| [`@limitkit/express`](./packages/adapters/express/README.md) | Express middleware                     | Optional              |
+| [`@limitkit/nest`](./packages/adapters/nest/README.md)       | NestJS guard and decorators            | Optional              |
+| [`@limitkit/ai`](./packages/integrations/ai/README.md)       | LLM token budgets and usage extraction | Optional              |
 
 ---
 
@@ -288,19 +290,6 @@ Charge more tokens for compute-heavy routes:
 }
 ```
 
-### AI token tracking
-
-Track actual LLM token consumption instead of request count:
-
-```ts
-{
-  name: "monthly-tokens",
-  key: (ctx) => "user:" + ctx.userId,
-  cost: (ctx) => ctx.tokensUsed,
-  policy: tokenBucket({ capacity: 1_000_000, refillRate: 33_333 }), // ~1M tokens/month
-}
-```
-
 ### SaaS plan-based limits
 
 Apply different policies per subscription tier:
@@ -314,6 +303,68 @@ Apply different policies per subscription tier:
     : gcra({ burst: 100, interval: 60 }),
 }
 ```
+
+---
+
+## AI / LLM rate limiting
+
+A request is a poor unit for an LLM API: one call can cost a hundred tokens or a hundred thousand, and a frontier model's tokens can cost twenty times a small model's. [`@limitkit/ai`](./packages/integrations/ai/README.md) budgets by what a call actually costs.
+
+It reads token counts out of a provider response and turns a budget into the token-bucket policy that expresses it. It depends only on `@limitkit/core` — responses are read structurally, so no provider SDK is needed.
+
+```ts
+import { RateLimiter } from '@limitkit/core';
+import { InMemoryStore, tokenBucket } from '@limitkit/memory';
+import { extractOpenAIUsage, monthlyTokenBudget } from '@limitkit/ai';
+
+const limiter = new RateLimiter({
+  store: new InMemoryStore(),
+  rules: [
+    {
+      name: 'monthly-tokens',
+      key: (ctx) => 'acc:' + ctx.userId,
+      cost: (ctx) => ctx.tokens,
+      policy: tokenBucket(monthlyTokenBudget({ tokens: 1_000_000 })),
+    },
+  ],
+});
+
+const completion = await openai.chat.completions.create({ ... });
+const usage = extractOpenAIUsage(completion);
+
+const result = await limiter.consume({ userId, tokens: usage.totalTokens });
+```
+
+`monthlyTokenBudget`, `weeklyTokenBudget`, and `sessionTokenBudget` exist because a token bucket's `refillRate` is **tokens per second**, and converting a budget by hand is easy to get wrong: 1M tokens a month is `0.386` tokens/second. Miss that by five orders of magnitude and you get a limiter that looks configured but never limits.
+
+### Reading usage from any provider
+
+`extractOpenAIUsage`, `extractAnthropicUsage`, `extractOllamaUsage`, and `extractHuggingFaceUsage` all return the same shape, so one rule works across providers:
+
+```ts
+{
+  (inputTokens, outputTokens, totalTokens, cachedInputTokens);
+}
+```
+
+This is not cosmetic. OpenAI counts cached prompt tokens inside `prompt_tokens`; Anthropic's `input_tokens` **excludes** them. Charging the raw field from both silently undercounts every cached Anthropic call.
+
+### Weighting by model
+
+One budget can govern a whole model lineup — spend it on many cheap calls or a few expensive ones:
+
+```ts
+cost: modelWeightedCost({
+  weights: { 'gpt-4o': 10, 'gpt-4o-mini': 1 },
+  defaultWeight: 10, // fail closed on a model you haven't priced
+  model: (ctx) => ctx.model,
+  tokens: (ctx) => ctx.usage.totalTokens,
+});
+```
+
+### A budget can only refuse the next call, not this one
+
+Token counts don't exist until the model has answered, so charging afterwards can't refuse the call that overran — it can only refuse the next one. [`examples/llm-gateway`](./examples/llm-gateway) is a working gateway built on that reality, layering a per-IP limit and a per-plan burst limit (which run before the call and can refuse it outright) with a per-user token budget (which can't). A reserve/commit API that would let the budget check close that gap is proposed in [issue #27](https://github.com/alphatrann/limitkit/issues/27).
 
 ---
 
