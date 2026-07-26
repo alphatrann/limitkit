@@ -11,7 +11,8 @@
   "license": "MIT",
   "packageManager": "yarn@4.13.0",
   "workspaces": [
-    "packages/**"
+    "packages/**",
+    "examples/**"
   ],
   "scripts": {
     "build": "turbo run build",
