@@ -1,6 +1,6 @@
 {
   "name": "@limitkit/example-llm-gateway",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "Example LLM gateway with layered LimitKit rules and per-user token budgets",
   "license": "MIT",
