@@ -4,18 +4,18 @@
 [![downloads](https://img.shields.io/npm/dw/@limitkit/express)](https://www.npmjs.com/package/@limitkit/express)
 [![license](https://img.shields.io/npm/l/@limitkit/express)](https://github.com/alphatrann/limitkit/blob/main/LICENSE)
 
-**Rate limiting for Express using LimitKit’s policy-driven engine.**
+Rate limiting for Express using LimitKit's policy-driven engine.
 
-This package provides a flexible middleware that:
+This package provides a middleware that:
 
-- ✅ integrates with Express.js seamlessly
-- ✅ allows you to override global rules for particular routes
-- ✅ returns 429 if the request is rejected
-- ✅ automatically sets standard IETF rate limit headers
+- integrates with Express.js
+- allows you to override global rules for particular routes
+- returns 429 if the request is rejected
+- automatically sets standard IETF rate limit headers
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 Install:
 
@@ -27,7 +27,7 @@ npm install @limitkit/express
 
 ## Basic Setup
 
-To start, simply declare a global `limiter` instance and pass it into every `limit` middleware call.
+To start, declare a global `limiter` instance and pass it into every `limit` middleware call.
 
 ```ts
 import express from 'express';
@@ -58,14 +58,14 @@ app.get('/', limit(limiter), (req, res) => {
 app.listen(3000);
 ```
 
-## 🎛 Route-Level Overrides
+## Route-Level Overrides
 
-Optionally, you can provide an object in the second argument of the `limit` middleware that enables you to override or extend rules per route.
+Optionally, you can provide an object in the second argument of the `limit` middleware that lets you override or extend rules per route.
 
 Route-level rules are merged with global rules by `name`:
 
-- If a rule with the **same `name` exists**, it is **overridden**
-- If the `name` is **new**, it is **appended**
+- If a rule with the same `name` exists, it is overridden
+- If the `name` is new, it is appended
 
 ```ts
 app.get(
@@ -102,7 +102,7 @@ const limiter = new RateLimiter({
 });
 ```
 
-Route rules are global rules, but the rule `"user"` was overriden by what's defined in the route, and the rule `"route"` was appended and evaluated after `"global"` and `"user"` rules:
+The route's rules start from the global rules, but the rule `"user"` is overridden by what's defined in the route, and the rule `"route"` is appended and evaluated after the `"global"` and `"user"` rules:
 
 ```ts
 limit(limiter, {
@@ -125,9 +125,9 @@ The list of rules of the route is:
 
 ---
 
-## 📡 Headers
+## Headers
 
-The `limit` middleware also automatically sets standard IETF rate limit headers for you:
+The `limit` middleware automatically sets standard IETF rate limit headers:
 
 ```
 RateLimit-Limit
