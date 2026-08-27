@@ -3,5 +3,6 @@ export class UndefinedKeyException extends Error {
     super(
       `Rule "${ruleName}" returned undefined or empty key. Double-check your key function.`,
     );
+    this.name = 'UNDEFINED_KEY_EXCEPTION';
   }
 }
