@@ -1,58 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 470" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 356" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" text-rendering="geometricPrecision">
   <defs>
-    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0 0L10 5L0 10z" fill="#6b7280"/>
+    <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0 1L9 5L0 9z" fill="#9ca3af"/>
     </marker>
   </defs>
 
-  <rect x="0.5" y="0.5" width="879" height="469" rx="14" fill="#fdfdfd" stroke="#e5e7eb"/>
-  <text x="28" y="34" font-size="15" font-weight="600" fill="#111827">How the packages fit together</text>
-  <text x="28" y="52" font-size="10.5" fill="#6b7280">core is the only package you always need — the rest plug into it.</text>
+  <rect x="0.5" y="0.5" width="819" height="355" rx="16" fill="#ffffff" stroke="#e5e7eb"/>
 
-  <!-- entry points -->
-  <rect x="250" y="72" width="380" height="66" rx="10" fill="#f3f4f6" stroke="#9ca3af"/>
-  <text x="440" y="97" font-size="12.5" font-weight="600" fill="#111827" text-anchor="middle">Entry points</text>
-  <text x="440" y="115" font-size="10" fill="#6b7280" text-anchor="middle">@limitkit/express · @limitkit/nest</text>
-  <text x="440" y="129" font-size="10" fill="#6b7280" text-anchor="middle">or call consume() straight from any handler, worker, or resolver</text>
+  <text x="32" y="38" font-size="16" font-weight="650" fill="#1f2937">How the packages fit together</text>
+  <text x="32" y="59" font-size="11" fill="#6b7280">core is the only package you always need.</text>
 
   <!-- core -->
-  <rect x="300" y="214" width="280" height="92" rx="12" fill="#eef6ff" stroke="#3b82f6" stroke-width="1.5"/>
-  <text x="440" y="245" font-size="15" font-weight="700" fill="#1e3a8a" text-anchor="middle">@limitkit/core</text>
-  <text x="440" y="266" font-size="10.5" fill="#1d4ed8" text-anchor="middle">the evaluation engine</text>
-  <text x="440" y="284" font-size="10" fill="#1d4ed8" text-anchor="middle">rules · dynamic policies · request cost · lifecycle events</text>
+  <rect x="308" y="176" width="204" height="78" rx="12" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="410" y="211" font-size="15" font-weight="700" fill="#3730a3" text-anchor="middle">@limitkit/core</text>
+  <text x="410" y="232" font-size="10.5" fill="#6366f1" text-anchor="middle">the engine</text>
+
+  <!-- adapters -->
+  <rect x="278" y="78" width="264" height="70" rx="12" fill="#f9fafb" stroke="#d1d5db"/>
+  <text x="294" y="98" font-size="10" font-weight="700" letter-spacing="0.6" fill="#b45309">ADAPTERS</text>
+  <rect x="294" y="108" width="122" height="30" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="355" y="127" font-size="10" fill="#1f2937" text-anchor="middle">@limitkit/express</text>
+  <rect x="424" y="108" width="104" height="30" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="476" y="127" font-size="10" fill="#1f2937" text-anchor="middle">@limitkit/nest</text>
 
   <!-- stores -->
-  <rect x="34" y="222" width="224" height="78" rx="10" fill="#f3f4f6" stroke="#9ca3af"/>
-  <text x="146" y="247" font-size="12.5" font-weight="600" fill="#111827" text-anchor="middle">Stores</text>
-  <text x="146" y="265" font-size="10" fill="#6b7280" text-anchor="middle">where quota state lives</text>
-  <text x="146" y="282" font-size="10" fill="#6b7280" text-anchor="middle">memory · redis · postgres</text>
+  <rect x="44" y="144" width="206" height="164" rx="12" fill="#f9fafb" stroke="#d1d5db"/>
+  <text x="60" y="166" font-size="10" font-weight="700" letter-spacing="0.6" fill="#0f766e">STORES</text>
+  <rect x="60" y="176" width="174" height="32" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="147" y="197" font-size="10.5" fill="#1f2937" text-anchor="middle">@limitkit/memory</text>
+  <rect x="60" y="216" width="174" height="32" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="147" y="237" font-size="10.5" fill="#1f2937" text-anchor="middle">@limitkit/redis</text>
+  <rect x="60" y="256" width="174" height="32" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="147" y="277" font-size="10.5" fill="#1f2937" text-anchor="middle">@limitkit/postgres</text>
 
-  <!-- observers -->
-  <rect x="622" y="222" width="226" height="78" rx="10" fill="#f5f3ff" stroke="#8b5cf6"/>
-  <text x="735" y="247" font-size="12.5" font-weight="600" fill="#4c1d95" text-anchor="middle">Observers</text>
-  <text x="735" y="265" font-size="10" fill="#6d28d9" text-anchor="middle">@limitkit/otel — traces &amp; metrics</text>
-  <text x="735" y="282" font-size="10" fill="#6d28d9" text-anchor="middle">or your own RateLimitObserver</text>
-
-  <!-- algorithms -->
-  <rect x="246" y="366" width="388" height="76" rx="10" fill="#f3f4f6" stroke="#9ca3af"/>
-  <text x="440" y="390" font-size="12.5" font-weight="600" fill="#111827" text-anchor="middle">Algorithms</text>
-  <text x="440" y="408" font-size="9.5" fill="#6b7280" text-anchor="middle">fixed-window · sliding-window · token-bucket · gcra · leaky-bucket</text>
-  <text x="440" y="423" font-size="9.5" fill="#6b7280" text-anchor="middle">or your own — shipped by each store package</text>
-
-  <!-- ai note -->
-  <rect x="34" y="330" width="224" height="60" rx="10" fill="#f0fdf4" stroke="#22c55e"/>
-  <text x="146" y="352" font-size="12" font-weight="600" fill="#166534" text-anchor="middle">@limitkit/ai</text>
-  <text x="146" y="370" font-size="9.5" fill="#15803d" text-anchor="middle">turns LLM token budgets</text>
-  <text x="146" y="383" font-size="9.5" fill="#15803d" text-anchor="middle">into a policy and cost</text>
+  <!-- integrations -->
+  <rect x="570" y="144" width="206" height="124" rx="12" fill="#f9fafb" stroke="#d1d5db"/>
+  <text x="586" y="166" font-size="10" font-weight="700" letter-spacing="0.6" fill="#6d28d9">INTEGRATIONS</text>
+  <rect x="586" y="176" width="174" height="32" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="673" y="197" font-size="10.5" fill="#1f2937" text-anchor="middle">@limitkit/ai</text>
+  <rect x="586" y="216" width="174" height="32" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="673" y="237" font-size="10.5" fill="#1f2937" text-anchor="middle">@limitkit/otel</text>
 
   <!-- connectors -->
-  <g stroke="#6b7280" stroke-width="1.6" marker-end="url(#a2)">
-    <line x1="440" y1="138" x2="440" y2="210"/>
-    <line x1="258" y1="258" x2="296" y2="258"/>
-    <line x1="440" y1="306" x2="440" y2="362"/>
-    <line x1="258" y1="352" x2="296" y2="300"/>
+  <g stroke="#9ca3af" stroke-width="1.6" marker-end="url(#ah)">
+    <line x1="410" y1="148" x2="410" y2="174"/>
+    <line x1="250" y1="215" x2="306" y2="215"/>
+    <line x1="570" y1="215" x2="514" y2="215"/>
   </g>
-  <line x1="580" y1="258" x2="618" y2="258" stroke="#8b5cf6" stroke-width="1.6" stroke-dasharray="4 4" marker-end="url(#a2)"/>
 
-  <text x="452" y="460" font-size="9" fill="#9ca3af" text-anchor="middle">Every arrow is an interface you can implement yourself.</text>
+  <text x="410" y="334" font-size="10.5" fill="#6b7280" text-anchor="middle">Every connection is an interface — swap any piece without touching the rest.</text>
 </svg>
