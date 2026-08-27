@@ -16,6 +16,7 @@ Most rate limiters give you primitives. LimitKit gives you a system — define y
 - [Packages](#packages)
 - [Common Recipes](#common-recipes)
 - [AI / LLM rate limiting](#ai--llm-rate-limiting)
+- [Extending LimitKit](#extending-limitkit)
 - [Comparisons](#comparisons)
 - [Contributing](#contributing)
 - [License](#license)
@@ -152,11 +153,14 @@ if (!result.allowed) {
 
 ## How it works
 
-```
-Request → Rules → Key → Policy → Store → Decision
-```
+<p align="center">
+  <img src="./assets/pipeline.svg" width="820"
+    alt="A single consume() call: a context object flows into the RateLimiter, which walks each rule — resolving a key, a policy, and a cost, then checking the store — and returns a result. Every step also emits a lifecycle event to any observers." />
+</p>
 
-Rules are evaluated in order. Each rule resolves a key, a policy, and an optional cost — all of which can be static values, synchronous functions, or async functions. The first rule that fails short-circuits the chain. The result tells you which rule failed and the state of each evaluated rule.
+You hand `consume()` a context object. The limiter walks its rules in order, and for each one it works out _who_ to limit (the key), _how_ to limit them (the policy), and _how much_ this request costs, then checks the store. The first rule to reject ends the walk — the rules after it are never touched. What comes back tells you whether the request is allowed, which rule stopped it, and where every rule that ran now stands.
+
+A key, a policy, or a cost can each be a plain value or a function, sync or async. So a rule can look a user's plan up mid-evaluation and choose its limit from that.
 
 ---
 
@@ -254,6 +258,13 @@ const authedLimiter = new RateLimiter({
 ---
 
 ## Packages
+
+<p align="center">
+  <img src="./assets/architecture.svg" width="820"
+    alt="@limitkit/core sits at the centre. Entry points (Express, Nest, or a direct consume() call) feed it. Stores hold quota state, algorithms compute the limiting, observers receive lifecycle events, and @limitkit/ai turns token budgets into a policy — each one a separate, optional package plugging into an interface core defines." />
+</p>
+
+`@limitkit/core` is the engine. Everything else is optional and connects through an interface core defines — the store, the algorithms, the framework adapter, the observers. You can replace any one of them without touching the rest.
 
 | Package                                                      | Role                                   | Status                |
 | ------------------------------------------------------------ | -------------------------------------- | --------------------- |
@@ -365,6 +376,91 @@ cost: modelWeightedCost({
 ### A budget can only refuse the next call, not this one
 
 Token counts don't exist until the model has answered, so charging afterwards can't refuse the call that overran — it can only refuse the next one. [`examples/llm-gateway`](./examples/llm-gateway) is a working gateway built on that reality, layering a per-IP limit and a per-plan burst limit (which run before the call and can refuse it outright) with a per-user token budget (which can't). A reserve/commit API that would let the budget check close that gap is proposed in [issue #27](https://github.com/alphatrann/limitkit/issues/27).
+
+---
+
+## Extending LimitKit
+
+Most of LimitKit is an interface with a default implementation behind it. When a default doesn't fit, you implement the interface — no forks, no monkey-patching.
+
+### A custom algorithm
+
+An algorithm is a small class: hold a config, validate it, and compute the next state from the previous one. Here is a "cooldown" — one request passes, then a fixed quiet period before the next:
+
+```ts
+import type { Algorithm, RateLimitRuleResult } from '@limitkit/core';
+import type { InMemoryCompatible } from '@limitkit/memory';
+
+interface CooldownConfig {
+  name: 'cooldown';
+  seconds: number;
+}
+
+class Cooldown
+  implements Algorithm<CooldownConfig>, InMemoryCompatible<{ until: number }>
+{
+  constructor(readonly config: CooldownConfig) {}
+
+  validate() {
+    if (this.config.seconds <= 0) throw new Error('seconds must be > 0');
+  }
+
+  process(state: { until: number } | undefined, now: number) {
+    const until = state?.until ?? 0;
+    const allowed = now >= until;
+    const next = allowed ? now + this.config.seconds * 1000 : until;
+    return {
+      state: { until: next },
+      output: {
+        allowed,
+        limit: 1,
+        remaining: 0,
+        resetAt: next,
+        availableAt: allowed ? undefined : until,
+      } satisfies RateLimitRuleResult,
+    };
+  }
+}
+
+const cooldown = (seconds: number) =>
+  new Cooldown({ name: 'cooldown', seconds });
+```
+
+It then drops into a rule like any built-in policy:
+
+```ts
+{ name: 'contact-form', key: (ctx) => 'ip:' + ctx.ip, policy: cooldown(30) }
+```
+
+`process()` is the in-memory contract. A Redis or Postgres algorithm implements that store's contract instead — usually a Lua script or a SQL statement, so the read-modify-write stays atomic under concurrency.
+
+### A custom observer
+
+An observer is told what happens as `consume()` runs. Implement only the handlers you need. A handler that throws is caught and passed to `onObserverError`, so it can never break the rate-limit decision. This is the same interface [`@limitkit/otel`](./packages/integrations/observability/README.md) is built on.
+
+```ts
+import { RateLimiter } from '@limitkit/core';
+import type { RateLimitObserver, LimitEventMap } from '@limitkit/core';
+
+class RejectionAlerter implements RateLimitObserver {
+  onConsumeReject({ event, result }: LimitEventMap['consume.reject']) {
+    fetch(process.env.SLACK_WEBHOOK!, {
+      method: 'POST',
+      body: JSON.stringify({
+        text: `rate limit hit: ${result.failedRule} (request ${event.id})`,
+      }),
+    }).catch(() => {});
+  }
+}
+
+const limiter = new RateLimiter({
+  store,
+  rules,
+  observers: [new RejectionAlerter()],
+});
+```
+
+See [`examples/observability`](./examples/observability) for a running service that wires an observer to OpenTelemetry.
 
 ---
 
