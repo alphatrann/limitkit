@@ -23,6 +23,7 @@ The core engine integrates with other LimitKit packages:
 | [`@limitkit/redis`](https://www.npmjs.com/package/@limitkit/redis)     | Distributed rate limiting with Redis |
 | [`@limitkit/express`](https://www.npmjs.com/package/@limitkit/express) | Express.js middleware                |
 | [`@limitkit/nest`](https://www.npmjs.com/package/@limitkit/nest)       | NestJS guards & decorators           |
+| [`@limitkit/otel`](https://www.npmjs.com/package/@limitkit/otel)       | OpenTelemetry traces & metrics       |
 
 ---
 
@@ -197,17 +198,19 @@ In the snippet below, assuming the `/report` endpoint performs expensive computa
 
 ```ts
 interface RateLimitResult {
+  id: string;
   allowed: boolean;
-  failedAt: string | null;
+  failedRule: string | null;
   rules: IdentifiedRateLimitRuleResult[];
 }
 ```
 
-| Field      | Meaning                                                  |
-| ---------- | -------------------------------------------------------- |
-| `allowed`  | request permitted or blocked                             |
-| `failedAt` | the name of the rule failed, `null` if every rule passes |
-| `rules`    | an array containing the results of all evaluated rules   |
+| Field        | Meaning                                                       |
+| ------------ | ------------------------------------------------------------- |
+| `id`         | request id, also present on every emitted observability event |
+| `allowed`    | request permitted or blocked                                  |
+| `failedRule` | the name of the rule that failed, `null` if every rule passes |
+| `rules`      | an array containing the results of all evaluated rules        |
 
 The result of each evaluated rule is represented as `IdentifiedRateLimitRuleResult` interface:
 
@@ -228,3 +231,38 @@ interface IdentifiedRateLimitRuleResult {
 | `remaining`   | the remaining number of requests allowed by the rule                    |
 | `resetAt`     | the Unix timestamp (ms) after which the limit for the rule fully resets |
 | `availableAt` | the Unix timestamp (ms) after which the request is allowed by the rule. |
+
+---
+
+## Observability
+
+`consume()` emits lifecycle events to any registered `RateLimitObserver`: a
+`consume.start` root, then `rule.start` / `rule.allow` / `rule.reject` /
+`rule.error` per rule, then `consume.allow` / `consume.reject` / `consume.error`.
+Every event carries the shared request `id` (also on `RateLimitResult.id`) and
+terminal events carry `durationMs`.
+
+An observer is a plain object implementing only the handlers it needs. A handler
+that throws is isolated — it never aborts `consume()`, the rule loop, or the
+other observers (its error is routed to `onObserverError`).
+
+```ts
+const limiter = new RateLimiter({
+  store,
+  rules,
+  observers: [
+    {
+      onRuleReject: ({ event, result }) =>
+        console.warn(`rate limited by ${event.ruleName}`, result),
+      onConsumeError: ({ failure }) =>
+        console.error(`rule ${failure.ruleName} failed`, failure.error),
+    },
+  ],
+});
+
+// or register later; the return value unsubscribes
+const off = limiter.subscribe(myObserver);
+```
+
+For OpenTelemetry traces and metrics out of the box, use
+[`@limitkit/otel`](https://www.npmjs.com/package/@limitkit/otel).

@@ -51,6 +51,13 @@ export interface IdentifiedRateLimitRuleResult extends RateLimitRuleResult {
  */
 export interface RateLimitResult {
   /**
+   * Request id generated for this `consume()` call. The same value is present on
+   * every lifecycle event emitted during the call, so telemetry can be
+   * correlated with the caller's own logs and traces.
+   */
+  id: string;
+
+  /**
    * Whether the request is allowed across all rules.
    * Equivalent to: all(rule.allowed === true)
    */

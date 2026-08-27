@@ -1,3 +1,4 @@
+import { RateLimitObserver } from './observer';
 import { RateLimitResult } from './rate-limit-result';
 
 /**
@@ -18,4 +19,12 @@ export interface Limiter<C = unknown> {
    *          whether the request is allowed and when the limit resets.
    */
   consume(ctx: C): Promise<RateLimitResult>;
+
+  /**
+   * Register a telemetry collector for `consume()` lifecycle events.
+   *
+   * @param observer - the collector to notify
+   * @returns a function that removes the observer when called
+   */
+  subscribe(observer: RateLimitObserver): () => void;
 }

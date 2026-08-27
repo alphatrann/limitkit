@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  # Metrics re-exported by the OpenTelemetry Collector.
+  - job_name: otel-collector
+    static_configs:
+      - targets: ['otel-collector:8889']
+
+  # If your app runs a Prometheus exporter directly (e.g. @opentelemetry/exporter-prometheus
+  # on :9464), add it here, using host.docker.internal from inside the compose network.
+  # - job_name: limitkit-app
+  #   static_configs:
+  #     - targets: ['host.docker.internal:9464']
