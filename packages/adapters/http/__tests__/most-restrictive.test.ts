@@ -2,7 +2,7 @@ import { mostRestrictive } from '../src/utils/most-restrictive';
 
 describe('mostRestrictive', () => {
   it('returns null when no rules', () => {
-    const result = { allowed: true, failedRule: null, rules: [] };
+    const result = { id: 'test', allowed: true, failedRule: null, rules: [] };
     expect(mostRestrictive(result)).toBeNull();
   });
 
@@ -14,7 +14,12 @@ describe('mostRestrictive', () => {
       resetAt: 1000,
       allowed: true,
     };
-    const result = { allowed: true, failedRule: null, rules: [rule] };
+    const result = {
+      id: 'test',
+      allowed: true,
+      failedRule: null,
+      rules: [rule],
+    };
 
     expect(mostRestrictive(result)).toEqual(rule);
   });
@@ -35,7 +40,12 @@ describe('mostRestrictive', () => {
       allowed: true,
     }; // 0.2
 
-    const result = { allowed: true, failedRule: null, rules: [r1, r2] };
+    const result = {
+      id: 'test',
+      allowed: true,
+      failedRule: null,
+      rules: [r1, r2],
+    };
 
     expect(mostRestrictive(result)).toEqual(r2);
   });
@@ -56,7 +66,12 @@ describe('mostRestrictive', () => {
       allowed: true,
     };
 
-    const result = { allowed: true, failedRule: null, rules: [r1, r2] };
+    const result = {
+      id: 'test',
+      allowed: true,
+      failedRule: null,
+      rules: [r1, r2],
+    };
 
     expect(mostRestrictive(result)).toEqual(r2);
   });

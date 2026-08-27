@@ -28,6 +28,7 @@ describe('toRateLimitHeaders', () => {
     };
 
     const result = {
+      id: 'test',
       allowed: true,
       failedRule: null,
       rules: [r1, r2],
@@ -50,6 +51,7 @@ describe('toRateLimitHeaders', () => {
     };
 
     const result = {
+      id: 'test',
       allowed: false,
       failedRule: 'r1',
       rules: [r1],
@@ -72,6 +74,7 @@ describe('toRateLimitHeaders', () => {
     };
 
     const result = {
+      id: 'test',
       allowed: false,
       failedRule: 'r1',
       rules: [r1],
@@ -92,6 +95,7 @@ describe('toRateLimitHeaders', () => {
     };
 
     const result = {
+      id: 'test',
       allowed: false,
       failedRule: 'r1',
       rules: [r1],
