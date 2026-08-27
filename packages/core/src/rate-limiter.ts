@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   BadArgumentsException,
   EmptyRulesException,
@@ -6,14 +7,35 @@ import {
 import {
   Algorithm,
   AlgorithmConfig,
-  RateLimitResult,
+  ConsumeEvent,
+  IdentifiedRateLimitRuleResult,
   Limiter,
+  LimitEventMap,
+  LimitEventName,
   LimitRule,
   RateLimitConfig,
+  RateLimitObserver,
+  RateLimitResult,
+  RateLimitRuleResult,
+  RuleEvent,
+  RuleFailure,
   Store,
-  IdentifiedRateLimitRuleResult,
 } from './types';
 import { addConfigToKey } from './utils';
+
+/**
+ * Maps each lifecycle event to the {@link RateLimitObserver} method that receives it.
+ */
+const OBSERVER_METHOD: Record<LimitEventName, keyof RateLimitObserver> = {
+  'consume.start': 'onConsumeStart',
+  'consume.allow': 'onConsumeAllow',
+  'consume.reject': 'onConsumeReject',
+  'consume.error': 'onConsumeError',
+  'rule.start': 'onRuleStart',
+  'rule.allow': 'onRuleAllow',
+  'rule.reject': 'onRuleReject',
+  'rule.error': 'onRuleError',
+};
 
 /**
  * Core rate limiter implementation that enforces rate limiting rules.
@@ -55,6 +77,7 @@ import { addConfigToKey } from './utils';
 export class RateLimiter<C = unknown> implements Limiter<C> {
   private rules: LimitRule<C>[] = [];
   private store: Store;
+  private observers: RateLimitObserver[] = [];
 
   /**
    * Create a new rate limiter instance.
@@ -62,10 +85,11 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * @param config - Configuration for the rate limiter
    * @see RateLimitConfig
    */
-  constructor({ rules, store }: RateLimitConfig<C>) {
+  constructor({ rules, store, observers }: RateLimitConfig<C>) {
     if (rules.length === 0) throw new EmptyRulesException();
     this.rules = rules ?? this.rules;
     this.store = store;
+    this.observers = observers ? [...observers] : [];
   }
 
   /**
@@ -73,7 +97,53 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * @returns {RateLimitConfig<C>}
    */
   get config(): RateLimitConfig<C> {
-    return { rules: this.rules, store: this.store };
+    return {
+      rules: this.rules,
+      store: this.store,
+      observers: this.observers,
+    };
+  }
+
+  /**
+   * Register a telemetry collector for `consume()` lifecycle events.
+   *
+   * @param observer - the collector to notify
+   * @returns a function that removes the observer when called
+   */
+  subscribe(observer: RateLimitObserver): () => void {
+    this.observers.push(observer);
+    return () => {
+      this.observers = this.observers.filter((o) => o !== observer);
+    };
+  }
+
+  /**
+   * Notify every registered observer of a lifecycle event.
+   *
+   * Dispatch is synchronous and fire-and-forget: a handler that throws is
+   * isolated (its error is routed to `onObserverError`) and never aborts the
+   * loop, the other observers, or `consume()`.
+   */
+  private emit<K extends LimitEventName>(
+    name: K,
+    payload: LimitEventMap[K],
+  ): void {
+    const method = OBSERVER_METHOD[name];
+    for (const observer of this.observers) {
+      const handler = observer[method] as
+        ((p: LimitEventMap[K]) => void) | undefined;
+      if (!handler) continue;
+      try {
+        handler.call(observer, payload);
+      } catch (error) {
+        try {
+          observer.onObserverError?.(error, name);
+        } catch {
+          // An onObserverError that itself throws is swallowed — telemetry
+          // must never break consume().
+        }
+      }
+    }
   }
 
   /**
@@ -105,6 +175,7 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * ```
    *
    * @returns {RateLimitResult} an object containing:
+   * - `id` (string): request id, also present on every emitted lifecycle event
    * - `allowed` (boolean): whether the request is allowed
    * - `failedRule` (string): the name of the failed rule, `null` if every rule passes
    * - `rules` ({@link IdentifiedRateLimitRuleResult}): details of all the rules evaluated
@@ -114,48 +185,130 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * @see RateLimitResult
    */
   async consume(ctx: C): Promise<RateLimitResult> {
+    const id = randomUUID();
+    const consumeStart = Date.now();
+    const consumeEvent: ConsumeEvent = {
+      id,
+      timestamp: consumeStart,
+      ruleCount: this.rules.length,
+    };
+    this.emit('consume.start', { event: consumeEvent });
+
     const evaluatedRules: IdentifiedRateLimitRuleResult[] = [];
+
     for (const rule of this.rules) {
-      const algorithm: Algorithm<AlgorithmConfig> =
-        typeof rule.policy === 'function'
-          ? await rule.policy(ctx)
-          : rule.policy;
-      const key =
-        typeof rule.key === 'function' ? await rule.key(ctx) : rule.key;
+      const ruleStart = Date.now();
+      this.emit('rule.start', {
+        event: { id, ruleName: rule.name, timestamp: ruleStart },
+      });
 
-      if (!key) throw new UndefinedKeyException(rule.name);
+      let key: string | undefined;
+      let cost: number | undefined;
+      let policy: AlgorithmConfig | undefined;
+      let result: RateLimitRuleResult;
 
-      const cost =
-        typeof rule.cost === 'function' ? await rule.cost(ctx) : rule.cost;
+      try {
+        const algorithm: Algorithm<AlgorithmConfig> =
+          typeof rule.policy === 'function'
+            ? await rule.policy(ctx)
+            : rule.policy;
+        policy = algorithm.config;
 
-      if (cost !== undefined && cost <= 0)
-        throw new BadArgumentsException(
-          `Cost must be a positive integer, got cost=${cost}`,
+        key = typeof rule.key === 'function' ? await rule.key(ctx) : rule.key;
+        if (!key) throw new UndefinedKeyException(rule.name);
+
+        const resolvedCost =
+          typeof rule.cost === 'function' ? await rule.cost(ctx) : rule.cost;
+        if (resolvedCost !== undefined && resolvedCost <= 0)
+          throw new BadArgumentsException(
+            `Cost must be a positive integer, got cost=${resolvedCost}`,
+          );
+        cost = resolvedCost ?? 1;
+
+        const keyWithConfig = addConfigToKey(algorithm.config, key);
+        result = await this.store.consume(
+          keyWithConfig,
+          algorithm,
+          Date.now(),
+          cost,
         );
-
-      const keyWithConfig = addConfigToKey(algorithm.config, key);
-
-      const result = await this.store.consume(
-        keyWithConfig,
-        algorithm,
-        Date.now(),
-        cost ?? 1,
-      );
+      } catch (error) {
+        const failure: RuleFailure = {
+          ruleName: rule.name,
+          error: error as Error,
+        };
+        const ruleEvent: RuleEvent = {
+          id,
+          ruleName: rule.name,
+          timestamp: ruleStart,
+          key,
+          cost,
+          policy,
+        };
+        const failedAt = Date.now();
+        this.emit('rule.error', {
+          event: ruleEvent,
+          failure,
+          durationMs: failedAt - ruleStart,
+        });
+        this.emit('consume.error', {
+          event: consumeEvent,
+          failure,
+          durationMs: failedAt - consumeStart,
+        });
+        throw error;
+      }
 
       evaluatedRules.push({ ...result, name: rule.name });
-      if (!result.allowed) {
-        return {
-          allowed: result.allowed,
+
+      const ruleEvent: RuleEvent = {
+        id,
+        ruleName: rule.name,
+        timestamp: ruleStart,
+        key,
+        cost,
+        policy,
+      };
+      const ruleDurationMs = Date.now() - ruleStart;
+      if (result.allowed) {
+        this.emit('rule.allow', {
+          event: ruleEvent,
+          result,
+          durationMs: ruleDurationMs,
+        });
+      } else {
+        this.emit('rule.reject', {
+          event: ruleEvent,
+          result,
+          durationMs: ruleDurationMs,
+        });
+
+        const rejected: RateLimitResult = {
+          id,
+          allowed: false,
           failedRule: rule.name,
           rules: evaluatedRules,
         };
+        this.emit('consume.reject', {
+          event: consumeEvent,
+          result: rejected,
+          durationMs: Date.now() - consumeStart,
+        });
+        return rejected;
       }
     }
 
-    return {
+    const allowed: RateLimitResult = {
+      id,
       allowed: true,
       failedRule: null,
       rules: evaluatedRules,
     };
+    this.emit('consume.allow', {
+      event: consumeEvent,
+      result: allowed,
+      durationMs: Date.now() - consumeStart,
+    });
+    return allowed;
   }
 }

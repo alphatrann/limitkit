@@ -254,6 +254,7 @@ describe('RateLimiter', () => {
     const result = await limiter.consume({});
 
     expect(result).toEqual({
+      id: expect.any(String),
       allowed: true,
       failedRule: null,
       rules: [
@@ -284,6 +285,7 @@ describe('RateLimiter', () => {
     const result = await limiter.consume({});
 
     expect(result).toEqual({
+      id: expect.any(String),
       allowed: false,
       failedRule: 'r1',
       rules: [

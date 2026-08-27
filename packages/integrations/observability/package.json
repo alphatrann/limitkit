@@ -1,0 +1,55 @@
+{
+  "name": "@limitkit/otel",
+  "version": "0.1.0",
+  "description": "OpenTelemetry traces and metrics for LimitKit",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "keywords": [
+    "rate-limiter",
+    "rate-limiting",
+    "observability",
+    "opentelemetry",
+    "otel",
+    "tracing",
+    "metrics",
+    "prometheus",
+    "grafana",
+    "nodejs"
+  ],
+  "files": [
+    "dist",
+    "grafana-dashboard.json"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alphatrann/limitkit"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@limitkit/core": "^1.2.0"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentelemetry/api": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "test": "jest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@limitkit/memory": "workspace:^",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-metrics": "^2.5.0",
+    "@opentelemetry/sdk-trace-base": "^2.5.0",
+    "@types/node": "^25.4.0"
+  }
+}
