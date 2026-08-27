@@ -63,6 +63,9 @@ const sdk = new NodeSDK({
 sdk.start();
 ```
 
+[`examples/observability`](../../../examples/observability) is a runnable Express service wired
+up this way — it prints spans and metrics to the console, so it needs no collector.
+
 ---
 
 ## What it emits

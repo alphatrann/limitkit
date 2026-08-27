@@ -2003,6 +2003,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@limitkit/example-observability@workspace:examples/observability":
+  version: 0.0.0-use.local
+  resolution: "@limitkit/example-observability@workspace:examples/observability"
+  dependencies:
+    "@limitkit/core": "workspace:^"
+    "@limitkit/memory": "workspace:^"
+    "@limitkit/otel": "workspace:^"
+    "@opentelemetry/api": "npm:^1.9.0"
+    "@opentelemetry/resources": "npm:^2.10.0"
+    "@opentelemetry/sdk-metrics": "npm:^2.10.0"
+    "@opentelemetry/sdk-trace-base": "npm:^2.10.0"
+    "@opentelemetry/semantic-conventions": "npm:^1.29.0"
+    "@types/express": "npm:^5.0.6"
+    "@types/node": "npm:^25.4.0"
+    dotenv: "npm:^17.4.2"
+    express: "npm:^5.2.1"
+  languageName: unknown
+  linkType: soft
+
 "@limitkit/express@workspace:packages/adapters/express":
   version: 0.0.0-use.local
   resolution: "@limitkit/express@workspace:packages/adapters/express"
@@ -2070,7 +2089,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@limitkit/otel@workspace:packages/integrations/observability":
+"@limitkit/otel@workspace:^, @limitkit/otel@workspace:packages/integrations/observability":
   version: 0.0.0-use.local
   resolution: "@limitkit/otel@workspace:packages/integrations/observability"
   dependencies:
@@ -2400,7 +2419,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@opentelemetry/resources@npm:2.10.0":
+"@opentelemetry/resources@npm:2.10.0, @opentelemetry/resources@npm:^2.10.0":
   version: 2.10.0
   resolution: "@opentelemetry/resources@npm:2.10.0"
   dependencies:
@@ -2412,7 +2431,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@opentelemetry/sdk-metrics@npm:^2.5.0":
+"@opentelemetry/sdk-metrics@npm:^2.10.0, @opentelemetry/sdk-metrics@npm:^2.5.0":
   version: 2.10.0
   resolution: "@opentelemetry/sdk-metrics@npm:2.10.0"
   dependencies:
@@ -2424,7 +2443,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@opentelemetry/sdk-trace-base@npm:^2.5.0":
+"@opentelemetry/sdk-trace-base@npm:^2.10.0, @opentelemetry/sdk-trace-base@npm:^2.5.0":
   version: 2.10.0
   resolution: "@opentelemetry/sdk-trace-base@npm:2.10.0"
   dependencies:
