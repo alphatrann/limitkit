@@ -24,7 +24,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "changeset": "changeset",
-    "version-packages": "changeset version"
+    "version-packages": "changeset version && yarn install --mode=update-lockfile"
   },
   "devDependencies": {
     "@changesets/cli": "^2.30.0",
