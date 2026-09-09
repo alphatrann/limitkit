@@ -1,18 +1,27 @@
 import { RateLimitHeaders } from '../types';
 import { mostRestrictive } from './most-restrictive';
+import {
+  toRateLimitField,
+  toRateLimitPolicyField,
+} from './structured-rate-limit';
 import { RateLimitResult } from '@limitkit/core';
 
 /**
  * Derive HTTP rate limit headers from a {@link RateLimitResult}.
  *
- * When the request is allowed, headers are derived from the most restrictive rule.
- * When the request is rejected, headers are derived from the rule that caused the rejection.
+ * Two representations are emitted together:
  *
- * See {@link mostRestrictive} for how the governing rule is selected.
+ * - **Per-policy** (`RateLimit`, `RateLimit-Policy`) — the structured fields
+ *   from draft-ietf-httpapi-ratelimit-headers, with one member per evaluated
+ *   rule. Lossless: a client sees every limit it is subject to.
+ * - **Single-policy** (`RateLimit-Limit`, `RateLimit-Remaining`, `Reset-After`,
+ *   and `Retry-After` on a rejection) — the widely-supported individual
+ *   headers, derived from one governing rule. On an allowed request that rule
+ *   is the one that binds first (see {@link mostRestrictive}); on a rejection
+ *   it is the rule that caused it.
  *
  * When no rule governed the request — every rule was skipped by a falsy `when`
- * predicate, so `result.rules` is empty — there is nothing to report and an
- * empty object is returned.
+ * predicate, so `result.rules` is empty — an empty object is returned.
  *
  * @param result - Rate limiting evaluation result
  * @returns Rate limit headers suitable for HTTP responses (e.g., Express `res.setHeader`)
@@ -31,10 +40,15 @@ export function toRateLimitHeaders(result: RateLimitResult): RateLimitHeaders {
     ? Math.ceil((rule.availableAt - now) / 1000)
     : undefined;
 
+  const rateLimit = toRateLimitField(result, now);
+  const rateLimitPolicy = toRateLimitPolicyField(result);
+
   return {
     'RateLimit-Limit': rule.limit,
     'RateLimit-Remaining': rule.remaining,
     'Reset-After': resetSeconds,
     ...(retrySeconds ? { 'Retry-After': retrySeconds } : {}),
+    ...(rateLimit ? { RateLimit: rateLimit } : {}),
+    ...(rateLimitPolicy ? { 'RateLimit-Policy': rateLimitPolicy } : {}),
   };
 }

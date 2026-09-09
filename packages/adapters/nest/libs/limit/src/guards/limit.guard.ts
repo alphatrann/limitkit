@@ -62,12 +62,14 @@ import {
  *
  * ## Response Headers
  *
- * When a request is processed, the guard sets standard rate limit headers
- * based on the evaluation result:
+ * When a request is processed, the guard sets rate limit headers based on the
+ * evaluation result:
  *
- * - `RateLimit-Limit` — Maximum number of requests allowed in the current window.
- * - `RateLimit-Remaining` — Remaining requests in the current window.
- * - `Reset-After` — Seconds until the rate limit fully resets.
+ * - `RateLimit` / `RateLimit-Policy` — per-policy structured fields
+ *   (draft-ietf-httpapi-ratelimit-headers), one member per evaluated rule.
+ * - `RateLimit-Limit` — Maximum number of requests allowed, for the binding rule.
+ * - `RateLimit-Remaining` — Remaining requests, for the binding rule.
+ * - `Reset-After` — Seconds until the binding rule fully resets.
  *
  * If the request exceeds the limit:
  *

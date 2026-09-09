@@ -15,11 +15,13 @@ const defaultRateLimitResponse = {
  * the request is allowed based on the configured rate-limit rules. If the request exceeds
  * the allowed limit, the middleware responds with HTTP `429 Too Many Requests`.
  *
- * The middleware also attaches standard rate-limit headers to the response:
+ * The middleware also attaches rate-limit headers to the response:
  *
- * - `RateLimit-Limit` — Maximum number of requests allowed in the window
- * - `RateLimit-Remaining` — Remaining requests in the current window
- * - `Reset-After — Seconds until the rate limit fully resets.
+ * - `RateLimit` / `RateLimit-Policy` — per-policy structured fields
+ *   (draft-ietf-httpapi-ratelimit-headers), one member per evaluated rule
+ * - `RateLimit-Limit` — Maximum number of requests allowed, for the binding rule
+ * - `RateLimit-Remaining` — Remaining requests, for the binding rule
+ * - `Reset-After` — Seconds until the binding rule fully resets
  * - `Retry-After` — Time (in seconds) the client should wait before retrying (only when limited)
  *
  * Route-specific configuration may provide additional rate-limit rules.
