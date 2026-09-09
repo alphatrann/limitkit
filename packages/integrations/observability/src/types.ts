@@ -39,7 +39,8 @@ export interface OtelObserverOptions {
 }
 
 /**
- * The three terminal outcomes of a rule or `consume()` call, used as the
- * `outcome` attribute on metrics.
+ * Terminal outcome of a rule or `consume()` call, used as the `outcome`
+ * attribute on metrics. `skip` is rule-only — a `consume()` call is never
+ * itself skipped.
  */
-export type LimitOutcome = 'allow' | 'reject' | 'error';
+export type LimitOutcome = 'allow' | 'reject' | 'error' | 'skip';

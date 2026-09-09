@@ -45,6 +45,7 @@ class RecordingObserver implements RateLimitObserver {
   onConsumeError = this.record('consume.error');
   onRuleStart = this.record('rule.start');
   onRuleAllow = this.record('rule.allow');
+  onRuleSkip = this.record('rule.skip');
   onRuleReject = this.record('rule.reject');
   onRuleError = this.record('rule.error');
 
@@ -91,6 +92,43 @@ describe('RateLimiter lifecycle events', () => {
     expect(ids).toEqual(new Set([result.id]));
     expect(typeof result.id).toBe('string');
     expect(result.id.length).toBeGreaterThan(0);
+  });
+
+  it('emits rule.start -> rule.skip (not rule.allow/reject) for a rule gated off by when', async () => {
+    const store = makeStore();
+    store.consume.mockResolvedValue(allow());
+
+    const observer = new RecordingObserver();
+    const limiter = new RateLimiter({
+      store: store as any,
+      rules: [
+        { name: 'gated', when: () => false, key: 'a', policy },
+        { name: 'live', key: 'b', policy },
+      ],
+      observers: [observer],
+    });
+
+    const result = await limiter.consume({});
+
+    expect(observer.names).toEqual([
+      'consume.start',
+      'rule.start',
+      'rule.skip',
+      'rule.start',
+      'rule.allow',
+      'consume.allow',
+    ]);
+    expect(store.consume).toHaveBeenCalledTimes(1);
+
+    const skip = observer.payloadFor('rule.skip');
+    expect(skip.event).toMatchObject({ ruleName: 'gated' });
+    expect(skip.event.key).toBeUndefined();
+    expect(skip.event.cost).toBeUndefined();
+    expect(skip.event.policy).toBeUndefined();
+    expect(typeof skip.durationMs).toBe('number');
+    expect(skip.durationMs).toBeGreaterThanOrEqual(0);
+
+    expect(result.rules.map((r) => r.name)).toEqual(['live']);
   });
 
   it('populates the rule.allow payload with resolved key, cost, policy, result and duration', async () => {

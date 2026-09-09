@@ -70,7 +70,9 @@ export interface RateLimitResult {
   failedRule: string | null;
 
   /**
-   * Results for each evaluated rule, in order.
+   * Results for each evaluated rule, in order. Rules skipped by a falsy
+   * {@link LimitRule.when} predicate are omitted, so this can be empty when
+   * every rule was skipped (in which case `allowed` is `true`).
    */
   rules: IdentifiedRateLimitRuleResult[];
 }
