@@ -108,8 +108,9 @@ export async function initSchema(
  * that haven't been updated in more than `olderThanMs`.
  *
  * Postgres has no per-row TTL the way Redis does, so idle keys -- or keys
- * orphaned by a rule's config changing, since `addConfigToKey` mints a new
- * key string per config hash -- accumulate forever otherwise. Not run
+ * orphaned by a rule's config, algorithm, or `bucket` changing, since
+ * `addConfigToKey` mints a new key string for each -- accumulate forever
+ * otherwise. Not run
  * automatically by the library; wire this into your own cron/`pg_cron`/
  * scheduled job.
  *

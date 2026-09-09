@@ -12,10 +12,32 @@ import { AlgorithmConfig } from './algorithm-config';
  */
 export interface LimitRule<C = unknown> {
   /**
-   * Unique name/identifier for this rule, used for tracking which rule caused a rate limit.
-   * Appears in debug results when the rule is exceeded.
+   * Unique name/identifier for this rule. Appears as {@link RateLimitResult.failedRule}
+   * when this rule is the one that rejects a request, and as the `rule` attribute
+   * on every lifecycle event the rule emits.
+   *
+   * Unless {@link LimitRule.bucket} is set, `name` is also the rule's storage
+   * scope: two rules share quota state only when they resolve to the same scope,
+   * so a unique `name` keeps a rule's counter isolated even from another rule
+   * with an identical algorithm, config, and resolved key.
    */
   name: string;
+
+  /**
+   * Storage scope for this rule's quota. Defaults to {@link LimitRule.name},
+   * which keeps every rule's counter independent.
+   *
+   * Set the **same** `bucket` on two or more rules that must draw down one
+   * shared allowance (e.g. a read rule and a write rule that together must not
+   * exceed a per-tenant budget). They still only share a counter when their
+   * resolved key, algorithm, and algorithm config also match — the scope is one
+   * segment of the store key, not the whole of it — so a shared bucket cannot
+   * make a token-bucket rule and a fixed-window rule collide.
+   *
+   * Changing `bucket` (like changing the algorithm or its config) points the
+   * rule at a fresh counter; the old state is left to expire.
+   */
+  bucket?: string;
 
   /**
    * The rate limiting key that groups requests together.
@@ -30,15 +52,21 @@ export interface LimitRule<C = unknown> {
   key: string | ((ctx: C) => string | Promise<string>);
 
   /**
-   * Optional cost/weight of each request. Defaults to 1 if not specified.
+   * Weight of each request against this rule's limit. Defaults to `1`.
    *
    * Can be:
-   * - A **fixed number**: Every request costs the same (e.g., 1)
-   * - A **function**: Different requests have different costs (e.g., expensive operations cost more)
-   * - An **async function**: For async cost calculation
+   * - A **fixed number**: every request costs the same
+   * - A **function** (optionally async): different requests cost different amounts
+   *   (e.g. an expensive endpoint, or an LLM call weighted by token count)
    *
-   * Useful for implementing tiered request costs where some operations are more resource-intensive
-   * and should count as multiple requests against the rate limit.
+   * A cost of `0` is an **inert probe**: the rule is still evaluated and its
+   * standing is still reported in {@link RateLimitResult.rules}, but it never
+   * rejects and never advances stored state. Use it to surface a rule's
+   * headers/metrics on requests that shouldn't be charged. This differs from
+   * {@link LimitRule.when} being falsy, which skips the rule entirely — no
+   * evaluation, no entry in `result.rules`, no `store` call.
+   *
+   * A **negative** cost throws `BadArgumentsException`.
    */
   cost?: number | ((ctx: C) => number | Promise<number>);
 
@@ -51,6 +79,28 @@ export interface LimitRule<C = unknown> {
    * - An **async function**: For async policy resolution (e.g., fetch limits from a service)
    */
   policy: PolicyResolver<C>;
+
+  /**
+   * Gate that decides whether this rule applies to a request. Defaults to `true`
+   * (the rule always applies).
+   *
+   * Can be:
+   * - A **fixed boolean**
+   * - A **function** (optionally async) of the context, e.g.
+   *   `(ctx) => ctx.user !== undefined` to run a rule only for authenticated
+   *   requests, or `(ctx) => ctx.path.startsWith('/admin')` to scope it to a
+   *   route group.
+   *
+   * Resolved **before** `key`, `cost`, and `policy`. When it resolves falsy the
+   * rule is skipped completely: none of those resolvers run, the store is not
+   * touched, the rule emits `rule.skip` (not `rule.allow` / `rule.reject`), and
+   * it does not appear in {@link RateLimitResult.rules}. It can never be
+   * {@link RateLimitResult.failedRule}.
+   *
+   * The predicate should be total. If it throws, the error propagates out of
+   * `consume()` exactly as a throwing `key` / `cost` / `policy` resolver would.
+   */
+  when?: boolean | ((ctx: C) => boolean | Promise<boolean>);
 }
 
 /**

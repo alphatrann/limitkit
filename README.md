@@ -147,7 +147,7 @@ if (!result.allowed) {
 }
 ```
 
-> Prefix keys with a namespace (`ip:`, `acc:`) to avoid collisions between rules targeting the same identifier.
+> Each rule keeps its own counter, scoped by its `name`, so two rules can share a raw key without clashing. Give rules the same `bucket` to make them draw down one shared quota.
 
 ---
 
@@ -158,26 +158,28 @@ if (!result.allowed) {
     alt="A single consume() call: a context object flows into the RateLimiter, which walks each rule — resolving a key, a policy, and a cost, then checking the store — and returns a result. Every step also emits a lifecycle event to any observers." />
 </p>
 
-You hand `consume()` a context object. The limiter walks its rules in order, and for each one it works out _who_ to limit (the key), _how_ to limit them (the policy), and _how much_ this request costs, then checks the store. The first rule to reject ends the walk — the rules after it are never touched. What comes back tells you whether the request is allowed, which rule stopped it, and where every rule that ran now stands.
+You hand `consume()` a context object. The limiter walks its rules in order, and for each one it first checks whether the rule applies (`when`), then works out _who_ to limit (the key), _how_ to limit them (the policy), and _how much_ this request costs, then checks the store. A rule whose `when` is falsy is skipped outright — nothing else about it is resolved. The first rule to reject ends the walk — the rules after it are never touched. What comes back tells you whether the request is allowed, which rule stopped it, and where every rule that ran now stands.
 
-A key, a policy, or a cost can each be a plain value or a function, sync or async. So a rule can look a user's plan up mid-evaluation and choose its limit from that.
+A `when`, a key, a policy, or a cost can each be a plain value or a function, sync or async. So a rule can look a user's plan up mid-evaluation and choose its limit from that.
 
 ---
 
 ## Core Concepts
 
-A rule has four fields:
+A rule has two required fields and three optional ones:
 
 ```ts
-{ name, key, policy, cost? }
+{ name, key, policy, cost?, bucket?, when? }
 ```
 
-| Field    | Type                              | Description                                                                                   |
-| -------- | --------------------------------- | --------------------------------------------------------------------------------------------- |
-| `name`   | `string`                          | Unique identifier. Appears in `result.failedRule` when this rule is exceeded.                 |
-| `key`    | `string \| (ctx) => string`       | Who to limit — IP, user ID, a global constant, anything. Can be async.                        |
-| `policy` | `Algorithm \| (ctx) => Algorithm` | Which algorithm to apply. Can be dynamic (e.g., different limits per plan).                   |
-| `cost`   | `number \| (ctx) => number`       | Weight per request (default: `1`). Use for operations that should consume more than one unit. |
+| Field    | Type                              | Description                                                                                                                           |
+| -------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`   | `string`                          | Unique identifier. Appears in `result.failedRule` when this rule is exceeded, and is the rule's storage scope unless `bucket` is set. |
+| `key`    | `string \| (ctx) => string`       | Who to limit — IP, user ID, a global constant, anything. Can be async.                                                                |
+| `policy` | `Algorithm \| (ctx) => Algorithm` | Which algorithm to apply. Can be dynamic (e.g., different limits per plan).                                                           |
+| `cost`   | `number \| (ctx) => number`       | Weight per request (default: `1`). `0` is an inert probe — evaluated and reported, but never rejects and never advances state.        |
+| `bucket` | `string`                          | Storage scope. Rules sharing a `bucket` draw down one quota; defaults to `name`, which keeps each rule independent.                   |
+| `when`   | `boolean \| (ctx) => boolean`     | Whether the rule applies (default: `true`). Falsy skips it entirely — no key/policy/cost, no store call, absent from `result.rules`.  |
 
 ---
 
@@ -208,52 +210,52 @@ setTimeout(() => handleJob(), result.rules[0].availableAt - Date.now());
 
 ## Real-World Example
 
-Public and authenticated routes have different contexts — `req.user` is undefined on public routes. Rather than handle both in one limiter with conditionals, split into two rule sets and compose:
+Public and authenticated routes have different contexts — `req.user` is undefined on public routes. A `when` predicate keeps the authenticated rules dormant on public requests, so one limiter and one rule set cover both:
 
 ```ts
-const globalRules = [
-  {
-    name: 'global',
-    key: 'global',
-    policy: fixedWindow({ window: 1, limit: 1000 }),
-  },
-  {
-    name: 'ip',
-    key: (req) => 'ip:' + req.ip,
-    policy: fixedWindow({ window: 5, limit: 500 }),
-  },
-];
-
-const authenticatedRules = [
-  {
-    name: 'user',
-    key: (req) => 'acc:' + req.user.id,
-    policy: slidingWindow({ window: 60, limit: 100 }),
-  },
-  {
-    name: 'costly',
-    key: (req) => 'acc:' + req.user.id,
-    cost: (req) => (req.path.includes('export') ? 10 : 1),
-    policy: tokenBucket({ refillRate: 5, capacity: 100 }),
-  },
-  {
-    name: 'plan',
-    key: (req) => 'acc:' + req.user.id,
-    policy: (req) =>
-      req.user.plan === 'pro'
-        ? gcra({ burst: 1000, interval: 30 })
-        : gcra({ burst: 100, interval: 60 }),
-  },
-];
-
-const publicLimiter = new RateLimiter({ store, rules: globalRules });
-const authedLimiter = new RateLimiter({
+const limiter = new RateLimiter({
   store,
-  rules: [...globalRules, ...authenticatedRules],
+  rules: [
+    {
+      name: 'global',
+      key: 'global',
+      policy: fixedWindow({ window: 1, limit: 1000 }),
+    },
+    {
+      name: 'ip',
+      key: (req) => 'ip:' + req.ip,
+      policy: fixedWindow({ window: 5, limit: 500 }),
+    },
+
+    // Authenticated-only. `when` is checked before anything else, so
+    // `req.user` is dereferenced only once it exists.
+    {
+      name: 'user',
+      when: (req) => req.user !== undefined,
+      key: (req) => 'acc:' + req.user.id,
+      policy: slidingWindow({ window: 60, limit: 100 }),
+    },
+    {
+      name: 'costly',
+      when: (req) => req.user !== undefined,
+      key: (req) => 'acc:' + req.user.id,
+      cost: (req) => (req.path.includes('export') ? 10 : 1),
+      policy: tokenBucket({ refillRate: 5, capacity: 100 }),
+    },
+    {
+      name: 'plan',
+      when: (req) => req.user !== undefined,
+      key: (req) => 'acc:' + req.user.id,
+      policy: (req) =>
+        req.user.plan === 'pro'
+          ? gcra({ burst: 1000, interval: 30 })
+          : gcra({ burst: 100, interval: 60 }),
+    },
+  ],
 });
 ```
 
-`globalRules` is reused without duplication. Each limiter is a transparent description of exactly what applies.
+On a public request the last three rules resolve nothing, touch no store, and never appear in `result.rules` — there's no second limiter to build and no branch at the call site. (Rule arrays still compose with `[...a, ...b]` when you'd rather keep sets in separate modules.)
 
 ---
 
@@ -313,6 +315,28 @@ Apply different policies per subscription tier:
     ? gcra({ burst: 1000, interval: 30 })
     : gcra({ burst: 100, interval: 60 }),
 }
+```
+
+### Rules that only apply sometimes
+
+Use `when` to gate a rule on the context — an authenticated route, a feature flag, a specific path — without a second limiter or a branch at the call site:
+
+```ts
+{
+  name: "admin-writes",
+  when: (req) => req.user?.role === "admin" && req.method !== "GET",
+  key: (req) => "acc:" + req.user.id,
+  policy: tokenBucket({ refillRate: 1, capacity: 20 }),
+}
+```
+
+### One quota, several rules
+
+Give rules the same `bucket` when they must share a single allowance — here reads and writes drain the same per-tenant budget:
+
+```ts
+{ name: "tenant-reads",  bucket: "tenant", key: (c) => "t:" + c.tenantId, cost: 1, policy: tokenBucket({ refillRate: 10, capacity: 600 }) }
+{ name: "tenant-writes", bucket: "tenant", key: (c) => "t:" + c.tenantId, cost: 5, policy: tokenBucket({ refillRate: 10, capacity: 600 }) }
 ```
 
 ---

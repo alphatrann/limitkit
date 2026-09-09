@@ -33,6 +33,7 @@ const OBSERVER_METHOD: Record<LimitEventName, keyof RateLimitObserver> = {
   'consume.error': 'onConsumeError',
   'rule.start': 'onRuleStart',
   'rule.allow': 'onRuleAllow',
+  'rule.skip': 'onRuleSkip',
   'rule.reject': 'onRuleReject',
   'rule.error': 'onRuleError',
 };
@@ -152,12 +153,20 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * Evaluates each rule in order from left to right.
    * If a rule fails, remaining rules won't be evaluated and the request is rejected.
    *
+   * A rule whose {@link LimitRule.when} predicate resolves falsy is skipped
+   * before any other resolver runs: no key, policy, or cost is resolved, the
+   * store is not touched, the rule emits `rule.skip` instead of
+   * `rule.allow` / `rule.reject`, and it does **not** appear in
+   * {@link RateLimitResult.rules}. A request that skips every rule is allowed.
    *
-   * Each rule resolution (key, cost, policy) can be static or dynamic:
+   * Each rule resolution (`when`, key, cost, policy) can be static or dynamic:
    * - Static: evaluated once and reused
    * - Dynamic: evaluated per request based on context
    * - Async: evaluated asynchronously (e.g., database lookups)
    *
+   * A resolved `cost` of `0` makes the rule an inert probe — it is evaluated
+   * and reported in `result.rules`, but never rejects and never advances
+   * stored state. A negative cost throws {@link BadArgumentsException}.
    *
    * @param ctx - Request context passed to rule resolvers to determine dynamic values.
    *
@@ -178,9 +187,15 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * - `id` (string): request id, also present on every emitted lifecycle event
    * - `allowed` (boolean): whether the request is allowed
    * - `failedRule` (string): the name of the failed rule, `null` if every rule passes
-   * - `rules` ({@link IdentifiedRateLimitRuleResult}): details of all the rules evaluated
+   * - `rules` ({@link IdentifiedRateLimitRuleResult}): one entry per rule that
+   *   was evaluated, in order; skipped rules are omitted
    *
-   * @throws UndefinedKeyException if the key is empty or undefined
+   * @throws UndefinedKeyException if a rule's resolved key is empty or undefined
+   * @throws BadArgumentsException if a rule's resolved cost is negative
+   * @throws Any error thrown by a rule's `when` / `key` / `cost` / `policy`
+   *   resolver or by the store — it propagates unchanged after `rule.error`
+   *   and `consume.error` are emitted. Keep resolvers total; use `when` to
+   *   guard a rule rather than letting a resolver throw.
    *
    * @see RateLimitResult
    */
@@ -208,6 +223,18 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
       let result: RateLimitRuleResult;
 
       try {
+        const when =
+          typeof rule.when === 'function'
+            ? await rule.when(ctx)
+            : (rule.when ?? true);
+        if (!when) {
+          this.emit('rule.skip', {
+            event: { id, ruleName: rule.name, timestamp: ruleStart },
+            durationMs: Date.now() - ruleStart,
+          });
+          continue;
+        }
+
         const algorithm: Algorithm<AlgorithmConfig> =
           typeof rule.policy === 'function'
             ? await rule.policy(ctx)
@@ -219,19 +246,32 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
 
         const resolvedCost =
           typeof rule.cost === 'function' ? await rule.cost(ctx) : rule.cost;
-        if (resolvedCost !== undefined && resolvedCost <= 0)
+        if (resolvedCost !== undefined && resolvedCost < 0)
           throw new BadArgumentsException(
-            `Cost must be a positive integer, got cost=${resolvedCost}`,
+            `Cost must be a non-negative integer, got cost=${resolvedCost}`,
           );
         cost = resolvedCost ?? 1;
 
-        const keyWithConfig = addConfigToKey(algorithm.config, key);
+        const keyWithConfig = addConfigToKey(
+          algorithm.config,
+          key,
+          rule.bucket ?? rule.name,
+        );
         result = await this.store.consume(
           keyWithConfig,
           algorithm,
           Date.now(),
           cost,
         );
+
+        // A zero-cost rule is an inert probe. Every algorithm adds `cost` to
+        // its counter, so a cost of 0 already leaves stored state untouched —
+        // but a few (e.g. sliding-window-counter) still *report*
+        // `allowed: false` once the bucket is full. Force the rule to pass so
+        // it can never reject on its own account, while its limit / remaining /
+        // resetAt still surface in `result.rules` for headers and telemetry.
+        if (cost === 0)
+          result = { ...result, allowed: true, availableAt: undefined };
       } catch (error) {
         const failure: RuleFailure = {
           ruleName: rule.name,

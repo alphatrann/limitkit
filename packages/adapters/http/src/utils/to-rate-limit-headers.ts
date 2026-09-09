@@ -10,13 +10,20 @@ import { RateLimitResult } from '@limitkit/core';
  *
  * See {@link mostRestrictive} for how the governing rule is selected.
  *
+ * When no rule governed the request — every rule was skipped by a falsy `when`
+ * predicate, so `result.rules` is empty — there is nothing to report and an
+ * empty object is returned.
+ *
  * @param result - Rate limiting evaluation result
  * @returns Rate limit headers suitable for HTTP responses (e.g., Express `res.setHeader`)
  */
 export function toRateLimitHeaders(result: RateLimitResult): RateLimitHeaders {
   const rule = result.allowed
-    ? mostRestrictive(result)!
-    : result.rules.find((r) => r.name === result.failedRule)!;
+    ? mostRestrictive(result)
+    : (result.rules.find((r) => r.name === result.failedRule) ?? null);
+
+  if (!rule) return {};
+
   const now = Date.now();
 
   const resetSeconds = Math.ceil((rule.resetAt - now) / 1000);

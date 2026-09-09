@@ -127,6 +127,52 @@ describe('otelObserver', () => {
     expect(perIp).toMatchObject({ value: 1, attributes: { outcome: 'allow' } });
   });
 
+  it('closes the span and counts a skip outcome for a rule gated off by when', async () => {
+    const h = makeHarness();
+    const limiter = new RateLimiter<{ id: string }>({
+      store: new InMemoryStore(),
+      rules: [
+        {
+          name: 'always-off',
+          when: () => false,
+          key: (ctx) => ctx.id,
+          policy: fixedWindow({ window: 60, limit: 2 }),
+        },
+        {
+          name: 'per-ip',
+          key: () => 'ip:1.2.3.4',
+          policy: fixedWindow({ window: 60, limit: 5 }),
+        },
+      ],
+      observers: [h.observer],
+    });
+
+    const result = await limiter.consume({ id: 'u1' });
+    expect(result.allowed).toBe(true);
+
+    // both rule spans are ended (no leak from the skipped rule)
+    const ruleSpans = h.spanExporter
+      .getFinishedSpans()
+      .filter((s) => s.name === 'limitkit.rule');
+    expect(ruleSpans.map((s) => s.attributes['limitkit.rule']).sort()).toEqual([
+      'always-off',
+      'per-ip',
+    ]);
+
+    const points = await collectPoints(h, 'limitkit.requests');
+    expect(
+      points.find(
+        (p) =>
+          p.attributes.rule === 'always-off' && p.attributes.outcome === 'skip',
+      )?.value,
+    ).toBe(1);
+    // no remaining recorded for the skipped rule
+    const remaining = await collectPoints(h, 'limitkit.rule.remaining');
+    expect(remaining.some((p) => p.attributes.rule === 'always-off')).toBe(
+      false,
+    );
+  });
+
   it('marks the failing rule span and counts a reject when the limit is exceeded', async () => {
     const h = makeHarness();
     const limiter = makeLimiter(h);
