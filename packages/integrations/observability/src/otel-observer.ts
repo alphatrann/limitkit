@@ -32,14 +32,15 @@ interface ConsumeSpans {
  * into OpenTelemetry spans and metrics.
  *
  * **Traces** — one `limitkit.consume` root span per call, one `limitkit.rule`
- * child span per rule evaluated. Spans are marked `ERROR` when a rule's resolver
- * or the store throws.
+ * child span per rule touched (including rules skipped by a falsy `when`).
+ * Spans are marked `ERROR` when a rule's resolver or the store throws.
  *
  * **Metrics**
  * - `limitkit.requests` (counter) — attributes `rule`, `outcome` (`allow` |
- *   `reject` | `error`).
+ *   `reject` | `skip` | `error`).
  * - `limitkit.consume.duration` (histogram, ms) — attribute `outcome`.
- * - `limitkit.rule.remaining` (histogram) — attribute `rule`.
+ * - `limitkit.rule.remaining` (histogram) — attribute `rule`; not recorded for
+ *   skipped rules.
  *
  * The host application owns SDK and exporter wiring; this observer only reads
  * from the global (or supplied) `TracerProvider` / `MeterProvider`.
@@ -119,6 +120,10 @@ export class OtelObserver implements RateLimitObserver {
 
   onRuleReject({ event, result }: LimitEventMap['rule.reject']): void {
     this.guard(() => this.finishRule(event, 'reject', { result }));
+  }
+
+  onRuleSkip({ event }: LimitEventMap['rule.skip']): void {
+    this.guard(() => this.finishRule(event, 'skip', {}));
   }
 
   onRuleError({ event, failure }: LimitEventMap['rule.error']): void {
