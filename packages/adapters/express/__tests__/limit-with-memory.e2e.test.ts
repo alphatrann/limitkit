@@ -41,6 +41,10 @@ describe('limit middleware (e2e)', () => {
     expect(res.headers['ratelimit-limit']).toBeDefined();
     expect(res.headers['ratelimit-remaining']).toBeDefined();
     expect(res.headers['reset-after']).toBeDefined();
+
+    // per-policy structured fields (draft-ietf-httpapi-ratelimit-headers)
+    expect(res.headers['ratelimit']).toMatch(/^"global-limit";r=\d+;t=\d+$/);
+    expect(res.headers['ratelimit-policy']).toBe('"global-limit";q=5');
   });
 
   it('blocks requests when limit exceeded', async () => {

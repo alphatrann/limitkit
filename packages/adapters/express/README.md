@@ -127,27 +127,33 @@ The list of rules of the route is:
 
 ## Headers
 
-The `limit` middleware automatically sets standard IETF rate limit headers:
+The `limit` middleware sets two representations of the same information.
+
+**Per-policy** — the structured fields from [draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/), with one list member per evaluated rule (nothing is lost when several limits apply):
+
+```
+RateLimit: "per-ip";r=39;t=5, "per-user";r=490;t=54221
+RateLimit-Policy: "per-ip";q=100, "per-user";q=1000
+```
+
+`r` = remaining, `t` = seconds to reset, `q` = quota. The window parameter (`w`) is not emitted.
+
+**Single-policy** — the widely-supported individual headers, derived from the one rule that binds the request first:
 
 ```
 RateLimit-Limit
 RateLimit-Remaining
-Retry-After (when 429)
+Reset-After          # seconds until that rule fully resets
+Retry-After          # only on a 429
 ```
 
-Along with that, the middleware also sets a custom header:
+Example on a rejected request:
 
 ```
-Reset-After
-```
-
-which is the seconds after which the limit fully resets.
-
-Example:
-
-```
+RateLimit: "global";r=812;t=41, "per-ip";r=0;t=30
+RateLimit-Policy: "global";q=1000, "per-ip";q=100
 RateLimit-Limit: 100
 RateLimit-Remaining: 0
-Reset-After: 60
+Reset-After: 30
 Retry-After: 30
 ```

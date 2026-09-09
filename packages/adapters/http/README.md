@@ -24,8 +24,9 @@ http/
 `@limitkit/http` contains utils functions:
 
 - [`mergeRules`](./src/utils/merge-rules.ts) function merges global rules and local rules, which is used to override global rules in a route or controller.
-- [`mostRestrictive`](./src/utils/most-restrictive.ts) function selects the most restrictive rule, whose result is set in the rate limit headers.
-- [`toRateLimitHeaders`](./src/utils/to-rate-limit-headers.ts) function returns an object representing the rate limit response headers, whose values are from `mostRestrictive`.
+- [`mostRestrictive`](./src/utils/most-restrictive.ts) function selects the rule that binds a request first — lowest absolute `remaining`, tie-broken by later `resetAt` then lower `limit`. It fills the single-policy headers.
+- [`toRateLimitField`](./src/utils/structured-rate-limit.ts) / [`toRateLimitPolicyField`](./src/utils/structured-rate-limit.ts) serialise the `RateLimit` / `RateLimit-Policy` structured fields ([draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/)), one member per evaluated rule.
+- [`toRateLimitHeaders`](./src/utils/to-rate-limit-headers.ts) function returns the full header object: the per-policy `RateLimit` / `RateLimit-Policy` fields plus the single-policy `RateLimit-Limit` / `RateLimit-Remaining` / `Reset-After` / `Retry-After` headers.
 
 ## Build
 
