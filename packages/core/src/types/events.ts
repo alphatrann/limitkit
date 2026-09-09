@@ -5,9 +5,11 @@ import { RateLimitResult, RateLimitRuleResult } from './rate-limit-result';
  * Names of the lifecycle events emitted by {@link RateLimiter.consume}.
  *
  * A single `consume()` call emits one `consume.start`, then for each rule it
- * evaluates a `rule.start` followed by exactly one of `rule.allow` / `rule.reject`
- * / `rule.error`, and finally one of `consume.allow` / `consume.reject` /
- * `consume.error`.
+ * touches a `rule.start` followed by exactly one of `rule.allow` / `rule.reject`
+ * / `rule.skip` / `rule.error`, and finally one of `consume.allow` /
+ * `consume.reject` / `consume.error`. `rule.skip` fires when the rule's
+ * {@link LimitRule.when} predicate is falsy; a skipped rule resolves nothing
+ * else and is absent from {@link RateLimitResult.rules}.
  */
 export type LimitEventName =
   | 'consume.start'
@@ -16,6 +18,7 @@ export type LimitEventName =
   | 'consume.error'
   | 'rule.start'
   | 'rule.allow'
+  | 'rule.skip'
   | 'rule.reject'
   | 'rule.error';
 
@@ -139,6 +142,12 @@ export interface LimitEventMap {
     result: RateLimitRuleResult;
     durationMs: number;
   };
+  /**
+   * A rule was skipped because its {@link LimitRule.when} predicate resolved
+   * falsy. `event.key` / `event.cost` / `event.policy` are always `undefined` —
+   * none of those resolvers ran — and `durationMs` covers the `when` evaluation.
+   */
+  'rule.skip': { event: RuleEvent; durationMs: number };
   'rule.error': {
     event: RuleEvent;
     failure: RuleFailure;

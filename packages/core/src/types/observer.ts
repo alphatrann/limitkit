@@ -42,6 +42,14 @@ export interface RateLimitObserver {
   onRuleReject?(payload: LimitEventMap['rule.reject']): void;
 
   /**
+   * Fired when a rule was skipped because its {@link LimitRule.when} predicate
+   * resolved falsy. No `key` / `cost` / `policy` was resolved and the store was
+   * not called. A tracer that opened a span in `onRuleStart` should close it
+   * here, as it would in `onRuleAllow` / `onRuleReject`.
+   */
+  onRuleSkip?(payload: LimitEventMap['rule.skip']): void;
+
+  /**
    * Fired when a rule's `key` / `cost` / `policy` resolver threw, or the store's
    * `consume` call rejected.
    */

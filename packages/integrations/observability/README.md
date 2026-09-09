@@ -83,11 +83,11 @@ observer never changes control flow.
 
 ### Metrics
 
-| Metric                      | Type           | Attributes                                         |
-| --------------------------- | -------------- | -------------------------------------------------- |
-| `limitkit.requests`         | counter        | `rule`, `outcome` (`allow` \| `reject` \| `error`) |
-| `limitkit.consume.duration` | histogram (ms) | `outcome`                                          |
-| `limitkit.rule.remaining`   | histogram      | `rule`                                             |
+| Metric                      | Type           | Attributes                                                   |
+| --------------------------- | -------------- | ------------------------------------------------------------ |
+| `limitkit.requests`         | counter        | `rule`, `outcome` (`allow` \| `reject` \| `skip` \| `error`) |
+| `limitkit.consume.duration` | histogram (ms) | `outcome`                                                    |
+| `limitkit.rule.remaining`   | histogram      | `rule` (not recorded for skipped rules)                      |
 
 ---
 

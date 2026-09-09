@@ -85,6 +85,17 @@ describe('toRateLimitHeaders', () => {
     expect(headers['Retry-After']).toBe(Math.ceil((3000 - now) / 1000));
   });
 
+  it('returns an empty object when no rule governed the request (all skipped)', () => {
+    const result = {
+      id: 'test',
+      allowed: true,
+      failedRule: null,
+      rules: [],
+    };
+
+    expect(toRateLimitHeaders(result)).toEqual({});
+  });
+
   it('does not include Retry-After when availableAt is absent', () => {
     const r1 = {
       name: 'r1',
