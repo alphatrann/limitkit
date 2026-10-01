@@ -19,13 +19,29 @@ import {
   RateLimitRuleResult,
   RuleEvent,
   RuleFailure,
+  RuleGroup,
+  RuleOrGroup,
   Store,
+  isRuleGroup,
 } from './types';
 import { addConfigToKey } from './utils';
 
 /**
  * Maps each lifecycle event to the {@link RateLimitObserver} method that receives it.
  */
+type NodeOutcome =
+  | { status: 'skipped' }
+  | { status: 'allowed' }
+  | { status: 'rejected'; failedRule: string };
+
+interface EvaluationRun<C> {
+  ctx: C;
+  id: string;
+  consumeEvent: ConsumeEvent;
+  consumeStart: number;
+  evaluatedRules: IdentifiedRateLimitRuleResult[];
+}
+
 const OBSERVER_METHOD: Record<LimitEventName, keyof RateLimitObserver> = {
   'consume.start': 'onConsumeStart',
   'consume.allow': 'onConsumeAllow',
@@ -42,7 +58,8 @@ const OBSERVER_METHOD: Record<LimitEventName, keyof RateLimitObserver> = {
  * Core rate limiter implementation that enforces rate limiting rules.
  *
  * The RateLimiter evaluates rules in order and stops if a rule fails.
- * The request is allowed if every rule passes.
+ * The request is allowed if every rule passes. Entries may also be
+ * {@link RuleGroup}s (`all` / `any`) that nest; the top level is an implicit `all`.
  *
  * Use cases:
  * - API rate limiting (requests per second/minute)
@@ -76,7 +93,7 @@ const OBSERVER_METHOD: Record<LimitEventName, keyof RateLimitObserver> = {
  * @see Store
  */
 export class RateLimiter<C = unknown> implements Limiter<C> {
-  private rules: LimitRule<C>[] = [];
+  private rules: RuleOrGroup<C>[] = [];
   private store: Store;
   private observers: RateLimitObserver[] = [];
 
@@ -91,6 +108,34 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
     this.rules = rules ?? this.rules;
     this.store = store;
     this.observers = observers ? [...observers] : [];
+  }
+
+  /**
+   * Create a new limiter with `newRules` appended to this limiter's rules
+   * (i.e. to the top-level `all` group). This limiter is not modified.
+   *
+   * The new limiter shares the same `store` and observer objects. Observers
+   * subscribed to this limiter later via {@link RateLimiter.subscribe} are not
+   * carried over; subscribe on the extended limiter separately.
+   *
+   * `C2` may narrow the context (`C2 extends C`): extending a base limiter with
+   * rules that need a richer context yields a limiter whose `consume` requires
+   * that richer context.
+   *
+   * @param newRules - rules or groups to append after the existing rules
+   * @returns a new {@link RateLimiter}
+   *
+   * @example
+   * ```typescript
+   * const authedLimiter = publicLimiter.extend(authenticatedRules);
+   * ```
+   */
+  extend<C2 extends C = C>(newRules: RuleOrGroup<C2>[]): RateLimiter<C2> {
+    return new RateLimiter<C2>({
+      rules: [...this.rules, ...newRules],
+      store: this.store,
+      observers: this.observers,
+    });
   }
 
   /**
@@ -153,6 +198,11 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * Evaluates each rule in order from left to right.
    * If a rule fails, remaining rules won't be evaluated and the request is rejected.
    *
+   * A {@link RuleGroup} with `mode: 'any'` allows if any child allows, but
+   * evaluates (and charges) every child; it rejects only when all evaluated
+   * children reject, reporting the group's `name` (else the first rejected
+   * child) as `failedRule`. `all` groups behave like the top level.
+   *
    * A rule whose {@link LimitRule.when} predicate resolves falsy is skipped
    * before any other resolver runs: no key, policy, or cost is resolved, the
    * store is not touched, the rule emits `rule.skip` instead of
@@ -210,132 +260,24 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
     this.emit('consume.start', { event: consumeEvent });
 
     const evaluatedRules: IdentifiedRateLimitRuleResult[] = [];
+    const outcome = await this.evaluateGroup(
+      { mode: 'all', rules: this.rules },
+      { ctx, id, consumeEvent, consumeStart, evaluatedRules },
+    );
 
-    for (const rule of this.rules) {
-      const ruleStart = Date.now();
-      this.emit('rule.start', {
-        event: { id, ruleName: rule.name, timestamp: ruleStart },
-      });
-
-      let key: string | undefined;
-      let cost: number | undefined;
-      let policy: AlgorithmConfig | undefined;
-      let result: RateLimitRuleResult;
-
-      try {
-        const when =
-          typeof rule.when === 'function'
-            ? await rule.when(ctx)
-            : (rule.when ?? true);
-        if (!when) {
-          this.emit('rule.skip', {
-            event: { id, ruleName: rule.name, timestamp: ruleStart },
-            durationMs: Date.now() - ruleStart,
-          });
-          continue;
-        }
-
-        const algorithm: Algorithm<AlgorithmConfig> =
-          typeof rule.policy === 'function'
-            ? await rule.policy(ctx)
-            : rule.policy;
-        policy = algorithm.config;
-
-        key = typeof rule.key === 'function' ? await rule.key(ctx) : rule.key;
-        if (!key) throw new UndefinedKeyException(rule.name);
-
-        const resolvedCost =
-          typeof rule.cost === 'function' ? await rule.cost(ctx) : rule.cost;
-        if (resolvedCost !== undefined && resolvedCost < 0)
-          throw new BadArgumentsException(
-            `Cost must be a non-negative integer, got cost=${resolvedCost}`,
-          );
-        cost = resolvedCost ?? 1;
-
-        const keyWithConfig = addConfigToKey(
-          algorithm.config,
-          key,
-          rule.bucket ?? rule.name,
-        );
-        result = await this.store.consume(
-          keyWithConfig,
-          algorithm,
-          Date.now(),
-          cost,
-        );
-
-        // A zero-cost rule is an inert probe. Every algorithm adds `cost` to
-        // its counter, so a cost of 0 already leaves stored state untouched —
-        // but a few (e.g. sliding-window-counter) still *report*
-        // `allowed: false` once the bucket is full. Force the rule to pass so
-        // it can never reject on its own account, while its limit / remaining /
-        // resetAt still surface in `result.rules` for headers and telemetry.
-        if (cost === 0)
-          result = { ...result, allowed: true, availableAt: undefined };
-      } catch (error) {
-        const failure: RuleFailure = {
-          ruleName: rule.name,
-          error: error as Error,
-        };
-        const ruleEvent: RuleEvent = {
-          id,
-          ruleName: rule.name,
-          timestamp: ruleStart,
-          key,
-          cost,
-          policy,
-        };
-        const failedAt = Date.now();
-        this.emit('rule.error', {
-          event: ruleEvent,
-          failure,
-          durationMs: failedAt - ruleStart,
-        });
-        this.emit('consume.error', {
-          event: consumeEvent,
-          failure,
-          durationMs: failedAt - consumeStart,
-        });
-        throw error;
-      }
-
-      evaluatedRules.push({ ...result, name: rule.name });
-
-      const ruleEvent: RuleEvent = {
+    if (outcome.status === 'rejected') {
+      const rejected: RateLimitResult = {
         id,
-        ruleName: rule.name,
-        timestamp: ruleStart,
-        key,
-        cost,
-        policy,
+        allowed: false,
+        failedRule: outcome.failedRule,
+        rules: evaluatedRules,
       };
-      const ruleDurationMs = Date.now() - ruleStart;
-      if (result.allowed) {
-        this.emit('rule.allow', {
-          event: ruleEvent,
-          result,
-          durationMs: ruleDurationMs,
-        });
-      } else {
-        this.emit('rule.reject', {
-          event: ruleEvent,
-          result,
-          durationMs: ruleDurationMs,
-        });
-
-        const rejected: RateLimitResult = {
-          id,
-          allowed: false,
-          failedRule: rule.name,
-          rules: evaluatedRules,
-        };
-        this.emit('consume.reject', {
-          event: consumeEvent,
-          result: rejected,
-          durationMs: Date.now() - consumeStart,
-        });
-        return rejected;
-      }
+      this.emit('consume.reject', {
+        event: consumeEvent,
+        result: rejected,
+        durationMs: Date.now() - consumeStart,
+      });
+      return rejected;
     }
 
     const allowed: RateLimitResult = {
@@ -350,5 +292,175 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
       durationMs: Date.now() - consumeStart,
     });
     return allowed;
+  }
+
+  /**
+   * Evaluate one entry (rule or group) and report its outcome.
+   */
+  private evaluateNode(
+    node: RuleOrGroup<C>,
+    run: EvaluationRun<C>,
+  ): Promise<NodeOutcome> {
+    return isRuleGroup(node)
+      ? this.evaluateGroup(node, run)
+      : this.evaluateLeaf(node, run);
+  }
+
+  /**
+   * Evaluate a group under its combinator. A group whose `when` is falsy, or
+   * whose children were all skipped, is `skipped` (neutral to its parent).
+   */
+  private async evaluateGroup(
+    group: RuleGroup<C>,
+    run: EvaluationRun<C>,
+  ): Promise<NodeOutcome> {
+    const when =
+      typeof group.when === 'function'
+        ? await group.when(run.ctx)
+        : (group.when ?? true);
+    if (!when) return { status: 'skipped' };
+
+    let evaluated = 0;
+    let anyAllowed = false;
+    let firstRejected: string | undefined;
+    for (const child of group.rules) {
+      const outcome = await this.evaluateNode(child, run);
+      if (outcome.status === 'skipped') continue;
+      evaluated++;
+      if (outcome.status === 'allowed') {
+        anyAllowed = true;
+      } else {
+        if (group.mode === 'all') return outcome;
+        firstRejected ??= outcome.failedRule;
+      }
+    }
+    if (evaluated === 0) return { status: 'skipped' };
+    if (group.mode === 'any' && !anyAllowed)
+      return {
+        status: 'rejected',
+        failedRule: group.name ?? (firstRejected as string),
+      };
+    return { status: 'allowed' };
+  }
+
+  /**
+   * Evaluate a single rule against the store, emitting its lifecycle events.
+   */
+  private async evaluateLeaf(
+    rule: LimitRule<C>,
+    { ctx, id, consumeEvent, consumeStart, evaluatedRules }: EvaluationRun<C>,
+  ): Promise<NodeOutcome> {
+    const ruleStart = Date.now();
+    this.emit('rule.start', {
+      event: { id, ruleName: rule.name, timestamp: ruleStart },
+    });
+
+    let key: string | undefined;
+    let cost: number | undefined;
+    let policy: AlgorithmConfig | undefined;
+    let result: RateLimitRuleResult;
+
+    try {
+      const when =
+        typeof rule.when === 'function'
+          ? await rule.when(ctx)
+          : (rule.when ?? true);
+      if (!when) {
+        this.emit('rule.skip', {
+          event: { id, ruleName: rule.name, timestamp: ruleStart },
+          durationMs: Date.now() - ruleStart,
+        });
+        return { status: 'skipped' };
+      }
+
+      const algorithm: Algorithm<AlgorithmConfig> =
+        typeof rule.policy === 'function'
+          ? await rule.policy(ctx)
+          : rule.policy;
+      policy = algorithm.config;
+
+      key = typeof rule.key === 'function' ? await rule.key(ctx) : rule.key;
+      if (!key) throw new UndefinedKeyException(rule.name);
+
+      const resolvedCost =
+        typeof rule.cost === 'function' ? await rule.cost(ctx) : rule.cost;
+      if (resolvedCost !== undefined && resolvedCost < 0)
+        throw new BadArgumentsException(
+          `Cost must be a non-negative integer, got cost=${resolvedCost}`,
+        );
+      cost = resolvedCost ?? 1;
+
+      const keyWithConfig = addConfigToKey(
+        algorithm.config,
+        key,
+        rule.bucket ?? rule.name,
+      );
+      result = await this.store.consume(
+        keyWithConfig,
+        algorithm,
+        Date.now(),
+        cost,
+      );
+
+      // A zero-cost rule is an inert probe. Every algorithm adds `cost` to
+      // its counter, so a cost of 0 already leaves stored state untouched —
+      // but a few (e.g. sliding-window-counter) still *report*
+      // `allowed: false` once the bucket is full. Force the rule to pass so
+      // it can never reject on its own account, while its limit / remaining /
+      // resetAt still surface in `result.rules` for headers and telemetry.
+      if (cost === 0)
+        result = { ...result, allowed: true, availableAt: undefined };
+    } catch (error) {
+      const failure: RuleFailure = {
+        ruleName: rule.name,
+        error: error as Error,
+      };
+      const ruleEvent: RuleEvent = {
+        id,
+        ruleName: rule.name,
+        timestamp: ruleStart,
+        key,
+        cost,
+        policy,
+      };
+      const failedAt = Date.now();
+      this.emit('rule.error', {
+        event: ruleEvent,
+        failure,
+        durationMs: failedAt - ruleStart,
+      });
+      this.emit('consume.error', {
+        event: consumeEvent,
+        failure,
+        durationMs: failedAt - consumeStart,
+      });
+      throw error;
+    }
+
+    evaluatedRules.push({ ...result, name: rule.name });
+
+    const ruleEvent: RuleEvent = {
+      id,
+      ruleName: rule.name,
+      timestamp: ruleStart,
+      key,
+      cost,
+      policy,
+    };
+    const ruleDurationMs = Date.now() - ruleStart;
+    if (result.allowed) {
+      this.emit('rule.allow', {
+        event: ruleEvent,
+        result,
+        durationMs: ruleDurationMs,
+      });
+      return { status: 'allowed' };
+    }
+    this.emit('rule.reject', {
+      event: ruleEvent,
+      result,
+      durationMs: ruleDurationMs,
+    });
+    return { status: 'rejected', failedRule: rule.name };
   }
 }

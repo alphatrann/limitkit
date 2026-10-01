@@ -111,3 +111,48 @@ type PolicyResolver<C> =
   | ((
       ctx: C,
     ) => Algorithm<AlgorithmConfig> | Promise<Algorithm<AlgorithmConfig>>);
+
+/**
+ * A set of rules (or nested groups) combined under one combinator.
+ *
+ * - `all`: every child must allow; evaluation short-circuits on the first reject.
+ * - `any`: allowed if at least one evaluated child allows. **Every** child is
+ *   still evaluated (and so consumes), and the group rejects only if every
+ *   evaluated child rejects. Use {@link LimitRule.when} on a child for lazy OR.
+ *
+ * Children skipped through `when` are neutral: they neither allow nor reject.
+ * A group whose children are all skipped (or empty) allows.
+ *
+ * @template C The context type used to dynamically determine rule parameters.
+ */
+export interface RuleGroup<C = unknown> {
+  /** How the children combine. */
+  mode: 'all' | 'any';
+
+  /** Child rules or nested groups. */
+  rules: RuleOrGroup<C>[];
+
+  /**
+   * Optional name. Reported as {@link RateLimitResult.failedRule} when an `any`
+   * group rejects; if omitted, the first rejected child's name is reported.
+   */
+  name?: string;
+
+  /**
+   * Gate for the whole group, with the same semantics as {@link LimitRule.when}.
+   * When falsy no child is evaluated and none emits events.
+   */
+  when?: boolean | ((ctx: C) => boolean | Promise<boolean>);
+}
+
+/**
+ * An entry in `rules`: a single rule or a nested {@link RuleGroup}.
+ */
+export type RuleOrGroup<C = unknown> = LimitRule<C> | RuleGroup<C>;
+
+/**
+ * Type guard distinguishing a {@link RuleGroup} from a {@link LimitRule}.
+ */
+export function isRuleGroup<C>(rule: RuleOrGroup<C>): rule is RuleGroup<C> {
+  return 'mode' in rule;
+}

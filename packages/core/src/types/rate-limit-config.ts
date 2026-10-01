@@ -1,4 +1,4 @@
-import { LimitRule } from './limit-rule';
+import { RuleOrGroup } from './limit-rule';
 import { RateLimitObserver } from './observer';
 import { Store } from './store';
 
@@ -7,10 +7,10 @@ import { Store } from './store';
  */
 export interface RateLimitConfig<C = unknown> {
   /**
-   * A set of rate limiting rules to apply.
+   * Rules to apply. The top-level array is an implicit `all` group; entries
+   * may be rules or nested {@link RuleGroup}s.
    */
-
-  rules: LimitRule<C>[];
+  rules: RuleOrGroup<C>[];
 
   /**
    * The storage backend for tracking rate limit state.
