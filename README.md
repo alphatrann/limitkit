@@ -339,6 +339,29 @@ Give rules the same `bucket` when they must share a single allowance â€” here re
 { name: "tenant-writes", bucket: "tenant", key: (c) => "t:" + c.tenantId, cost: 5, policy: tokenBucket({ refillRate: 10, capacity: 600 }) }
 ```
 
+### Either-or limits with rule groups
+
+An entry in `rules` can be a group instead of a rule. The top-level array is an implicit `all`; use `any` for "allow if either budget has room":
+
+```ts
+rules: [
+  { name: "global", key: "global", policy: fixedWindow({ window: 1, limit: 1000 }) },
+  {
+    mode: "any",
+    name: "quota", // reported as failedRule if every child rejects
+    rules: [
+      { name: "per-user", key: (c) => "u:" + c.userId, policy: tokenBucket({ refillRate: 5, capacity: 100 }) },
+      { name: "per-org",  key: (c) => "o:" + c.orgId,  policy: tokenBucket({ refillRate: 50, capacity: 1000 }) },
+    ],
+  },
+]
+```
+
+- `all` — every child must allow; stops at the first reject (the default behaviour).
+- `any` — allowed if any child allows, rejected only if every child rejects. Every child is still evaluated, so each one consumes — use `when` on a child for a lazy fallback.
+- Groups nest, and take an optional `when`. Children skipped by `when` are neutral; a group with nothing evaluated allows.
+- `result.rules` stays flat (every evaluated rule, in order). `failedRule` is the group's `name`, or the first rejected child if the group is unnamed.
+
 ---
 
 ## AI / LLM rate limiting
