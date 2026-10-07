@@ -1,3 +1,4 @@
+import { RateLimiter } from '@limitkit/core';
 import {
   fixedWindow,
   gcra,
@@ -85,5 +86,40 @@ describe('InMemoryStore.peek (SlidingWindow log)', () => {
     await store.peek('k', algo, now + 60_000); // everything expired by then
 
     expect(JSON.stringify((store as any).map.get('k'))).toBe(before);
+  });
+});
+
+describe('RateLimiter.peek end to end (memory)', () => {
+  it('reads state without drawing it down, and agrees with consume', async () => {
+    const store = new InMemoryStore();
+    const limiter = new RateLimiter({
+      store,
+      rules: [
+        {
+          name: 'a',
+          key: 'e2e',
+          policy: slidingWindow({ limit: 3, window: 60 }),
+        },
+        {
+          name: 'b',
+          key: 'e2e',
+          policy: fixedWindow({ limit: 2, window: 60 }),
+        },
+      ],
+    });
+
+    const fresh = await limiter.peek({});
+    expect(fresh.rules.map((r) => r.remaining)).toEqual([2, 1]);
+    expect((store as any).map.size).toBe(0);
+
+    await limiter.consume({});
+    await limiter.consume({});
+
+    for (let i = 0; i < 3; i++) {
+      const spent = await limiter.peek({});
+      expect(spent.failedRule).toBe('b');
+      expect(spent.rules.map((r) => r.name)).toEqual(['a', 'b']);
+    }
+    expect((await limiter.consume({})).failedRule).toBe('b');
   });
 });

@@ -1,3 +1,4 @@
+import { RateLimiter } from '@limitkit/core';
 import { createClient, RedisClientType } from 'redis';
 import {
   fixedWindow,
@@ -113,6 +114,76 @@ describe('RedisStore.peek', () => {
       expect(await redis.zCard('k')).toBe(2);
       // expired entries are ignored, so a peek then sees an empty window
       expect((await store.peek('k', algo, now + 60_000, 5)).allowed).toBe(true);
+    });
+  });
+
+  const untouched = async () => (await redis.keys('*')).length === 0;
+
+  describe('RateLimiter.peek end to end', () => {
+    const makeLimiter = () =>
+      new RateLimiter({
+        store,
+        rules: [
+          {
+            name: 'a',
+            key: 'e2e',
+            policy: slidingWindow({ limit: 3, window: 60 }),
+          },
+          {
+            name: 'b',
+            key: 'e2e',
+            policy: fixedWindow({ limit: 2, window: 60 }),
+          },
+        ],
+      });
+
+    it('reads real state without drawing it down, and agrees with consume', async () => {
+      const limiter = makeLimiter();
+
+      const fresh = await limiter.peek({});
+      expect(fresh.allowed).toBe(true);
+      expect(fresh.rules.map((r) => r.remaining)).toEqual([2, 1]);
+      expect(await untouched()).toBe(true);
+
+      expect((await limiter.consume({})).allowed).toBe(true);
+      const afterOne = await limiter.peek({});
+      expect(afterOne.rules.map((r) => r.remaining)).toEqual([1, 0]);
+      // resetAt of a hypothetical sliding-window entry moves with the wall clock,
+      // so compare the quota, not the timestamps.
+      const again = await limiter.peek({});
+      expect(again.rules.map((r) => r.remaining)).toEqual(
+        afterOne.rules.map((r) => r.remaining),
+      );
+
+      expect((await limiter.consume({})).allowed).toBe(true);
+
+      // rule b is now spent: peek reports it, still evaluates rule a, and
+      // changes nothing no matter how often it is called.
+      for (let i = 0; i < 3; i++) {
+        const spent = await limiter.peek({});
+        expect(spent.allowed).toBe(false);
+        expect(spent.failedRule).toBe('b');
+        expect(spent.rules.map((r) => r.name)).toEqual(['a', 'b']);
+      }
+
+      const rejected = await limiter.consume({});
+      expect(rejected.allowed).toBe(false);
+      expect(rejected.failedRule).toBe('b');
+    });
+
+    it('emits peek events to observers, not consume events', async () => {
+      const limiter = makeLimiter();
+      const names: string[] = [];
+      limiter.subscribe({
+        onPeekStart: () => names.push('peek.start'),
+        onPeekAllow: () => names.push('peek.allow'),
+        onConsumeStart: () => names.push('consume.start'),
+        onRuleStart: () => names.push('rule.start'),
+      });
+
+      await limiter.peek({});
+
+      expect(names).toEqual(['peek.start', 'peek.allow']);
     });
   });
 });
