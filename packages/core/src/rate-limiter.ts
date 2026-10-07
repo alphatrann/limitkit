@@ -40,13 +40,36 @@ interface EvaluationRun<C> {
   consumeEvent: ConsumeEvent;
   consumeStart: number;
   evaluatedRules: IdentifiedRateLimitRuleResult[];
+  /** `false` for {@link RateLimiter.peek}: read state, write nothing, emit nothing. */
+  shouldConsume: boolean;
 }
+
+const ROOT_EVENTS = {
+  consume: {
+    start: 'consume.start',
+    allow: 'consume.allow',
+    reject: 'consume.reject',
+    error: 'consume.error',
+  },
+  peek: {
+    start: 'peek.start',
+    allow: 'peek.allow',
+    reject: 'peek.reject',
+    error: 'peek.error',
+  },
+} as const;
+
+const noopEmit = (): void => undefined;
 
 const OBSERVER_METHOD: Record<LimitEventName, keyof RateLimitObserver> = {
   'consume.start': 'onConsumeStart',
   'consume.allow': 'onConsumeAllow',
   'consume.reject': 'onConsumeReject',
   'consume.error': 'onConsumeError',
+  'peek.start': 'onPeekStart',
+  'peek.allow': 'onPeekAllow',
+  'peek.reject': 'onPeekReject',
+  'peek.error': 'onPeekError',
   'rule.start': 'onRuleStart',
   'rule.allow': 'onRuleAllow',
   'rule.skip': 'onRuleSkip',
@@ -250,6 +273,52 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    * @see RateLimitResult
    */
   async consume(ctx: C): Promise<RateLimitResult> {
+    return this.run(ctx, true);
+  }
+
+  /**
+   * Report what {@link RateLimiter.consume} would return for `ctx` right now,
+   * without consuming anything.
+   *
+   * Keys, policies and costs resolve exactly as in `consume`, but the store is
+   * read only: no state is written, no TTL is refreshed and no sliding-window
+   * entry is added. Unlike `consume`, every rule is evaluated (no short-circuit
+   * on the first rejection) so `rules` is complete, e.g. for
+   * `X-RateLimit-*` headers; `failedRule` is the first rule that would reject.
+   * `allowed` is `true` when a `consume(ctx)` would succeed.
+   *
+   * Observers receive `peek.start` / `peek.allow` / `peek.reject` /
+   * `peek.error` (not `consume.*` or `rule.*`), so consume metrics are not skewed.
+   *
+   * @param ctx - Request context passed to rule resolvers.
+   * @throws Error if the store does not declare `supportsPeek`
+   * @throws UndefinedKeyException if a rule's resolved key is empty or undefined
+   * @throws BadArgumentsException if a rule's resolved cost is negative
+   */
+  async peek(ctx: C): Promise<RateLimitResult> {
+    if (typeof this.store.peek !== 'function')
+      throw new Error('peek() is not supported by this store');
+    return this.run(ctx, false);
+  }
+
+  private peekStore(
+    key: string,
+    algorithm: Algorithm<AlgorithmConfig>,
+    now: number,
+    cost: number,
+  ): Promise<RateLimitRuleResult> {
+    return (this.store.peek as NonNullable<Store['peek']>).call(
+      this.store,
+      key,
+      algorithm,
+      now,
+      cost,
+    );
+  }
+
+  private async run(ctx: C, shouldConsume: boolean): Promise<RateLimitResult> {
+    const emit = this.emit.bind(this);
+    const names = ROOT_EVENTS[shouldConsume ? 'consume' : 'peek'];
     const id = randomUUID();
     const consumeStart = Date.now();
     const consumeEvent: ConsumeEvent = {
@@ -257,12 +326,12 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
       timestamp: consumeStart,
       ruleCount: this.rules.length,
     };
-    this.emit('consume.start', { event: consumeEvent });
+    emit(names.start, { event: consumeEvent });
 
     const evaluatedRules: IdentifiedRateLimitRuleResult[] = [];
     const outcome = await this.evaluateGroup(
       { mode: 'all', rules: this.rules },
-      { ctx, id, consumeEvent, consumeStart, evaluatedRules },
+      { ctx, id, consumeEvent, consumeStart, evaluatedRules, shouldConsume },
     );
 
     if (outcome.status === 'rejected') {
@@ -272,7 +341,7 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
         failedRule: outcome.failedRule,
         rules: evaluatedRules,
       };
-      this.emit('consume.reject', {
+      emit(names.reject, {
         event: consumeEvent,
         result: rejected,
         durationMs: Date.now() - consumeStart,
@@ -286,7 +355,7 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
       failedRule: null,
       rules: evaluatedRules,
     };
-    this.emit('consume.allow', {
+    emit(names.allow, {
       event: consumeEvent,
       result: allowed,
       durationMs: Date.now() - consumeStart,
@@ -330,11 +399,15 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
       if (outcome.status === 'allowed') {
         anyAllowed = true;
       } else {
-        if (group.mode === 'all') return outcome;
+        // `consume` stops at the first rejection; `peek` keeps going so the
+        // report covers every rule.
+        if (group.mode === 'all' && run.shouldConsume) return outcome;
         firstRejected ??= outcome.failedRule;
       }
     }
     if (evaluated === 0) return { status: 'skipped' };
+    if (group.mode === 'all' && firstRejected !== undefined)
+      return { status: 'rejected', failedRule: firstRejected };
     if (group.mode === 'any' && !anyAllowed)
       return {
         status: 'rejected',
@@ -348,10 +421,18 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
    */
   private async evaluateLeaf(
     rule: LimitRule<C>,
-    { ctx, id, consumeEvent, consumeStart, evaluatedRules }: EvaluationRun<C>,
+    {
+      ctx,
+      id,
+      consumeEvent,
+      consumeStart,
+      evaluatedRules,
+      shouldConsume,
+    }: EvaluationRun<C>,
   ): Promise<NodeOutcome> {
+    const emit = shouldConsume ? this.emit.bind(this) : noopEmit;
     const ruleStart = Date.now();
-    this.emit('rule.start', {
+    emit('rule.start', {
       event: { id, ruleName: rule.name, timestamp: ruleStart },
     });
 
@@ -366,7 +447,7 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
           ? await rule.when(ctx)
           : (rule.when ?? true);
       if (!when) {
-        this.emit('rule.skip', {
+        emit('rule.skip', {
           event: { id, ruleName: rule.name, timestamp: ruleStart },
           durationMs: Date.now() - ruleStart,
         });
@@ -395,12 +476,9 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
         key,
         rule.bucket ?? rule.name,
       );
-      result = await this.store.consume(
-        keyWithConfig,
-        algorithm,
-        Date.now(),
-        cost,
-      );
+      result = shouldConsume
+        ? await this.store.consume(keyWithConfig, algorithm, Date.now(), cost)
+        : await this.peekStore(keyWithConfig, algorithm, Date.now(), cost);
 
       // A zero-cost rule is an inert probe. Every algorithm adds `cost` to
       // its counter, so a cost of 0 already leaves stored state untouched —
@@ -424,12 +502,12 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
         policy,
       };
       const failedAt = Date.now();
-      this.emit('rule.error', {
+      emit('rule.error', {
         event: ruleEvent,
         failure,
         durationMs: failedAt - ruleStart,
       });
-      this.emit('consume.error', {
+      this.emit(ROOT_EVENTS[shouldConsume ? 'consume' : 'peek'].error, {
         event: consumeEvent,
         failure,
         durationMs: failedAt - consumeStart,
@@ -449,14 +527,14 @@ export class RateLimiter<C = unknown> implements Limiter<C> {
     };
     const ruleDurationMs = Date.now() - ruleStart;
     if (result.allowed) {
-      this.emit('rule.allow', {
+      emit('rule.allow', {
         event: ruleEvent,
         result,
         durationMs: ruleDurationMs,
       });
       return { status: 'allowed' };
     }
-    this.emit('rule.reject', {
+    emit('rule.reject', {
       event: ruleEvent,
       result,
       durationMs: ruleDurationMs,

@@ -86,6 +86,7 @@ export class RedisFixedWindow extends FixedWindow implements RedisCompatible {
     local window = tonumber(ARGV[2])
     local limit = tonumber(ARGV[3])
     local cost = tonumber(ARGV[4])
+    local shouldConsume = ARGV[5] ~= "0"
 
     -- Load state
     local state = redis.call("HMGET", key, "start", "count")
@@ -117,8 +118,10 @@ export class RedisFixedWindow extends FixedWindow implements RedisCompatible {
     count = count + cost
 
     -- Persist state
-    redis.call("HSET", key, "start", windowStart, "count", count)
-    redis.call("PEXPIRE", key, window)
+    if shouldConsume then
+      redis.call("HSET", key, "start", windowStart, "count", count)
+      redis.call("PEXPIRE", key, window)
+    end
 
     local remaining = limit - count
     local reset = windowStart + window
@@ -130,12 +133,19 @@ export class RedisFixedWindow extends FixedWindow implements RedisCompatible {
     return this.config.limit;
   }
 
-  getLuaArgs(now: number, cost: number): string[] {
-    return [
+  getLuaArgs(
+    now: number,
+    cost: number,
+    shouldConsume: boolean = true,
+  ): string[] {
+    const args = [
       now.toString(),
       (this.config.window * 1000).toString(),
       this.config.limit.toString(),
       cost.toString(),
     ];
+    // Omitted for a normal consume (the scripts treat a missing flag as "consume").
+    if (!shouldConsume) args.push('0');
+    return args;
   }
 }

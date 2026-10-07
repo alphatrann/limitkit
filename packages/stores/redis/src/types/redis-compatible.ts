@@ -16,6 +16,9 @@ export interface RedisCompatible {
    * Get arguments to passed into the Lua script as an array of strings
    * @param now Current Unix timestamp in millisecond
    * @param cost The cost needed to perform a request
+   * @param shouldConsume `false` makes the script a pure read (no writes, no
+   *   TTL refresh); it is appended to the script's arguments as `"0"`; when `true` (the default)
+   *   nothing is appended.
    */
-  getLuaArgs(now: number, cost: number): string[];
+  getLuaArgs(now: number, cost: number, shouldConsume?: boolean): string[];
 }

@@ -60,6 +60,12 @@ Fastify is growing quickly and is underserved by existing rate limiting librarie
 
 ## Shipped
 
+### `peek(ctx)` — evaluate rules without consuming
+
+`limiter.peek(ctx)` reports what `consume(ctx)` would return without writing anything, backed by an optional `Store.peek` implemented by the memory, Redis (same Lua scripts, with a no-write flag), and PostgreSQL (plain `SELECT`, no lock) stores. Observers get `peek.*` events. See the [core README](./packages/core/README.md#peeking-without-consuming).
+
+---
+
 ### AI & token tracking (`@limitkit/ai`)
 
 Shipped as [`@limitkit/ai`](./packages/integrations/ai/README.md) rather than as documentation: token-usage extractors for OpenAI, Anthropic, Ollama, and Hugging Face; `monthlyTokenBudget` / `weeklyTokenBudget` / `sessionTokenBudget` presets over `tokenBucket`; and `modelWeightedCost` for model-tiered cost weighting. [`examples/llm-gateway`](./examples/llm-gateway) combines a monthly token quota with per-IP and per-plan burst limits.

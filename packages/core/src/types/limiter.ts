@@ -21,6 +21,17 @@ export interface Limiter<C = unknown> {
   consume(ctx: C): Promise<RateLimitResult>;
 
   /**
+   * Report whether `consume(ctx)` would succeed right now, without consuming.
+   *
+   * Evaluates every rule (no short-circuit) against read-only store state and
+   * returns the same shape as {@link Limiter.consume}. Emits no lifecycle events.
+   *
+   * @param ctx - Context object, as for `consume`.
+   * @throws if the underlying store does not support peeking
+   */
+  peek(ctx: C): Promise<RateLimitResult>;
+
+  /**
    * Register a telemetry collector for `consume()` lifecycle events.
    *
    * @param observer - the collector to notify

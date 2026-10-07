@@ -32,6 +32,18 @@ export interface RateLimitObserver {
    */
   onConsumeError?(payload: LimitEventMap['consume.error']): void;
 
+  /** Fired once at the start of a `peek()` call. */
+  onPeekStart?(payload: LimitEventMap['peek.start']): void;
+
+  /** Fired once when a `peek()` found every rule would allow the request. */
+  onPeekAllow?(payload: LimitEventMap['peek.allow']): void;
+
+  /** Fired once when a `peek()` found a rule would reject the request. */
+  onPeekReject?(payload: LimitEventMap['peek.reject']): void;
+
+  /** Fired once when a `peek()` failed to evaluate; the error still propagates. */
+  onPeekError?(payload: LimitEventMap['peek.error']): void;
+
   /** Fired before each rule is resolved and evaluated. */
   onRuleStart?(payload: LimitEventMap['rule.start']): void;
 

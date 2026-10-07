@@ -68,6 +68,7 @@ export class RedisGCRA extends GCRA implements RedisCompatible {
     local interval = tonumber(ARGV[2])
     local burst = tonumber(ARGV[3])
     local cost = tonumber(ARGV[4])
+    local shouldConsume = ARGV[5] ~= "0"
 
     local state = redis.call("GET", key)
     local tat = tonumber(state)
@@ -87,7 +88,9 @@ export class RedisGCRA extends GCRA implements RedisCompatible {
     local backlog = tat - now
     local remaining = math.max(0, math.floor((burstTolerance - backlog) / interval) + 1)
 
-    redis.call("SET", key, tat, "PX", burst * interval)
+    if shouldConsume then
+      redis.call("SET", key, tat, "PX", burst * interval)
+    end
     return {1, remaining, tat, 0}
   `;
 
@@ -95,12 +98,19 @@ export class RedisGCRA extends GCRA implements RedisCompatible {
     return this.config.burst;
   }
 
-  getLuaArgs(now: number, cost: number): string[] {
-    return [
+  getLuaArgs(
+    now: number,
+    cost: number,
+    shouldConsume: boolean = true,
+  ): string[] {
+    const args = [
       now.toString(),
       (this.config.interval * 1000).toString(),
       this.config.burst.toString(),
       cost.toString(),
     ];
+    // Omitted for a normal consume (the scripts treat a missing flag as "consume").
+    if (!shouldConsume) args.push('0');
+    return args;
   }
 }

@@ -70,6 +70,7 @@ export class RedisLeakyBucket extends LeakyBucket implements RedisCompatible {
     local leakRate = tonumber(ARGV[2])
     local capacity = tonumber(ARGV[3])
     local cost = tonumber(ARGV[4])
+    local shouldConsume = ARGV[5] ~= "0"
 
     local state = redis.call("HMGET", key, "lastLeak", "size")
     local lastLeak = tonumber(state[1])
@@ -93,8 +94,10 @@ export class RedisLeakyBucket extends LeakyBucket implements RedisCompatible {
     queueSize = queueSize + cost
     lastLeak = now
 
-    redis.call("HSET", key, "lastLeak", lastLeak, "size", queueSize)
-    redis.call("PEXPIRE", key, math.ceil((capacity / leakRate) * 1000))
+    if shouldConsume then
+      redis.call("HSET", key, "lastLeak", lastLeak, "size", queueSize)
+      redis.call("PEXPIRE", key, math.ceil((capacity / leakRate) * 1000))
+    end
 
     local reset = now + (queueSize / leakRate) * 1000
     local remaining = math.max(0, math.floor(capacity - queueSize))
@@ -106,12 +109,19 @@ export class RedisLeakyBucket extends LeakyBucket implements RedisCompatible {
     return this.config.capacity;
   }
 
-  getLuaArgs(now: number, cost: number): string[] {
-    return [
+  getLuaArgs(
+    now: number,
+    cost: number,
+    shouldConsume: boolean = true,
+  ): string[] {
+    const args = [
       now.toString(),
       this.config.leakRate.toString(),
       this.config.capacity.toString(),
       cost.toString(),
     ];
+    // Omitted for a normal consume (the scripts treat a missing flag as "consume").
+    if (!shouldConsume) args.push('0');
+    return args;
   }
 }
