@@ -99,4 +99,25 @@ export class InMemoryStore implements Store {
 
     return next;
   }
+
+  /**
+   * Read-only {@link InMemoryStore.consume}: computes the result without storing
+   * the new state, so no key is created and no window advances. Goes through the
+   * same per-key queue so it observes every earlier `consume`.
+   */
+  async peek<TState extends State, TConfig extends AlgorithmConfig>(
+    key: string,
+    algorithm: Algorithm<TConfig> & InMemoryCompatible<TState>,
+    now: number,
+    cost: number = 1,
+  ): Promise<RateLimitRuleResult> {
+    algorithm.validate();
+    const prev = this.queues.get(key) ?? Promise.resolve();
+    return prev.catch(() => {}).then(() => {
+      const state = this.map.get(key) as TState | undefined;
+      return algorithm.peek
+        ? algorithm.peek(state, now, cost)
+        : algorithm.process(state, now, cost).output;
+    });
+  }
 }

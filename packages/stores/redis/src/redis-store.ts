@@ -200,6 +200,30 @@ export class RedisStore implements Store {
     now: number,
     cost: number = 1,
   ): Promise<RateLimitRuleResult> {
+    return this.run(key, algorithm, now, cost, true);
+  }
+
+  /**
+   * Read-only {@link RedisStore.consume}: runs the same Lua script with its
+   * `shouldConsume` argument set to `0`, so nothing is written — no state, no
+   * TTL refresh, no sliding-window member or eviction, no key creation.
+   */
+  async peek<TConfig extends AlgorithmConfig>(
+    key: string,
+    algorithm: Algorithm<TConfig> & RedisCompatible,
+    now: number,
+    cost: number = 1,
+  ): Promise<RateLimitRuleResult> {
+    return this.run(key, algorithm, now, cost, false);
+  }
+
+  private async run<TConfig extends AlgorithmConfig>(
+    key: string,
+    algorithm: Algorithm<TConfig> & RedisCompatible,
+    now: number,
+    cost: number,
+    shouldConsume: boolean,
+  ): Promise<RateLimitRuleResult> {
     // Validate algorithm configuration before executing the script
     algorithm.validate();
 
@@ -216,7 +240,7 @@ export class RedisStore implements Store {
       this.scripts.set(algorithm.luaScript, sha);
     }
 
-    const args = algorithm.getLuaArgs(now, cost);
+    const args = algorithm.getLuaArgs(now, cost, shouldConsume);
 
     try {
       /**

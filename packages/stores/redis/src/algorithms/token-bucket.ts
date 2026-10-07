@@ -68,6 +68,7 @@ export class RedisTokenBucket extends TokenBucket implements RedisCompatible {
     local refillRate = tonumber(ARGV[2])
     local capacity = tonumber(ARGV[3])
     local cost = tonumber(ARGV[4])
+    local shouldConsume = ARGV[5] ~= "0"
 
     local state = redis.call("HMGET", key, "lastRefill", "tokens")
     local lastRefill = tonumber(state[1])
@@ -92,8 +93,10 @@ export class RedisTokenBucket extends TokenBucket implements RedisCompatible {
 
     tokens = tokens - cost
 
-    redis.call("HSET", key, "lastRefill", lastRefill, "tokens", tokens)
-    redis.call("PEXPIRE", key, math.ceil((capacity / refillRate) * 1000))
+    if shouldConsume then
+      redis.call("HSET", key, "lastRefill", lastRefill, "tokens", tokens)
+      redis.call("PEXPIRE", key, math.ceil((capacity / refillRate) * 1000))
+    end
 
     local reset = now + math.ceil((capacity - tokens) / refillRate * 1000)
     return {1, math.floor(tokens), reset, 0}
@@ -103,12 +106,19 @@ export class RedisTokenBucket extends TokenBucket implements RedisCompatible {
     return this.config.capacity;
   }
 
-  getLuaArgs(now: number, cost: number): string[] {
-    return [
+  getLuaArgs(
+    now: number,
+    cost: number,
+    shouldConsume: boolean = true,
+  ): string[] {
+    const args = [
       now.toString(),
       this.config.refillRate.toString(),
       this.config.capacity.toString(),
       cost.toString(),
     ];
+    // Omitted for a normal consume (the scripts treat a missing flag as "consume").
+    if (!shouldConsume) args.push('0');
+    return args;
   }
 }

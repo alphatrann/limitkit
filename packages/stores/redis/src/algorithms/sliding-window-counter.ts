@@ -77,6 +77,7 @@ export class RedisSlidingWindowCounter
     local window = tonumber(ARGV[2]) -- in ms
     local limit = tonumber(ARGV[3])
     local cost = tonumber(ARGV[4])
+    local shouldConsume = ARGV[5] ~= "0"
 
     local state = redis.call("HMGET", key, "start", "count", "prev");
 
@@ -113,8 +114,10 @@ export class RedisSlidingWindowCounter
     end
 
     count = count + cost
-    redis.call("HSET", key, "start", windowStart, "count", count, "prev", prevCount)
-    redis.call("PEXPIRE", key, window * 2)
+    if shouldConsume then
+      redis.call("HSET", key, "start", windowStart, "count", count, "prev", prevCount)
+      redis.call("PEXPIRE", key, window * 2)
+    end
 
     local remaining = math.max(
       0,
@@ -128,12 +131,19 @@ export class RedisSlidingWindowCounter
     return this.config.limit;
   }
 
-  getLuaArgs(now: number, cost: number): string[] {
-    return [
+  getLuaArgs(
+    now: number,
+    cost: number,
+    shouldConsume: boolean = true,
+  ): string[] {
+    const args = [
       now.toString(),
       (this.config.window * 1000).toString(),
       this.config.limit.toString(),
       cost.toString(),
     ];
+    // Omitted for a normal consume (the scripts treat a missing flag as "consume").
+    if (!shouldConsume) args.push('0');
+    return args;
   }
 }

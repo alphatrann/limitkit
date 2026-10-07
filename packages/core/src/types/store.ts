@@ -30,4 +30,19 @@ export interface Store {
     now: number,
     cost?: number,
   ): Promise<RateLimitRuleResult>;
+
+  /**
+   * Read-only counterpart of {@link Store.consume}: returns the result a
+   * `consume` with the same arguments would return right now, but writes nothing
+   * — no state update, no TTL refresh, no sliding-window entry or eviction, and
+   * no key creation.
+   *
+   * Optional: `RateLimiter.peek` throws a clear error for stores without it.
+   */
+  peek?<TConfig extends AlgorithmConfig>(
+    key: string,
+    algorithm: Algorithm<TConfig>,
+    now: number,
+    cost?: number,
+  ): Promise<RateLimitRuleResult>;
 }

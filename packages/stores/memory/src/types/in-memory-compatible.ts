@@ -20,4 +20,16 @@ export interface InMemoryCompatible<TState> {
     state: TState;
     output: RateLimitRuleResult;
   };
+
+  /**
+   * Optional read-only counterpart of {@link InMemoryCompatible.process}: returns
+   * the output `process` would produce, without mutating `state`. Algorithms whose
+   * `process` is already pure (it returns a new state and leaves `state` intact)
+   * can omit this; the store then uses `process(...).output`.
+   */
+  peek?(
+    state: TState | undefined,
+    now: number,
+    cost?: number,
+  ): RateLimitRuleResult;
 }

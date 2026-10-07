@@ -116,6 +116,48 @@ export class PostgresStore implements Store {
     }
   }
 
+  /**
+   * Read-only {@link PostgresStore.consume}: plain `SELECT`s with no
+   * transaction, no `FOR UPDATE`, no anchor upsert, and no write to the child
+   * table or log. A key that has never been consumed is read as fresh state and
+   * is not created.
+   */
+  async peek<TConfig extends AlgorithmConfig>(
+    key: string,
+    algorithm: Algorithm<TConfig> &
+      (PostgresCompatible<any> | PostgresLogCompatible),
+    now: number,
+    cost: number = 1,
+  ): Promise<RateLimitRuleResult> {
+    algorithm.validate();
+
+    const client = await this.pool.connect();
+    try {
+      const anchor = await client.query<{ id: number | string }>(
+        `SELECT id FROM "${this.schema}".rate_limit_state WHERE key = $1`,
+        [key],
+      );
+      const stateId = anchor.rows[0] ? Number(anchor.rows[0].id) : -1;
+
+      if (isPostgresLogCompatible(algorithm)) {
+        const table = `"${this.schema}".${algorithm.logTable}`;
+        return await algorithm.peekLog(client, table, stateId, now, cost);
+      }
+
+      const table = `"${this.schema}".${algorithm.table}`;
+      const existing = await client.query<Record<string, any>>(
+        `SELECT ${algorithm.selectColumns} FROM ${table} WHERE state_id = $1`,
+        [stateId],
+      );
+      const prevState = existing.rows[0]
+        ? algorithm.fromRow(existing.rows[0])
+        : undefined;
+      return algorithm.process(prevState, now, cost).output;
+    } finally {
+      client.release();
+    }
+  }
+
   private async consumeRowState<TState>(
     client: Awaited<ReturnType<PostgresPoolLike['connect']>>,
     stateId: number,

@@ -232,6 +232,27 @@ interface IdentifiedRateLimitRuleResult {
 | `resetAt`     | the Unix timestamp (ms) after which the limit for the rule fully resets |
 | `availableAt` | the Unix timestamp (ms) after which the request is allowed by the rule. |
 
+### Peeking without consuming
+
+`limiter.peek(context)` returns the same `RateLimitResult` as `consume`, but
+reads the stores without drawing anything down: no state is updated, no TTL is
+refreshed, and no sliding-window entry is added. Use it for `X-RateLimit-*`
+headers on requests that should not count, pre-flight checks, and dashboards.
+
+```ts
+const result = await limiter.peek(ctx);
+res.setHeader('X-RateLimit-Remaining', result.rules[0]?.remaining ?? 0);
+```
+
+- `allowed` reports whether `consume(ctx)` would succeed right now.
+- Every rule is evaluated (no short-circuit on the first rejection), so `rules`
+  is complete; `failedRule` is the first rule that would reject.
+- Observers receive `peek.start` / `peek.allow` / `peek.reject` / `peek.error`
+  (`onPeekStart`, …) instead of `consume.*` / `rule.*`, so consume metrics are
+  not skewed.
+- `peek` throws if the store does not implement `Store.peek`. The built-in
+  memory, Redis, and PostgreSQL stores all do.
+
 ---
 
 ## Observability
@@ -239,6 +260,7 @@ interface IdentifiedRateLimitRuleResult {
 `consume()` emits lifecycle events to any registered `RateLimitObserver`: a
 `consume.start` root, then `rule.start` / `rule.allow` / `rule.reject` /
 `rule.error` per rule, then `consume.allow` / `consume.reject` / `consume.error`.
+`peek()` emits only `peek.start` then `peek.allow` / `peek.reject` / `peek.error`.
 Every event carries the shared request `id` (also on `RateLimitResult.id`) and
 terminal events carry `durationMs`.
 

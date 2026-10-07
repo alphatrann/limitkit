@@ -81,6 +81,19 @@ export interface PostgresLogCompatible {
     now: number,
     cost: number,
   ): Promise<RateLimitRuleResult>;
+
+  /**
+   * Read-only counterpart of {@link PostgresLogCompatible.processLog}: no
+   * expiry `DELETE`, no `INSERT`, no lock. `stateId` is `-1` when the key has
+   * no anchor row yet.
+   */
+  peekLog(
+    client: PostgresPoolClientLike,
+    table: string,
+    stateId: number,
+    now: number,
+    cost: number,
+  ): Promise<RateLimitRuleResult>;
 }
 
 export function isPostgresLogCompatible(

@@ -119,4 +119,54 @@ export class InMemorySlidingWindow
     const resetAt = buffer[(head + size - 1) % limit] + windowMs;
     return { state, output: { allowed: true, limit, remaining, resetAt } };
   }
+
+  /**
+   * Read-only {@link InMemorySlidingWindow.process}: counts the unexpired
+   * timestamps without evicting any, adding any, or touching `state`.
+   *
+   * @throws BadArgumentsException if `cost > config.limit`
+   */
+  peek(
+    state: SlidingWindowState | undefined,
+    now: number,
+    cost: number = 1,
+  ): RateLimitRuleResult {
+    const limit = this.config.limit;
+    if (cost > limit)
+      throw new BadArgumentsException(
+        `Cost must never exceed config.limit, (cost=${cost}, config.limit=${limit})`,
+      );
+    const windowMs = this.config.window * 1000;
+
+    let head = state?.head ?? 0;
+    let size = state?.size ?? 0;
+    const buffer = state?.buffer ?? [];
+    while (size > 0) {
+      if (now - buffer[head] < windowMs) break;
+      head = (head + 1) % limit;
+      size--;
+    }
+
+    if (size + cost > limit) {
+      const oldest = buffer[head];
+      const newest = buffer[(head + size - 1) % limit];
+      return {
+        allowed: false,
+        limit,
+        remaining: 0,
+        resetAt: newest + windowMs,
+        availableAt: oldest + windowMs,
+      };
+    }
+
+    // Mirrors what `process` would report after adding `cost` entries at `now`.
+    const after = size + cost;
+    const newest = cost > 0 ? now : buffer[(head + size - 1) % limit];
+    return {
+      allowed: true,
+      limit,
+      remaining: limit - after,
+      resetAt: size + cost === 0 ? now + windowMs : newest + windowMs,
+    };
+  }
 }

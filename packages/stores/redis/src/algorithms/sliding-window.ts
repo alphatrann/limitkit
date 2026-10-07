@@ -84,16 +84,22 @@ export class RedisSlidingWindow
     local window = tonumber(ARGV[2])
     local limit = tonumber(ARGV[3])
     local cost = tonumber(ARGV[4])
+    local shouldConsume = ARGV[5] ~= "0"
 
-    -- remove expired entries
-    redis.call("ZREMRANGEBYSCORE", key, "-inf", now - window)
-
-    local size = redis.call("ZCARD", key)
+    -- entries with score <= now - window are expired; a peek only ignores them
+    local cutoff = now - window
+    local size
+    if shouldConsume then
+      redis.call("ZREMRANGEBYSCORE", key, "-inf", cutoff)
+      size = redis.call("ZCARD", key)
+    else
+      size = redis.call("ZCOUNT", key, "(" .. cutoff, "+inf")
+    end
 
     -- reject
     if size + cost > limit then
-      local oldest = redis.call("ZRANGE", key, 0, 0, "WITHSCORES")
-      local newest = redis.call("ZRANGE", key, -1, -1, "WITHSCORES")
+      local oldest = redis.call("ZRANGEBYSCORE", key, "(" .. cutoff, "+inf", "WITHSCORES", "LIMIT", 0, 1)
+      local newest = redis.call("ZREVRANGEBYSCORE", key, "+inf", "(" .. cutoff, "WITHSCORES", "LIMIT", 0, 1)
 
       if #oldest == 0 or #newest == 0 then
         return {0, limit, now + window, 0}
@@ -107,13 +113,15 @@ export class RedisSlidingWindow
     end
 
     -- allow
-    for i = 1, cost do
-      local member = now .. "-" .. redis.call("INCR", key .. ":counter")
-      redis.call("ZADD", key, now, member)
-    end
+    if shouldConsume then
+      for i = 1, cost do
+        local member = now .. "-" .. redis.call("INCR", key .. ":counter")
+        redis.call("ZADD", key, now, member)
+      end
 
-    redis.call("PEXPIRE", key, window)
-    redis.call("PEXPIRE", key .. ":counter", window)
+      redis.call("PEXPIRE", key, window)
+      redis.call("PEXPIRE", key .. ":counter", window)
+    end
 
     local remaining = limit - (size + cost)
     local reset = now + window
@@ -125,12 +133,19 @@ export class RedisSlidingWindow
     return this.config.limit;
   }
 
-  getLuaArgs(now: number, cost: number): string[] {
-    return [
+  getLuaArgs(
+    now: number,
+    cost: number,
+    shouldConsume: boolean = true,
+  ): string[] {
+    const args = [
       now.toString(),
       (this.config.window * 1000).toString(),
       this.config.limit.toString(),
       cost.toString(),
     ];
+    // Omitted for a normal consume (the scripts treat a missing flag as "consume").
+    if (!shouldConsume) args.push('0');
+    return args;
   }
 }

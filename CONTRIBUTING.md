@@ -267,6 +267,12 @@ export class MyStore implements Store {
   async consume(key, algorithm, now, cost) {
     // store-specific logic
   }
+
+  // Optional. Same result as `consume`, but writes nothing: no state update,
+  // no TTL refresh, no sliding-window entry. Enables `limiter.peek()`.
+  async peek(key, algorithm, now, cost) {
+    // read-only counterpart of consume
+  }
 }
 ```
 

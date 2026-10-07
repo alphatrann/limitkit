@@ -19,6 +19,15 @@ export class MockStore implements Store {
       resetAt: Date.now(),
     });
   }
+
+  async peek<TConfig extends AlgorithmConfig>(
+    key: string,
+    algorithm: Algorithm<TConfig>,
+    now: number,
+    cost?: number,
+  ): Promise<RateLimitRuleResult> {
+    return this.consume(key, algorithm, now, cost);
+  }
 }
 
 export class SpyStore implements Store {
@@ -29,6 +38,8 @@ export class SpyStore implements Store {
     cost: number;
   }> = [];
 
+  peekCalls: SpyStore['calls'] = [];
+
   constructor(private delegate: Store) {}
 
   async consume<TConfig extends AlgorithmConfig>(
@@ -37,7 +48,22 @@ export class SpyStore implements Store {
     now: number,
     cost: number = 1,
   ) {
-    this.calls.push({ key, algorithm: algorithm.config, now, cost });
+    this.calls.push({
+      key,
+      algorithm: algorithm.config,
+      now,
+      cost,
+    });
     return this.delegate.consume(key, algorithm, now, cost);
+  }
+
+  async peek<TConfig extends AlgorithmConfig>(
+    key: string,
+    algorithm: Algorithm<TConfig>,
+    now: number,
+    cost: number = 1,
+  ) {
+    this.peekCalls.push({ key, algorithm: algorithm.config, now, cost });
+    return this.delegate.peek!(key, algorithm, now, cost);
   }
 }

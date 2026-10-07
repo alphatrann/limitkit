@@ -41,14 +41,74 @@ export class PostgresSlidingWindow
         `Cost must never exceed config.limit, (cost=${cost}, config.limit=${this.config.limit})`,
       );
 
-    const limit = this.config.limit;
     const windowMs = this.config.window * 1000;
-    const cutoff = now - windowMs;
 
     await client.query(
       `DELETE FROM ${table} WHERE state_id = $1 AND request_at < $2`,
-      [stateId, cutoff],
+      [stateId, now - windowMs],
     );
+
+    const { result, currentTotal } = await this.evaluate(
+      client,
+      table,
+      stateId,
+      now,
+      cost,
+    );
+    if (!result.allowed) return result;
+
+    // A zero-cost probe must not leave a row behind.
+    if (cost > 0)
+      await client.query(
+        `INSERT INTO ${table} (state_id, request_at, cost) VALUES ($1, $2, $3)`,
+        [stateId, now, cost],
+      );
+
+    return { ...result, remaining: this.config.limit - (currentTotal + cost) };
+  }
+
+  /**
+   * Read-only {@link PostgresSlidingWindow.processLog}: aggregates the rows still
+   * inside the window without deleting expired ones or inserting a new one.
+   * Needs no lock or transaction. `stateId` may be a non-existent id (no anchor
+   * row yet), which simply aggregates to an empty window.
+   */
+  async peekLog(
+    client: PostgresPoolClientLike,
+    table: string,
+    stateId: number,
+    now: number,
+    cost: number = 1,
+  ): Promise<RateLimitRuleResult> {
+    if (cost > this.config.limit)
+      throw new BadArgumentsException(
+        `Cost must never exceed config.limit, (cost=${cost}, config.limit=${this.config.limit})`,
+      );
+    const { result, currentTotal } = await this.evaluate(
+      client,
+      table,
+      stateId,
+      now,
+      cost,
+    );
+    return result.allowed
+      ? { ...result, remaining: this.config.limit - (currentTotal + cost) }
+      : result;
+  }
+
+  /**
+   * Aggregate the unexpired rows (`request_at >= now - window`) and decide
+   * allow/reject. Pure read; shared by `processLog` and `peekLog`.
+   */
+  private async evaluate(
+    client: PostgresPoolClientLike,
+    table: string,
+    stateId: number,
+    now: number,
+    cost: number,
+  ): Promise<{ result: RateLimitRuleResult; currentTotal: number }> {
+    const limit = this.config.limit;
+    const windowMs = this.config.window * 1000;
 
     const agg = await client.query<{
       total: number;
@@ -58,33 +118,34 @@ export class PostgresSlidingWindow
       `SELECT COALESCE(SUM(cost), 0)::float8 AS total,
               MIN(request_at)::float8 AS oldest,
               MAX(request_at)::float8 AS newest
-       FROM ${table} WHERE state_id = $1`,
-      [stateId],
+       FROM ${table} WHERE state_id = $1 AND request_at >= $2`,
+      [stateId, now - windowMs],
     );
 
     const { total, oldest, newest } = agg.rows[0];
     const currentTotal = Number(total);
 
     if (currentTotal + cost > limit) {
-      const resetAt = (newest !== null ? Number(newest) : now) + windowMs;
-      const availableAt = (oldest !== null ? Number(oldest) : now) + windowMs;
       return {
-        allowed: false,
-        limit,
-        remaining: 0,
-        resetAt,
-        availableAt,
+        currentTotal,
+        result: {
+          allowed: false,
+          limit,
+          remaining: 0,
+          resetAt: (newest !== null ? Number(newest) : now) + windowMs,
+          availableAt: (oldest !== null ? Number(oldest) : now) + windowMs,
+        },
       };
     }
 
-    await client.query(
-      `INSERT INTO ${table} (state_id, request_at, cost) VALUES ($1, $2, $3)`,
-      [stateId, now, cost],
-    );
-
-    const remaining = limit - (currentTotal + cost);
-    const resetAt = now + windowMs;
-
-    return { allowed: true, limit, remaining, resetAt };
+    return {
+      currentTotal,
+      result: {
+        allowed: true,
+        limit,
+        remaining: limit - (currentTotal + cost),
+        resetAt: now + windowMs,
+      },
+    };
   }
 }

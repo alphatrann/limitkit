@@ -16,6 +16,10 @@ export type LimitEventName =
   | 'consume.allow'
   | 'consume.reject'
   | 'consume.error'
+  | 'peek.start'
+  | 'peek.allow'
+  | 'peek.reject'
+  | 'peek.error'
   | 'rule.start'
   | 'rule.allow'
   | 'rule.skip'
@@ -127,6 +131,27 @@ export interface LimitEventMap {
     durationMs: number;
   };
   'consume.error': {
+    event: ConsumeEvent;
+    failure: RuleFailure;
+    durationMs: number;
+  };
+  /**
+   * `peek.*` mirror `consume.*` for {@link RateLimiter.peek}. A peek emits only
+   * these four events — no `rule.*` — so rule-level consume metrics are not
+   * skewed by read-only checks.
+   */
+  'peek.start': { event: ConsumeEvent };
+  'peek.allow': {
+    event: ConsumeEvent;
+    result: RateLimitResult;
+    durationMs: number;
+  };
+  'peek.reject': {
+    event: ConsumeEvent;
+    result: RateLimitResult;
+    durationMs: number;
+  };
+  'peek.error': {
     event: ConsumeEvent;
     failure: RuleFailure;
     durationMs: number;
