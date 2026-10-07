@@ -1977,7 +1977,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@limitkit/core@npm:^1.0.2, @limitkit/core@npm:^1.1.0, @limitkit/core@npm:^1.2.0, @limitkit/core@npm:^1.4.0, @limitkit/core@workspace:^, @limitkit/core@workspace:packages/core":
+"@limitkit/core@npm:^1.0.2, @limitkit/core@npm:^1.2.0, @limitkit/core@npm:^1.4.0, @limitkit/core@npm:^1.6.0, @limitkit/core@workspace:^, @limitkit/core@workspace:packages/core":
   version: 0.0.0-use.local
   resolution: "@limitkit/core@workspace:packages/core"
   dependencies:
@@ -2058,7 +2058,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@limitkit/memory@workspace:packages/stores/memory"
   dependencies:
-    "@limitkit/core": "npm:^1.2.0"
+    "@limitkit/core": "npm:^1.6.0"
   languageName: unknown
   linkType: soft
 
@@ -2111,7 +2111,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@limitkit/postgres@workspace:packages/stores/postgres"
   dependencies:
-    "@limitkit/core": "npm:^1.2.0"
+    "@limitkit/core": "npm:^1.6.0"
     "@types/node": "npm:^25.4.0"
     "@types/pg": "npm:^8.11.0"
     pg: "npm:^8.13.0"
@@ -2124,7 +2124,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@limitkit/redis@workspace:packages/stores/redis"
   dependencies:
-    "@limitkit/core": "npm:^1.1.0"
+    "@limitkit/core": "npm:^1.6.0"
     "@types/node": "npm:^25.4.0"
     ioredis: "npm:^5.8.2"
     redis: "npm:^5.11.0"
